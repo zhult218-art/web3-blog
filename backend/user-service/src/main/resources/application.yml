@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: user-service
+  main:
+    allow-bean-definition-overriding: true
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        fail-fast: false
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        file-extension: yaml
+        import-check:
+          enabled: false
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:3306/web3_user?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+server:
+  port: 8081
+jwt:
+  expire: 10080
+  refresh: 43200
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+logging:
+  level:
+    com.web3.user: debug
+
+# ───────── 认证/验证码/OAuth 配置（app.auth 前缀）─────────
+app:
+  auth:
+    captcha-required: true
+    mail-enabled: ${MAIL_ENABLED:false}
+    sms-enabled: ${SMS_ENABLED:false}
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}
+    google:
+      enabled: ${GOOGLE_OAUTH_ENABLED:false}
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+      redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8081/user/oauth/google/callback}
+
+# ───────── Supabase 免密登录（Magic Link）配置 ─────────
+supabase:
+  url: ${SUPABASE_URL:https://nyzpglrmxltsirxmtkjo.supabase.co}
+  publishable-key: ${SUPABASE_PUBLISHABLE_KEY:sb_publishable_yE1D3zBWoWoSZ_xbdyYw2Q_I4sDhAqg}
+  timeout-ms: ${SUPABASE_TIMEOUT_MS:5000}

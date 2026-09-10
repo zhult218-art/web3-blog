@@ -1,0 +1,39 @@
+# Logs
+*.log
+*.log.err
+*.err
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+quant-py-service/.venv/
+quant-py-service/__pycache__/
+
+# Build output
+dist/
+frontend/dist/
+**/target/
+*.jar
+
+# Caches
+.npm-cache/
+.vite-cache/
+node_modules/.vite/
+
+# Editor
+.idea/
+.vscode/
+
+# Environment & secrets
+.env
+*.local
+
+# Runtime data
+frontend/media-service/runtime/
+*.pid
+
+# Test artifacts
+quant-py-service/test_output.txt
+quant-py-service/test_error.txt
+quant-py-service/stderr.log
+quant-py-service/stdout.log

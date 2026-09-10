@@ -1,0 +1,166 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+    web-application-type: reactive
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  application:
+    name: gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        fail-fast: false
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        file-extension: yaml
+        import-check:
+          enabled: false
+    gateway:
+      routes:
+        - id: user
+          uri: http://${USER_SERVICE_HOST:localhost}:8081
+          predicates:
+            - Path=/user/**
+        - id: guild
+          uri: http://${USER_SERVICE_HOST:localhost}:8081
+          predicates:
+            - Path=/guild/**
+        - id: blog
+          uri: http://${BLOG_SERVICE_HOST:localhost}:8082
+          predicates:
+            - Path=/article/**
+        - id: blog-misc
+          uri: http://${BLOG_SERVICE_HOST:localhost}:8082
+          predicates:
+            - Path=/blog/**
+        - id: netease
+          uri: http://${NETEASE_API_HOST:localhost}:3000
+          predicates:
+            - Path=/netease/**
+          filters:
+            - StripPrefix=1
+        - id: forum-post
+          uri: http://${FORUM_SERVICE_HOST:localhost}:8083
+          predicates:
+            - Path=/post/**
+        - id: forum-comment
+          uri: http://${FORUM_SERVICE_HOST:localhost}:8083
+          predicates:
+            - Path=/comment/**
+        - id: shop-product
+          uri: http://${SHOP_SERVICE_HOST:localhost}:8084
+          predicates:
+            - Path=/product/**
+        - id: shop-order
+          uri: http://${SHOP_SERVICE_HOST:localhost}:8084
+          predicates:
+            - Path=/order/**
+        - id: shop-pay
+          uri: http://${SHOP_SERVICE_HOST:localhost}:8084
+          predicates:
+            - Path=/pay/**
+        - id: media-music
+          uri: http://${MEDIA_SERVICE_HOST:localhost}:8085
+          predicates:
+            - Path=/music/**
+        - id: media-book
+          uri: http://${MEDIA_SERVICE_HOST:localhost}:8085
+          predicates:
+            - Path=/book/**
+        - id: media-video
+          uri: http://${MEDIA_SERVICE_HOST:localhost}:8085
+          predicates:
+            - Path=/video/**
+        - id: media-playlist
+          uri: http://${MEDIA_SERVICE_HOST:localhost}:8085
+          predicates:
+            - Path=/playlist/**
+        - id: quant-strategy
+          uri: http://${QUANT_SERVICE_HOST:localhost}:8086
+          predicates:
+            - Path=/strategy/**
+        - id: quant-log
+          uri: http://${QUANT_SERVICE_HOST:localhost}:8086
+          predicates:
+            - Path=/quant/**
+        - id: quant-stock
+          uri: http://${QUANT_SERVICE_HOST:localhost}:8086
+          predicates:
+            - Path=/stock/**
+        - id: tool
+          uri: http://${TOOL_SERVICE_HOST:localhost}:8087
+          predicates:
+            - Path=/script/**
+        - id: tool-site
+          uri: http://${TOOL_SERVICE_HOST:localhost}:8087
+          predicates:
+            - Path=/site/**
+        - id: software
+          uri: http://${SOFTWARE_SERVICE_HOST:localhost}:8088
+          predicates:
+            - Path=/software/**
+        - id: resource
+          uri: http://${RESOURCE_SERVICE_HOST:localhost}:8089
+          predicates:
+            - Path=/resource/**
+        - id: jarvis
+          uri: http://${JARVIS_SERVICE_HOST:localhost}:9001
+          predicates:
+            - Path=/jarvis/**
+        # ============ AI Token 中转站（ai-proxy-service 8093） ============
+        # 注意：必须位于通配 /admin/** 之前，网关按定义顺序匹配
+        - id: ai-proxy-admin
+          uri: http://${AI_PROXY_SERVICE_HOST:localhost}:8093
+          predicates:
+            - Path=/admin/ai/**
+        - id: ai-proxy-openai
+          uri: http://${AI_PROXY_SERVICE_HOST:localhost}:8093
+          predicates:
+            - Path=/v1/**
+        - id: ai-proxy-user
+          uri: http://${AI_PROXY_SERVICE_HOST:localhost}:8093
+          predicates:
+            - Path=/user/ai/**
+        - id: ai-agent
+          uri: http://${AI_PROXY_SERVICE_HOST:localhost}:8093
+          predicates:
+            - Path=/agent/**
+        - id: admin
+          uri: http://${ADMIN_SERVICE_HOST:localhost}:9002
+          predicates:
+            - Path=/admin/**
+        # ============ 第三方 API 代理（工具中心） ============
+        - id: api-j8y
+          uri: https://api.j8y.cn
+          predicates:
+            - Path=/j8y/**
+          filters:
+            - StripPrefix=1
+            - AddRequestParameter=app_key, ak_6086d3c8d256b083dff13942e3a15efb
+        - id: api-showapi
+          uri: https://route.showapi.com
+          predicates:
+            - Path=/showapi/**
+          filters:
+            - StripPrefix=1
+            - AddRequestParameter=appKey, __SET_SHOWAPI_APP_KEY__
+        - id: api-shanhe
+          uri: https://api.shanhe.kim
+          predicates:
+            - Path=/shanhe/**
+          filters:
+            - StripPrefix=1
+  config:
+    import: optional:nacos:${spring.application.name}.yaml
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

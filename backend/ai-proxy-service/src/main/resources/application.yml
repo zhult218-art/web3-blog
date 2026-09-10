@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: ai-proxy-service
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:false}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        file-extension: yaml
+        import-check:
+          enabled: false
+  config:
+    import: optional:nacos:${spring.application.name}.yaml
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:3306/web3_admin?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+
+server:
+  port: 8093
+
+mybatis-plus:
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+
+logging:
+  level:
+    com.web3.aiproxy: info
+
+ai-proxy:
+  # 令牌哈希 salt（务必部署时随机生成并妥善保管）
+  token-secret: ${AI_PROXY_TOKEN_SECRET:change-me-token-salt-please-random}
+  # 渠道上游 Key 的 AES 加密密钥（16/24/32 字符）
+  channel-key-secret: ${AI_PROXY_CHANNEL_KEY_SECRET:change-me-aes-key-16b}
+  # 未配置任何启用渠道时的直连兜底地址（保持老行为）
+  fallback-base-url: ${APP_OPENAI_API_BASE_URL:http://localhost:8000/v1}
+  # 渠道选择策略：weight / random / round-robin
+  strategy: ${AI_PROXY_STRATEGY:weight}
+  # Agent 编排层：用系统令牌调用中转引擎并计费（在后台令牌管理中创建一个 sk- 令牌填这里）
+  agent-system-token: ${AI_PROXY_AGENT_TOKEN:}
+  # Agent 默认模型（被路由规则覆盖前使用）
+  agent-default-model: ${AI_PROXY_AGENT_MODEL:}
+  # Supabase（Agent 工具调用，服务端密钥仅后端持有）
+  supabase-url: ${SUPABASE_URL:https://nyzpglrmxltsirxmtkjo.supabase.co}
+  supabase-service-key: ${SUPABASE_SERVICE_KEY:}

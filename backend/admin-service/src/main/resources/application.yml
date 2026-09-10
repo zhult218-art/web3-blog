@@ -1,0 +1,122 @@
+spring:
+  application:
+    name: admin-service
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        file-extension: yaml
+        import-check:
+          enabled: false
+  config:
+    import: optional:nacos:${spring.application.name}.yaml
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:3306/web3_admin?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: 6379
+
+server:
+  port: 9002
+
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+logging:
+  level:
+    com.web3.admin: debug
+
+app:
+  services:
+    base-dir: ${SERVICE_BASE_DIR:}
+    list:
+      - name: gateway
+        label: 网关
+        port: 8080
+        jar: gateway/target/gateway-1.0.0.jar
+        workDir: gateway
+        core: true
+      - name: user-service
+        label: 用户服务
+        port: 8081
+        jar: user-service/target/user-service-1.0.0.jar
+        workDir: user-service
+        core: true
+      - name: blog-service
+        label: 博客服务
+        port: 8082
+        jar: blog-service/target/blog-service-1.0.0.jar
+        workDir: blog-service
+        core: false
+      - name: forum-service
+        label: 社区服务
+        port: 8083
+        jar: forum-service/target/forum-service-1.0.0.jar
+        workDir: forum-service
+        core: false
+      - name: shop-service
+        label: 商城服务
+        port: 8084
+        jar: shop-service/target/shop-service-1.0.0.jar
+        workDir: shop-service
+        core: false
+      - name: media-service
+        label: 媒体服务
+        port: 8085
+        jar: media-service/target/media-service-1.0.0.jar
+        workDir: media-service
+        core: false
+      - name: quant-service
+        label: 量化服务
+        port: 8086
+        jar: quant-service/target/quant-service-1.0.0.jar
+        workDir: quant-service
+        core: false
+      - name: tool-service
+        label: 工具服务
+        port: 8087
+        jar: tool-service/target/tool-service-1.0.0.jar
+        workDir: tool-service
+        core: false
+      - name: software-service
+        label: 软件服务
+        port: 8088
+        jar: software-service/target/software-service-1.0.0.jar
+        workDir: software-service
+        core: false
+      - name: resource-service
+        label: 资源服务
+        port: 8089
+        jar: resource-service/target/resource-service-1.0.0.jar
+        workDir: resource-service
+        core: false
+      - name: ai-proxy-service
+        label: AI中转站
+        port: 8093
+        jar: ai-proxy-service/target/ai-proxy-service-1.0.0.jar
+        workDir: ai-proxy-service
+        core: false
+      - name: jarvis-service
+        label: Jarvis
+        port: 9001
+        jar: jarvis-service/target/jarvis-service-1.0.0.jar
+        workDir: jarvis-service
+        core: false
+      - name: admin-service
+        label: 管理后台
+        port: 9002
+        jar: admin-service/target/admin-service-1.0.0.jar
+        workDir: admin-service
+        core: true
