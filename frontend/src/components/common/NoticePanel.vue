@@ -6,13 +6,19 @@
       <div class="notice-toast-card glass-panel border-l-0 border-r-0 rounded-l-2xl rounded-r-none px-4 py-3 w-72 cursor-pointer shadow-2xl"
         @click="openPanel">
         <div class="flex items-center gap-2 mb-1.5">
-          <span class="text-base">📢</span>
-          <span class="text-[11px] font-bold tracking-wider text-purple-300 uppercase">公告通知</span>
+          <span class="text-base">{{ alertToast ? '🚨' : '📢' }}</span>
+          <span class="text-[11px] font-bold tracking-wider text-purple-300 uppercase">{{ alertToast ? '行情告警' : '公告通知' }}</span>
+          <span v-if="alertToast" :class="['text-[9px] px-1.5 py-0.5 rounded-full ml-1',
+            alertToast.level === 'critical' ? 'bg-red-500/20 text-red-300 border border-red-400/30' :
+            alertToast.level === 'warning' ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30' :
+            'bg-green-500/20 text-green-300 border border-green-400/30']">
+            {{ alertToast.level === 'critical' ? '严重' : alertToast.level === 'warning' ? '警告' : '提示' }}
+          </span>
           <button class="ml-auto text-gray-500 hover:text-white transition text-xs" @click.stop="hideToast" title="关闭">✕</button>
         </div>
-        <p class="text-xs text-gray-200 line-clamp-2 leading-relaxed">{{ latestNotice?.content }}</p>
+        <p class="text-xs text-gray-200 line-clamp-2 leading-relaxed">{{ alertToast ? alertText(alertToast) : latestNotice?.content }}</p>
         <div class="flex items-center justify-between mt-2">
-          <span class="text-[10px] text-gray-500">{{ formatDate(latestNotice?.createdAt) }}</span>
+          <span class="text-[10px] text-gray-500">{{ formatDate(alertToast?.created_at || latestNotice?.createdAt) }}</span>
           <span class="text-[10px] text-purple-300/80">点击查看全部 ›</span>
         </div>
         <div class="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-purple-500 to-cyan-400 rounded-l-2xl"></div>
@@ -27,7 +33,7 @@
         @click="openPanel">
         <span class="text-lg leading-none">📢</span>
         <span class="text-[11px] font-semibold tracking-[0.2em] text-white" style="writing-mode: vertical-lr;">公告</span>
-        <span v-if="unreadCount" class="notice-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+        <span v-if="noticeBadge !== '0'" class="notice-badge">{{ noticeBadge }}</span>
         <span v-else class="text-[8px] text-gray-400" style="writing-mode: vertical-lr;">查看</span>
       </button>
     </Transition>
@@ -42,29 +48,68 @@
               <span class="text-lg">📢</span>
               <div class="flex-1">
                 <h3 class="text-sm font-bold text-white">公告中心</h3>
-                <p class="text-[10px] text-gray-500 mt-0.5">历史公告 · {{ sortedNotices.length }} 条</p>
+                <p class="text-[10px] text-gray-500 mt-0.5">
+                  {{ activeView === 'notice' ? `历史公告 · ${sortedNotices.length} 条` : `行情同步告警 · ${alerts.length} 条` }}
+                </p>
+              </div>
+              <div class="flex gap-1">
+                <button @click="activeView = 'notice'"
+                  :class="['text-[10px] px-2.5 py-1 rounded-lg transition',
+                    activeView === 'notice' ? 'bg-purple-500/20 text-purple-300 border border-purple-400/30' : 'border border-white/10 text-gray-400 hover:text-white']">
+                  公告{{ unreadCount ? ` (${unreadCount})` : '' }}
+                </button>
+                <button @click="activeView = 'alerts'"
+                  :class="['text-[10px] px-2.5 py-1 rounded-lg transition',
+                    activeView === 'alerts' ? 'bg-pink-500/20 text-pink-300 border border-pink-400/30' : 'border border-white/10 text-gray-400 hover:text-white']">
+                  🚨 行情告警{{ alerts.length ? ` (${alerts.length})` : '' }}
+                </button>
               </div>
               <button @click="panelOpen = false" class="text-gray-500 hover:text-white transition text-sm p-1" title="关闭">✕</button>
             </div>
             <!-- 列表 -->
             <div class="flex-1 overflow-y-auto notice-scroll px-3 py-3 space-y-2.5">
-              <div v-if="sortedNotices.length" v-for="(n, i) in sortedNotices" :key="n.id"
-                class="group rounded-xl border p-3.5 transition cursor-pointer"
-                :class="i === 0
-                  ? 'border-purple-400/25 bg-purple-500/8'
-                  : 'border-white/8 hover:border-white/15 bg-white/[0.02]'"
-                @click="markRead(n)">
-                <div class="flex items-center gap-2 mb-1.5">
-                  <span v-if="i === 0" class="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30">最新</span>
-                  <span v-else-if="isUnread(n)" class="text-[9px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-400/30">新</span>
-                  <span class="text-[10px] text-gray-500 ml-auto">{{ formatDate(n.createdAt) }}</span>
+              <template v-if="activeView === 'notice'">
+                <div v-if="sortedNotices.length" v-for="(n, i) in sortedNotices" :key="n.id"
+                  class="group rounded-xl border p-3.5 transition cursor-pointer"
+                  :class="i === 0
+                    ? 'border-purple-400/25 bg-purple-500/8'
+                    : 'border-white/8 hover:border-white/15 bg-white/[0.02]'"
+                  @click="markRead(n)">
+                  <div class="flex items-center gap-2 mb-1.5">
+                    <span v-if="i === 0" class="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30">最新</span>
+                    <span v-else-if="isUnread(n)" class="text-[9px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-400/30">新</span>
+                    <span class="text-[10px] text-gray-500 ml-auto">{{ formatDate(n.createdAt) }}</span>
+                  </div>
+                  <p class="text-xs text-gray-200 leading-relaxed">{{ n.content }}</p>
                 </div>
-                <p class="text-xs text-gray-200 leading-relaxed">{{ n.content }}</p>
-              </div>
-              <div v-else class="py-16 text-center">
-                <div class="text-4xl mb-3 opacity-15">📢</div>
-                <p class="text-xs text-gray-600">暂无公告</p>
-              </div>
+                <div v-else class="py-16 text-center">
+                  <div class="text-4xl mb-3 opacity-15">📢</div>
+                  <p class="text-xs text-gray-600">暂无公告</p>
+                </div>
+              </template>
+
+              <template v-else>
+                <div v-if="alerts.length" v-for="a in alerts" :key="a.id"
+                  class="group rounded-xl border p-3.5 transition cursor-default"
+                  :class="[alertCls(a), a.id === newestAlertId ? 'ring-1 ring-pink-400/30' : '']">
+                  <div class="flex items-center gap-2 mb-1.5">
+                    <span :class="['text-[9px] px-1.5 py-0.5 rounded-full border',
+                      a.level === 'critical' ? 'bg-red-500/20 text-red-300 border-red-400/30' :
+                      a.level === 'warning' ? 'bg-amber-500/20 text-amber-300 border-amber-400/30' :
+                      'bg-green-500/20 text-green-300 border-green-400/30']">
+                      {{ a.level === 'critical' ? '严重' : a.level === 'warning' ? '警告' : '提示' }}
+                    </span>
+                    <span v-if="a.id === newestAlertId" class="text-[9px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-400/30">新</span>
+                    <span class="text-[10px] text-gray-500 ml-auto">{{ formatDate(a.created_at) }}</span>
+                  </div>
+                  <p class="text-xs text-gray-200 leading-relaxed">{{ alertText(a) }}</p>
+                  <div v-if="a.symbol" class="text-[10px] text-gray-500 mt-1">🚨 {{ a.symbol }}{{ a.name ? ' · ' + a.name : '' }} · {{ a.source || 'quant-py' }}</div>
+                </div>
+                <div v-else class="py-16 text-center">
+                  <div class="text-4xl mb-3 opacity-15">🚨</div>
+                  <p class="text-xs text-gray-600">暂无行情告警</p>
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -84,8 +129,15 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getBlogNotices } from '@/api/blog'
+import { getPyMarketAlerts } from '@/api/quant'
+import { formatMinute } from '@/utils/date'
 
 const notices = ref([])
+const alerts = ref([])
+const activeView = ref('notice')
+const alertToast = ref(null)
+const newestAlertId = ref(null)
+const previousAlertId = ref(null)
 const toastVisible = ref(false)
 const panelOpen = ref(false)
 const READ_KEY = 'web3_notice_read' // 存 { id: latestReadId, list: [已读id] }
@@ -123,6 +175,21 @@ const isUnread = n => !readState().list.includes(String(n.id))
 const isAcked = id => ackSet().has(String(id))
 const unreadCount = computed(() => notices.value.filter(n => isUnread(n)).length)
 const hasNotices = computed(() => notices.value.length > 0)
+// 标签角标：未读公告 + 未解决行情告警
+const noticeBadge = computed(() => {
+  const total = unreadCount.value + alerts.value.length
+  return total > 99 ? '99+' : total
+})
+
+function alertCls(a) {
+  if (a?.level === 'critical') return 'border-red-500/25 bg-red-500/5 hover:border-red-500/40'
+  if (a?.level === 'warning') return 'border-amber-500/25 bg-amber-500/5 hover:border-amber-500/40'
+  return 'border-white/8 bg-white/[0.02] hover:border-white/15'
+}
+function alertText(a) {
+  if (!a) return ''
+  return a.message || `${a.rule_type || '行情'}告警${a.symbol ? ' · ' + a.symbol : ''}${a.name ? ' ' + a.name : ''}${a.source ? ' (' + a.source + ')' : ''}`
+}
 
 function markRead(n) {
   if (!n) return
@@ -144,6 +211,7 @@ function ack(id) {
 // 隐藏吐司（滑回右侧）
 function hideToast() {
   toastVisible.value = false
+  alertToast.value = null
   clearTimeout(toastTimer.value)
 }
 
@@ -178,9 +246,30 @@ function toastIfNeeded() {
   }, 5000)
 }
 
-function formatDate(v) {
-  if (!v) return ''
-  return String(v).replace('T', ' ').slice(0, 16)
+// 日期格式化（统一走 utils/date）
+function formatDate(v) { return formatMinute(v, '') }
+
+async function loadAlerts() {
+  try {
+    const res = await getPyMarketAlerts()
+    const list = Array.isArray(res?.data) ? res.data : []
+    const topId = list[0]?.id ?? null
+    // 出现更新的告警 → 缓弹提示（跳过首次加载）
+    if (alerts.value.length && topId && topId !== previousAlertId.value) {
+      alertToast.value = list[0]
+      toastVisible.value = true
+      clearTimeout(toastTimer.value)
+      toastTimer.value = setTimeout(() => {
+        toastVisible.value = false
+        alertToast.value = null
+      }, 5000)
+    }
+    alerts.value = list
+    newestAlertId.value = topId
+    previousAlertId.value = topId
+  } catch (e) {
+    alertToast.value = null
+  }
 }
 
 async function loadNotices() {
@@ -203,6 +292,7 @@ async function loadNotices() {
 
 onMounted(async () => {
   await loadNotices()
+  await loadAlerts()
   toastIfNeeded()
   console.info(
     '[NoticePanel] loaded:', {
@@ -214,9 +304,9 @@ onMounted(async () => {
       acked: [...ackSet()]
     }
   )
-  // 每 30s 轮询：期间发布的新公告也能即时缓弹
+  // 每 30s 轮询：期间发布的新公告/新告警也能即时缓弹
   pollTimer.value = setInterval(async () => {
-    await loadNotices()
+    await Promise.allSettled([loadNotices(), loadAlerts()])
     toastIfNeeded()
   }, 30000)
   // 回到页面 / 窗口聚焦时，若有未确认的新公告再提示一次

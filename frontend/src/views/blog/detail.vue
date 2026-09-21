@@ -94,6 +94,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getBlogDetail, getBlogRelated, likeBlog, favoriteBlog, checkBlogLike, checkBlogFavorite } from '@/api/blog'
 import { renderMarkdown, extractToc } from '@/utils/markdown'
+import { formatDay } from '@/utils/date'
 import { useReadMark } from '@/composables/useReadMark'
 import PostToc from '@/components/blog/PostToc.vue'
 import CommentPanel from '@/components/blog/CommentPanel.vue'
@@ -119,7 +120,8 @@ const toc = computed(() => extractToc(contentHtml.value))
 const wordCount = computed(() => article.value?.content?.replace(/[#>*`_\-\[\]()!|]/g, '').length || 0)
 const readingMin = computed(() => Math.max(1, Math.round(wordCount.value / 300)))
 
-function formatDate(d) { return d ? String(d).slice(0, 10) : '' }
+// 日期格式化（统一走 utils/date）
+function formatDate(d) { return formatDay(d, '') }
 
 async function fetchDetail(id) {
   try {

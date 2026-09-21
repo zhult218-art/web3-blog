@@ -126,6 +126,13 @@ export const usePlayerStore = defineStore('player', () => {
       errorOnce('该曲目缺少播放地址')
       return
     }
+    // 跨域音频必须显式声明 anonymous：否则一旦接入 Web Audio 分析器会整条静音；
+    // 同源（相对路径）与已确认带 CORS 头的源（如 Audius）才加，避免外部源无 CORS 头时反而播不了
+    if (!/^https?:\/\//i.test(target.url) || target.cors) {
+      el.crossOrigin = 'anonymous'
+    } else {
+      el.crossOrigin = null
+    }
     currentTrack.value = target
     el.src = target.url
     currentTime.value = 0
@@ -152,7 +159,9 @@ export const usePlayerStore = defineStore('player', () => {
     lyricsLoading.value = true
     try {
       const res = await getNeteaseLyric(realNeteaseId)
-      const lrc = res?.data?.lrc?.lyric || res?.data?.lyric || ''
+      // 网关直出网易原始结构 {lrc:{lyric}}；也兼容被信封包裹的 {data:{lrc:{lyric}}}
+      const body = (res?.lrc || res?.lyric !== undefined) ? res : (res?.data || {})
+      const lrc = body?.lrc?.lyric || body?.lyric || ''
       if (seq !== lyricSeq) return
       lyrics.value = lrc ? parseLrc(lrc) : []
     } catch {
@@ -172,11 +181,14 @@ export const usePlayerStore = defineStore('player', () => {
   })
 
   let lastErrorToast = ''
-  // 同一错误提示 3 秒内只弹一次（避免循环触发刷屏）
+  // 同一错误提示 3 秒内只弹一次（避免循环触发刷屏）；经全局 Toast 展示
   function errorOnce(msg) {
     if (lastErrorToast === msg) return
     lastErrorToast = msg
     setTimeout(() => { lastErrorToast = '' }, 3000)
+    import('@/stores/modules/toast').then(({ useToastStore }) => {
+      useToastStore().error(msg)
+    }).catch(() => { /* Toast 不可用时静默 */ })
   }
 
   // 暂停播放
@@ -282,6 +294,11 @@ export const usePlayerStore = defineStore('player', () => {
     if (audio) { audio.removeAttribute('src'); audio.load() }
   }
 
+  // 获取全局唯一 Audio 元素（可视化组件用它创建 MediaElementSource）
+  function getAudioElement() {
+    return ensureAudio()
+  }
+
   // 秒数格式化为 mm:ss
   function formatTime(secs) {
     if (!secs || !isFinite(secs) || secs < 0) return '00:00'
@@ -298,6 +315,6 @@ export const usePlayerStore = defineStore('player', () => {
     play, pause, resume, toggle, setVolume, seek, seekByPercent,
     setMode, addToPlaylist, setPlaylist, togglePlaylist,
     showBar, hideBar, toggleBar,
-    prev, next, stop, formatTime,
+    prev, next, stop, formatTime, getAudioElement,
   }
 })

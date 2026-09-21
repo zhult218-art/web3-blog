@@ -82,7 +82,7 @@
 // 并展示近期上传记录
 // ====================================================
 import { ref, onMounted } from 'vue'
-import { uploadResource, getResourceList } from '@/api/resources'
+import { uploadResource, getResourceList, recordResourceDownload } from '@/api/resources'
 import { useToastStore } from '@/stores/modules/toast'
 import { downloadFile } from '@/utils/download'
 import PageBack from '@/components/PageBack.vue'
@@ -135,6 +135,7 @@ function loadRecent() {
 async function downloadRecent(item) {
   if (!item?.downloadUrl) { toast.warning('暂无下载链接'); return }
   try {
+    await recordResourceDownload(item.id).catch(() => {})
     const direct = await downloadFile(item.downloadUrl, item.title)
     if (direct) toast.success('已开始下载')
   } catch {

@@ -7,6 +7,7 @@
 //                link 站外观看地址（详情/官方），links 可观看平台链接（可选）
 export const VIDEO_TABS = [
   { key: 'online', label: '在线视频', icon: '▶' },
+  { key: 'download', label: '下载', icon: '⬇' },
   { key: 'anime', label: '动漫推荐', icon: '🍙' },
   { key: 'movie', label: '影视剧集', icon: '🎬' },
   { key: 'magnet', label: '磁力资源', icon: '🧲' },

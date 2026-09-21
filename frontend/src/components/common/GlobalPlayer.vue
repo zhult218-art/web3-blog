@@ -94,6 +94,11 @@
           </div>
         </div>
       </div>
+
+      <!-- 底部柱状流动条：全站任何页面都可见，不拦截点击 -->
+      <div class="global-bars" aria-hidden="true">
+        <AudioBars :height="24" :bars="72" />
+      </div>
     </div>
   </Transition>
 </template>
@@ -107,6 +112,7 @@
 // ============================================================
 import { computed, ref, watch } from 'vue'
 import { usePlayerStore } from '@/stores/modules/player'
+import AudioBars from './AudioBars.vue'
 
 const player = usePlayerStore()
 const progressBar = ref(null)
@@ -173,4 +179,14 @@ watch(() => player.currentLyricIndex, (idx) => {
   50% { opacity: 0.85; transform: scale(1.03); }
 }
 .animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }
+
+/* 底部柱状流动条：贴齐底边、两侧渐隐，不拦截点击 */
+.global-bars {
+  pointer-events: none;
+  margin: 2px -16px -10px;
+  padding: 0 16px;
+  opacity: 0.9;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
 </style>

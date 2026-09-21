@@ -31,36 +31,49 @@
           </div>
         </div>
 
-        <!-- Payment Methods -->
+        <!-- 商品选择 + 创建订单 -->
         <div class="glass-panel p-6">
-          <h3 class="text-lg font-semibold text-white flex items-center gap-2"><span>💳</span>支付方式</h3>
+          <h3 class="text-lg font-semibold text-white flex items-center gap-2"><span>🛒</span>选择商品创建订单</h3>
           <div class="holo-bar mt-4 mb-5"></div>
           <div class="space-y-4">
-            <button class="w-full glass-panel-sm p-4 flex items-center justify-between hover:border-blue-400/30 transition group cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" :disabled="paying || !payable" @click="alipay">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-lg">💙</div>
-                <div class="text-left">
-                  <p class="text-sm font-semibold text-white group-hover:text-blue-300 transition">支付宝</p>
-                  <p class="text-[10px] text-gray-500">沙箱环境模拟支付</p>
+            <div v-if="productsLoading" class="text-xs text-gray-500 text-center py-4">加载商品中...</div>
+            <div v-else-if="!products.length" class="text-xs text-gray-500 text-center py-4">暂无商品，请先在后台添加商品</div>
+            <div v-else class="space-y-2 max-h-60 overflow-y-auto">
+              <div v-for="p in products" :key="p.id"
+                @click="selectedProduct = p"
+                :class="['glass-panel-sm p-3 cursor-pointer transition border',
+                  selectedProduct?.id === p.id ? 'border-blue-400/40 bg-blue-500/5' : 'border-transparent hover:border-blue-400/20']">
+                <div class="flex items-center justify-between">
+                  <div class="min-w-0">
+                    <p class="text-sm text-white truncate">{{ p.name }}</p>
+                    <p class="text-[10px] text-gray-500">库存 {{ p.stock ?? p.stockCount ?? '--' }}</p>
+                  </div>
+                  <span class="text-sm font-bold text-web3-accent">¥{{ p.price }}</span>
                 </div>
               </div>
-              <span class="text-gray-600 group-hover:text-blue-400 transition">→</span>
+            </div>
+
+            <div v-if="selectedProduct" class="flex items-center gap-3">
+              <label class="text-xs text-gray-400">数量</label>
+              <input v-model.number="orderQuantity" type="number" min="1" class="web3-input w-20" />
+              <span class="text-sm text-gray-400">合计：</span>
+              <span class="text-lg font-bold text-web3-accent">¥{{ (Number(selectedProduct.price) * orderQuantity).toFixed(2) }}</span>
+            </div>
+
+            <button class="web3-btn w-full py-2.5" :disabled="creatingOrder || !selectedProduct" @click="createOrderFromProduct">
+              {{ creatingOrder ? '创建中...' : '创建订单' }}
             </button>
 
-            <button class="w-full glass-panel-sm p-4 flex items-center justify-between hover:border-green-400/30 transition group cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" :disabled="paying || !payable" @click="wechat">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center text-lg">💚</div>
-                <div class="text-left">
-                  <p class="text-sm font-semibold text-white group-hover:text-green-300 transition">微信支付</p>
-                  <p class="text-[10px] text-gray-500">沙箱环境模拟支付</p>
-                </div>
+            <div v-if="orderId" class="border-t border-gray-700/30 pt-4 space-y-2">
+              <p class="text-xs text-gray-400 text-center">订单已创建，点击下方按钮支付</p>
+              <div class="grid grid-cols-2 gap-2">
+                <button class="web3-btn-sm py-2 bg-blue-500/20 hover:bg-blue-500/30" :disabled="paying || !payable" @click="alipay">💙 支付宝</button>
+                <button class="web3-btn-sm py-2 bg-green-500/20 hover:bg-green-500/30" :disabled="paying || !payable" @click="wechat">💚 微信支付</button>
               </div>
-              <span class="text-gray-600 group-hover:text-green-400 transition">→</span>
-            </button>
-
-            <p v-if="orderInfo && !payable" class="text-xs text-gray-500 text-center">
-              {{ statusLabels[orderInfo.status] || orderInfo.status }}，无需支付
-            </p>
+              <p v-if="orderInfo && !payable" class="text-xs text-gray-500 text-center">
+                {{ statusLabels[orderInfo.status] || orderInfo.status }}，无需支付
+              </p>
+            </div>
             <router-link to="/profile/orders" class="block text-center text-xs text-web3-accent hover:underline mt-2">查看我的订单 →</router-link>
           </div>
         </div>
@@ -83,7 +96,7 @@
 // ====================================================
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getOrderDetail, createAlipay, createWechatPay } from '@/api/shop'
+import { getOrderDetail, createAlipay, createWechatPay, getProductList, createOrder } from '@/api/shop'
 import { useToastStore } from '@/stores/modules/toast'
 import PageBack from '@/components/PageBack.vue'
 
@@ -94,6 +107,11 @@ const orderInfo = ref(null)
 const payResult = ref(null)
 const loading = ref(false)
 const paying = ref(false)
+const products = ref([])
+const productsLoading = ref(false)
+const selectedProduct = ref(null)
+const orderQuantity = ref(1)
+const creatingOrder = ref(false)
 
 const statusLabels = {
   'PENDING': '待支付',
@@ -151,9 +169,62 @@ async function pay(channel) {
 const alipay = () => pay('alipay')
 const wechat = () => pay('wechat')
 
-// 从路由参数直达收银台（?orderId=）
+// 拉取商品列表（右侧面板商品选择使用）
+async function loadProducts() {
+  productsLoading.value = true
+  try {
+    const res = await getProductList({ page: 1, size: 10 })
+    const d = res?.data || res
+    products.value = d?.list || d?.records || d || []
+  } catch {
+    products.value = []
+  } finally {
+    productsLoading.value = false
+  }
+}
+
+// 选择商品后创建订单，成功后自动填入 orderId 并拉取订单详情
+async function createOrderFromProduct() {
+  if (!selectedProduct.value) { toast.warning('请先选择商品'); return }
+  creatingOrder.value = true
+  try {
+    const res = await createOrder({
+      productId: selectedProduct.value.id,
+      quantity: orderQuantity.value
+    })
+    const d = res?.data || res
+    const newId = d?.orderId || d?.id || d?.orderNo
+    if (newId) {
+      toast.success('订单创建成功')
+      orderId.value = String(newId)
+      await loadStatus(newId)
+    } else {
+      toast.error('订单创建失败')
+    }
+  } finally {
+    creatingOrder.value = false
+  }
+}
+
+// 进入收银台：加载商品列表；若携带 orderId 路由参数则直达订单状态
 onMounted(() => {
+  loadProducts()
   const qid = route.query.orderId
   if (qid) loadStatus(qid)
 })
 </script>
+
+<style scoped>
+/* 收银台右侧支付按钮：保持与 web3-btn 一致的玻璃拟态风格 */
+.web3-btn-sm {
+  border-radius: 8px;
+  font-size: 12px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s;
+}
+.web3-btn-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+</style>

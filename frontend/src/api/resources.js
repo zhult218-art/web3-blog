@@ -7,10 +7,13 @@ import request from './request'
 // 分页查询资源列表
 export const getResourceList = params => request.get('/resource/list', { params })
 // 上传资源文件（FormData：file / title / category / description）
-export const uploadResource = formData => request.post('/resource/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+// 注意：不要手动设置 Content-Type，由 axios 自动生成 multipart boundary
+export const uploadResource = formData => request.post('/resource/upload', formData)
 // 生成资源下载链接（返回绝对地址，供 <a href> 直接使用）
 export const downloadResource = filename => `/api/resource/download/${encodeURIComponent(filename)}`
 // 更新资源信息
 export const updateResource = (id, data) => request.put(`/resource/${id}`, data)
 // 删除资源
 export const deleteResource = id => request.delete(`/resource/${id}`)
+// 记录资源下载（下载计数 +1）
+export const recordResourceDownload = id => request.post(`/resource/${id}/download`)

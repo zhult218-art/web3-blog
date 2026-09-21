@@ -7,7 +7,7 @@
         <div class="hud-top">
           <div class="hud-logo">
             <div class="logo-ring"></div>
-            <span class="logo-text">VERSE<span class="logo-accent">NOTE</span></span>
+            <span class="logo-text">AURORA<span class="logo-accent">-朱</span></span>
           </div>
           <div class="hud-status">
             <span class="status-indicator"></span>
@@ -27,7 +27,13 @@
             <div class="terminal-glow"></div>
           </div>
 
-          <p class="hero-subtitle">WEB3 PORTAL v2.0</p>
+          <p class="hero-subtitle">Aurora-星途</p>
+
+          <!-- 问候语：IP 归属地 + 昵称，逐字打出 -->
+          <WelcomeGreeting />
+
+          <!-- 每日一句：打字机效果，哲理/诗句 + 作者 -->
+          <DailyQuote />
 
           <!-- Voice hint -->
           <div class="voice-hint">
@@ -52,30 +58,23 @@
       </div>
     </section>
 
-    <!-- ============ [01] 核心架构与技术矩阵 ============ -->
+    <!-- ============ [01] 核心作品预览（精简 3 件 + 查看全部入口） ============ -->
     <div class="section-seam" aria-hidden="true"></div>
-    <TechMatrix />
+    <HomeShowcaseMini />
 
-    <!-- ============ [02] 核心作品与 Demo 橱窗 ============ -->
-    <div class="section-seam" aria-hidden="true"></div>
-    <ShowcaseGrid />
-
-    <!-- ============ [03] 技术干货与深度文章 ============ -->
+    <!-- ============ [02] 技术文章（精简 3 篇） ============ -->
     <div class="section-seam" aria-hidden="true"></div>
     <ArticleCards />
 
-    <!-- ============ [04] 动效实验室（滚动特效合集） ============ -->
-    <MotionLab />
-
-    <!-- ============ [05] 全站导览地图（同类功能归组，快速定位） ============ -->
+    <!-- ============ [03] 全站快速导航（单行 chip） ============ -->
     <div class="section-seam" aria-hidden="true"></div>
-    <SiteMap />
+    <HomeQuickNav />
 
     <!-- ============ FOOTER 极简双栏 ============ -->
     <footer class="footer">
       <div class="footer-content">
         <div class="footer-left">
-          <span class="footer-logo">VERSE<span class="logo-accent">NOTE</span></span>
+          <span class="footer-logo">AURORA<span class="logo-accent">-朱</span></span>
           <p class="footer-slogan">以代码构建无限可能，让每一个想法都拥有沉浸式表达。</p>
         </div>
         <div class="footer-right">
@@ -91,11 +90,20 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <span>© {{ currentYear }} VERSE NOTE · 无限可能</span>
+        <span>© {{ currentYear }} Aurora-朱 · 无限可能</span>
         <span class="fb-divider">│</span>
         <span class="footer-mails">zhult218@gmail.com · m17357515408@163.com</span>
       </div>
     </footer>
+
+    <!-- 回到顶部按钮 -->
+    <transition name="fade-slide">
+      <button v-show="showBackTop" @click="scrollToTop" class="back-to-top" aria-label="回到顶部">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19V5M5 12l7-7 7 7"/>
+        </svg>
+      </button>
+    </transition>
 
     <!-- 全局背景微光粒子场（滚动后随首屏 3D 一起浮现，形成视觉延续） -->
     <div class="bg-field" ref="bgField">
@@ -118,17 +126,19 @@
 // Three.js 头部模型粒子场景 + 时间刷新 + 滚动视差
 // ====================================================
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import * as THREE from 'three'
-import TechMatrix from '@/components/home/TechMatrix.vue'
-import ShowcaseGrid from '@/components/home/ShowcaseGrid.vue'
+import HomeShowcaseMini from '@/components/home/HomeShowcaseMini.vue'
 import ArticleCards from '@/components/home/ArticleCards.vue'
-import MotionLab from '@/components/home/MotionLab.vue'
-import SiteMap from '@/components/home/SiteMap.vue'
+import HomeQuickNav from '@/components/home/HomeQuickNav.vue'
+import DailyQuote from '@/components/home/DailyQuote.vue'
+import WelcomeGreeting from '@/components/home/WelcomeGreeting.vue'
 
 const heroSection = ref(null)
 const heroCanvas = ref(null)
 const bgField = ref(null)
 const currentTime = ref('')
+const showBackTop = ref(false)
 
 let scene, camera, renderer, clock
 let headGroup, particles, rings = []
@@ -161,7 +171,10 @@ function initThreeScene() {
   camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100)
   camera.position.set(0, 0, 4.5)
 
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true })
+  // preserveDrawingBuffer: true —— 修复路由跳转瞬间星球星区闪现"白色盒子"：
+  // 默认 false 时 Chromium 在祖先 opacity 过渡把画布提升为合成层的第 1-2 帧
+  // 会因纹理未就绪而渲染成白块；保持绘图缓冲可让合成器始终拿到有效像素
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, preserveDrawingBuffer: true })
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
   renderer.setSize(w, h)
   renderer.setClearColor(0x000000, 0)
@@ -386,6 +399,16 @@ function pointStyle(i) {
   }
 }
 
+// 滚动监听：控制"回到顶部"按钮的显隐
+function handleScroll() {
+  showBackTop.value = window.scrollY > 400
+}
+
+// 平滑滚动回顶部
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 // 挂载时启动时间刷新、初始化 Three.js 场景并监听窗口缩放
 onMounted(() => {
   updateTime()
@@ -393,6 +416,7 @@ onMounted(() => {
 
   initThreeScene()
   window.addEventListener('resize', onResize)
+  window.addEventListener('scroll', handleScroll, { passive: true })
 })
 
 // 卸载时清理定时器、动画帧、渲染器与场景资源
@@ -400,12 +424,23 @@ onBeforeUnmount(() => {
   if (timeInterval) clearInterval(timeInterval)
   if (raf) cancelAnimationFrame(raf)
   window.removeEventListener('resize', onResize)
+  window.removeEventListener('scroll', handleScroll)
   if (renderer) {
     renderer.dispose()
     renderer.forceContextLoss()
   }
   if (scene) scene.clear()
 })
+
+// 路由离开瞬间（早于过渡类名）：先停渲染并同步移出渲染树，
+// 从根本上杜绝 WebGL 画布在过渡合成阶段的白框闪现
+onBeforeRouteLeave(() => {
+  if (raf) cancelAnimationFrame(raf)
+  raf = 0
+  const c = heroCanvas.value
+  if (c) c.style.display = 'none'
+})
+
 </script>
 
 <style scoped>
@@ -540,6 +575,10 @@ onBeforeUnmount(() => {
   height: 320px;
   margin: 0 auto 0.75rem;
   animation: fadeInUp 1s ease-out;
+  /* 深色基底：极端情况下合成层纹理未就绪时露出的是暗底而非白框，
+     同时为粒子星球增加纵深对比 */
+  background: radial-gradient(circle at 50% 45%, rgba(10, 12, 30, 0.55), rgba(5, 5, 16, 0.22) 72%);
+  border-radius: 50%;
 }
 
 .terminal-glow {
@@ -1057,5 +1096,40 @@ onBeforeUnmount(() => {
   .footer-bottom {
     justify-content: center;
   }
+}
+
+/* ============================================================
+   BACK TO TOP: 回到顶部按钮
+   ============================================================ */
+.back-to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 80px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(34,211,238,0.2), rgba(34,211,238,0.05));
+  border: 1px solid rgba(34,211,238,0.3);
+  color: #67e8f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(34,211,238,0.15);
+}
+.back-to-top:hover {
+  background: linear-gradient(135deg, rgba(34,211,238,0.35), rgba(34,211,238,0.1));
+  transform: translateY(-2px);
+  box-shadow: 0 6px 28px rgba(34,211,238,0.3);
+}
+.fade-slide-enter-active, .fade-slide-leave-active {
+  transition: all 0.3s ease;
+}
+.fade-slide-enter-from, .fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>

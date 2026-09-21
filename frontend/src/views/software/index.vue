@@ -6,11 +6,11 @@
 
       <div class="flex items-center justify-between mb-6">
         <div class="flex gap-2 flex-wrap">
-          <button v-for="cat in ['全部','开发工具','设计工具','系统工具','效率提升','安全工具','数据库','编辑器']" :key="cat"
+          <button v-for="cat in catOptions" :key="cat"
             @click="selectedCat = cat; page=1; fetch()"
             :class="['px-3 py-1.5 rounded-full text-xs transition', selectedCat === cat ? 'bg-purple-500/30 text-purple-200 border border-purple-400/30' : 'border border-white/10 text-gray-400 hover:text-white']">{{ cat }}</button>
         </div>
-        <button class="web3-btn text-xs !px-4 !py-2" @click="openForm">+ 上传软件</button>
+        <button v-if="isAdmin" class="web3-btn text-xs !px-4 !py-2" @click="openForm">+ 上传软件</button>
       </div>
 
       <div v-if="list.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -18,7 +18,11 @@
           class="glass-panel p-5 group cursor-pointer hover:border-purple-400/30 transition-all duration-300 hover:-translate-y-1">
           <div class="flex items-start gap-4">
             <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-              {{ (item.name || '?')[0]?.toUpperCase() }}
+              <!-- 命中品牌词典则展示官方图标：主源(品牌色) 404 → 旧版源(单色反白) → 名称首字母 -->
+              <img v-if="iconSrc(item)" :src="iconSrc(item)" :alt="item.name"
+                :style="iconStage(item.id) === 1 ? 'filter:invert(1)' : ''"
+                class="w-8 h-8 object-contain" @error="onIconError(item)" />
+              <span v-else>{{ (item.name || '?')[0]?.toUpperCase() }}</span>
             </div>
             <div class="flex-1 min-w-0">
               <h3 class="font-semibold text-white text-sm group-hover:text-cyan-300 transition">{{ item.name }}</h3>
@@ -40,14 +44,20 @@
             <button class="web3-btn-outline text-xs !px-4 !py-1.5" @click.stop="showDetail(item)">
               详情
             </button>
-            <div class="ml-auto flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <div v-if="isAdmin" class="ml-auto flex gap-1 opacity-0 group-hover:opacity-100 transition">
               <button class="text-[11px] text-cyan-400" @click.stop="editItem(item)">编辑</button>
               <button class="text-[11px] text-red-400" @click.stop="deleteItem(item)">删除</button>
             </div>
           </div>
         </div>
       </div>
-      <div v-else class="py-10"><Loading /></div>
+      <div v-else-if="!loaded" class="py-10"><Loading /></div>
+      <div v-else class="py-16 text-center">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0e0e26] border border-white/[0.06] mb-4">
+          <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 009.586 13H7"/></svg>
+        </div>
+        <p class="text-sm text-gray-500">暂无软件</p>
+      </div>
 
       <div class="mt-6" v-if="total > 0">
         <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="fetch" />
@@ -67,11 +77,10 @@
             </div>
             <div>
               <label class="text-xs text-gray-400 mb-1 block">分类</label>
-              <select v-model="formData.category" class="web3-input text-sm">
-                <option value="">选择分类</option>
-                <option>开发工具</option><option>设计工具</option><option>系统工具</option><option>效率提升</option>
-                <option>安全工具</option><option>数据库</option><option>编辑器</option>
-              </select>
+              <input v-model="formData.category" class="web3-input text-sm" list="software-cat-options" placeholder="输入或选择分类" />
+              <datalist id="software-cat-options">
+                <option v-for="c in catOptions.slice(1)" :key="c" :value="c" />
+              </datalist>
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -122,26 +131,44 @@
 // 软件中心页：软件列表 + 分类筛选 + 详情弹窗 + 下载，
 // 支持管理员增删改软件信息
 // ====================================================
-import { ref, reactive, onMounted } from 'vue'
-import { getSoftwareList, createSoftware, updateSoftware, deleteSoftware } from '@/api/software'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { getSoftwareList, createSoftware, updateSoftware, deleteSoftware, recordSoftwareDownload } from '@/api/software'
 import { useToastStore } from '@/stores/modules/toast'
+import { useAuthStore } from '@/stores/modules/auth'
 import { downloadFile } from '@/utils/download'
+import { resolveBrandIcon, resolveBrandIconLegacy } from '@/utils/brandIcons'
 import Pagination from '@/components/common/Pagination.vue'
 import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 
-const list = ref([]); const page = ref(1); const size = ref(9); const total = ref(0)
+const list = ref([]); const page = ref(1); const size = ref(9); const total = ref(0); const loaded = ref(false)
 const selectedCat = ref('全部')
+// 分类 Tab 数据驱动：从全量软件提取去重，避免写死分类与实际数据不匹配
+const catOptions = ref(['全部'])
 const showModal = ref(false); const detailItem = ref(null)
 const showForm = ref(false); const editingItem = ref(null); const submitting = ref(false)
 const formData = reactive({ name: '', version: 'v1.0.0', category: '', os: '', size: 0, description: '', downloadUrl: '' })
 const toast = useToastStore()
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
+// 品牌图标两级降级：0=主源(simpleicons 品牌色) 1=旧版源(jsdelivr 单色) 2=首字母回退
+const iconStages = ref(new Map())
+function iconStage(id) { return iconStages.value.get(id) || 0 }
+function iconSrc(item) {
+  const st = iconStage(item?.id)
+  if (st === 0) return resolveBrandIcon(item?.name)
+  if (st === 1) return resolveBrandIconLegacy(item?.name)
+  return ''
+}
+function onIconError(item) { iconStages.value.set(item.id, iconStage(item.id) + 1) }
 
-// 下载软件：浏览器直接下载（blob 优先，跨域回退直链）
+// 下载软件：先调用后端计数接口，再触发浏览器下载
 async function download(item) {
   if (!item?.downloadUrl) { toast.warning('暂无下载链接'); return }
   try {
+    await recordSoftwareDownload(item.id).catch(() => {})
+    item.downloadCount = (item.downloadCount || 0) + 1
     const direct = await downloadFile(item.downloadUrl, item.name)
     if (direct) toast.success('已开始下载')
   } catch {
@@ -192,8 +219,17 @@ async function deleteItem(item) {
 function fetch() {
   const params = { page: page.value, size: size.value }
   if (selectedCat.value !== '全部') params.category = selectedCat.value
-  getSoftwareList(params).then(res => { const d = res.data || {}; list.value = d.records || []; total.value = d.total || 0 })
+  getSoftwareList(params).then(res => { const d = res.data || {}; list.value = d.records || []; total.value = d.total || 0 }).finally(() => { loaded.value = true })
 }
 
-onMounted(fetch)
+// 从全量软件提取分类去重，驱动筛选 Tab 与上传表单的 datalist
+async function loadCats() {
+  try {
+    const res = await getSoftwareList({ page: 1, size: 500 })
+    const cats = [...new Set((res.data?.records || []).map(i => i.category).filter(Boolean))]
+    if (cats.length) catOptions.value = ['全部', ...cats]
+  } catch { /* 分类提取失败时保留默认'全部' */ }
+}
+
+onMounted(() => { fetch(); loadCats() })
 </script>

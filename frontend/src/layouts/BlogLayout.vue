@@ -5,13 +5,13 @@
     <Web3Nav />
     <ReadingProgress />
     <main class="relative z-10">
-      <div class="mx-auto max-w-[1100px] px-4 py-8 grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6 items-start">
+      <div class="mx-auto max-w-[1400px] px-4 md:px-6 py-8 grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-6 items-start">
         <!-- 主内容 -->
         <main class="min-w-0">
           <router-view v-slot="{ Component }">
             <Suspense :timeout="0">
               <transition name="page" mode="out-in">
-                <component :is="Component" />
+                <component :is="Component" v-if="Component" />
               </transition>
               <template #fallback>
                 <div class="flex items-center justify-center min-h-[50vh]">

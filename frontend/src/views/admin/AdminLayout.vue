@@ -2,9 +2,9 @@
   <div class="admin-shell min-h-screen">
     <aside class="admin-side">
       <router-link to="/" class="admin-logo">
-        <span class="logo-badge">W</span>
+        <span class="logo-badge">A</span>
         <div>
-          <div class="logo-title">VERSE<span class="logo-accent">NOTE</span></div>
+          <div class="logo-title">AURORA<span class="logo-accent">-朱</span></div>
           <div class="logo-sub matrix-text">ADMIN CONTROL</div>
         </div>
       </router-link>
@@ -65,6 +65,7 @@ const menus = [
   { path: '/admin/media', label: '媒体管理', icon: '🎬' },
   { path: '/admin/quant', label: '量化管理', icon: '📊' },
   { path: '/admin/traffic', label: '访问统计', icon: '📡' },
+  { path: '/admin/chat', label: '群聊审批', icon: '💬' },
   { path: '/admin/blog-links', label: '友链管理', icon: '🤝' },
   { path: '/admin/blog-notice', label: '公告管理', icon: '📢' },
   { path: '/admin/blog-settings', label: '博客配置', icon: '🧩' },
@@ -78,7 +79,7 @@ const menus = [
 const crumbMap = {
   '/admin': '仪表盘', '/admin/users': '用户管理', '/admin/blogs': '文章管理',
   '/admin/orders': '订单管理', '/admin/products': '商品管理', '/admin/media': '媒体管理', '/admin/quant': '量化管理',
-  '/admin/traffic': '访问统计', '/admin/settings': '系统设置',
+  '/admin/traffic': '访问统计', '/admin/chat': '群聊审批', '/admin/settings': '系统设置',
   '/admin/blog-links': '友链管理', '/admin/blog-notice': '公告管理', '/admin/blog-settings': '博客配置',
   '/admin/site-share': '分享网站管理', '/admin/services': '服务管理'
 }

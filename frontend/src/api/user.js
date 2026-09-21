@@ -31,6 +31,8 @@ export const phoneLogin = (data) => request.post('/user/phone/login', data)
 // ───────── Google OAuth ─────────
 // 获取 Google 授权 URL
 export const getGoogleUrl = () => request.get('/user/oauth/google/url')
+// Google dev mock 登录（仅 GOOGLE_OAUTH_ENABLED=false 时可用，生产启用后接口返回 403）
+export const googleDevLogin = data => request.post('/user/oauth/google/dev-login', data)
 
 // ───────── Supabase 免密登录（Magic Link）───
 // 用 Supabase 访问令牌（后端经 JWKS 验签识别邮箱）换取本应用 JWT

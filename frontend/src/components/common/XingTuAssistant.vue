@@ -1,5 +1,5 @@
 <template>
-  <div class="xingtu-container" :style="containerStyle" ref="containerRef">
+  <div class="xingtu-container" v-show="!orbHidden" :style="containerStyle" ref="containerRef">
     <!-- Panel（absolute 挂在球上方，不参与布局、不干扰拖动） -->
     <div class="xingtu-panel" :class="{ open: isOpen }">
       <div class="panel-header">
@@ -22,7 +22,7 @@
             <span class="status-label">{{ statusText }}</span>
           </div>
           <div class="status-item">
-            <span class="wake-hint">唤醒："星途星途" 或 "星途"</span>
+            <span class="wake-hint">唤醒："星图星图" / "星途星途"</span>
           </div>
         </div>
 
@@ -40,7 +40,10 @@
           <div v-for="(m, i) in messages" :key="i" class="msg" :class="m.role">
             <div class="msg-avatar">{{ m.role === 'user' ? '👤' : '◈' }}</div>
             <div class="msg-content">
-              <div class="msg-role">{{ m.role === 'user' ? '你' : '星途' }}</div>
+              <div class="msg-role">
+                {{ m.role === 'user' ? '你' : '星途' }}
+                <button v-if="m.role !== 'user'" class="msg-save-btn" title="存入知识库" @click="openSaveToKB(m)">🧠</button>
+              </div>
               <div class="msg-text">{{ m.text }}</div>
             </div>
           </div>
@@ -93,13 +96,36 @@
           </select>
         </div>
       </div>
+
+      <!-- 存入知识库弹窗 -->
+      <Modal v-model="showKbModal" title="🧠 存入知识库">
+        <div class="space-y-3">
+          <p v-if="!kbOwner" class="text-xs text-amber-300/80">
+            ⚠️ 尚未登录知识库站主。保存需要在「知识库」页面用 Supabase 账号登录后才能写入。
+          </p>
+          <input v-model="kbForm.title" class="web3-input text-sm" placeholder="知识标题 *" />
+          <textarea v-model="kbForm.content" rows="8" class="web3-input text-sm w-full font-mono resize-y"
+                    placeholder="Markdown 内容"></textarea>
+          <select v-model="kbForm.category" class="web3-input text-sm">
+            <option v-for="c in KB_TAXONOMY" :key="c.key" :value="c.key">{{ c.icon }} {{ c.key }}</option>
+          </select>
+          <input v-model="kbForm.tags" class="web3-input text-sm" placeholder="标签，逗号分隔" />
+          <p v-if="kbError" class="text-xs text-red-400">{{ kbError }}</p>
+          <div class="flex justify-end gap-2">
+            <button class="web3-btn-outline text-xs !px-4 !py-2" @click="showKbModal = false">取消</button>
+            <button class="web3-btn text-xs !px-4 !py-2" :disabled="kbBusy" @click="saveToKB">
+              {{ kbBusy ? '保存中…' : '💾 保存到知识库' }}
+            </button>
+          </div>
+        </div>
+      </Modal>
   </div>
 
   <!-- Floating Orb Button (可拖动) -->
   <button
     ref="orbBtn"
     class="xingtu-orb"
-    :class="{ 'orb-speaking': isSpeaking, 'orb-listening': isListening, 'orb-dragging': dragging }"
+    :class="{ 'orb-speaking': isSpeaking, 'orb-listening': isListening, 'orb-dragging': dragging, 'orb-guide-active': guideVisible }"
     @pointerdown="onOrbPointerDown"
     @pointermove="onOrbPointerMove"
     @pointercancel="finishDrag"
@@ -113,6 +139,20 @@
       <span></span><span></span><span></span><span></span>
     </div>
   </button>
+
+  <!-- 页面引导小框（导航栏页面跳转时顶部弹出，与右下角星途球联动） -->
+  <transition name="guide-pop">
+    <div v-if="guideVisible" class="page-guide" :class="{ 'guide-typing': guideTyping }" @click="dismissGuide">
+      <div class="guide-orb">◈</div>
+      <div class="guide-body">
+        <div class="guide-title">{{ guideTitle }}</div>
+        <div class="guide-text">{{ guideTyped }}<span v-if="guideTyping" class="guide-caret"></span></div>
+      </div>
+      <button class="guide-close" @click.stop="dismissGuide">✕</button>
+      <!-- 联动连线：从引导框指向右下角星途球 -->
+      <div class="guide-link-line"></div>
+    </div>
+  </transition>
 </div>
 </template>
 
@@ -122,8 +162,8 @@
 // 语音输出优先 Edge 神经网络音色（晓晓/云希），失败回退浏览器 speechSynthesis
 // 指令由 jarvis-service 后端识别；后端不可用时本地降级
 // ============================================================
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { recognizeVoice, createVoiceSession } from '@/api/jarvis'
 import { searchNetease, getNeteaseSongUrl } from '@/api/music'
 import { usePlayerStore } from '@/stores/modules/player'
@@ -133,8 +173,12 @@ import {
 import { speakEdge, stopEdgeSpeech, EDGE_VOICES, isEdgeTtsSupported } from '@/api/edgeTts'
 import { startWhisperRecord, whisperTranscribe } from '@/composables/useWhisperStt'
 import { agentChatStream, consumeAgentStream } from '@/api/agent'
+import { createEntry, getOwnerUser } from '@/api/knowledge'
+import { KB_TAXONOMY } from '@/data/knowledgeTaxonomy'
+import Modal from '@/components/common/Modal.vue'
 
 const router = useRouter()
+const route = useRoute()
 const player = usePlayerStore()
 const isOpen = ref(false)
 const isListening = ref(false)
@@ -157,6 +201,73 @@ let voskOk = false
 const voices = EDGE_VOICES
 const voiceURI = ref('zh-CN-XiaoxiaoNeural')
 let selectedVoiceURI = 'zh-CN-XiaoxiaoNeural'
+
+// 全屏固定页（群聊）内隐藏悬浮球：避免遮挡页面自身的发送等操作按钮
+const orbHidden = computed(() => route.path === '/community/chat')
+
+// ===== 页面引导小框（导航栏页面跳转时顶部弹出）=====
+const GUIDE_PAGES = {
+  '/':         { title: '主城广场', text: '这里是极光世界的中心枢纽，汇聚最新动态、精选内容与快捷入口，随时开启你的冒险。' },
+  '/blog':     { title: '冒险日志', text: '记录技术探索与生活随笔，每一篇都是一段冒险的足迹，欢迎翻阅。' },
+  '/community':{ title: '冒险者酒馆', text: '与来自各地的冒险者交流心得、分享发现、结交同伴，畅所欲言。' },
+  '/shop':     { title: '魔法杂货铺', text: '精选数字商品与创意周边，用魔法币兑换你心仪的宝物。' },
+  '/media':    { title: '幻镜水晶', text: '书影音的收藏夹，记录触动心灵的文字、旋律与画面。' },
+}
+const guideVisible = ref(false)
+const guideTitle = ref('')
+const guideText = ref('')
+const guideTyped = ref('')
+const guideTyping = ref(false)
+let guideTimer = null
+let guideTypeTimer = null
+
+function startGuideTypewriter() {
+  guideTyped.value = ''
+  guideTyping.value = true
+  let i = 0
+  const full = guideText.value
+  if (guideTypeTimer) clearInterval(guideTypeTimer)
+  guideTypeTimer = setInterval(() => {
+    if (i < full.length) {
+      guideTyped.value = full.slice(0, i + 1)
+      i++
+    } else {
+      clearInterval(guideTypeTimer)
+      guideTypeTimer = null
+      guideTyping.value = false
+    }
+  }, 38)
+}
+
+function showGuide(path) {
+  const info = GUIDE_PAGES[path]
+  if (!info) return
+  guideTitle.value = info.title
+  guideText.value = info.text
+  guideVisible.value = true
+  // 下一帧启动打字机（等过渡动画）
+  nextTick(() => startGuideTypewriter())
+  // 8 秒后自动消失
+  if (guideTimer) clearTimeout(guideTimer)
+  guideTimer = setTimeout(() => dismissGuide(), 9000)
+}
+
+function dismissGuide() {
+  guideVisible.value = false
+  guideTyping.value = false
+  if (guideTypeTimer) { clearInterval(guideTypeTimer); guideTypeTimer = null }
+  if (guideTimer) { clearTimeout(guideTimer); guideTimer = null }
+}
+
+// 监听路由变化：仅主导航栏页面触发引导
+watch(() => route.path, (newPath) => {
+  // 只在 5 个主导航页面触发
+  if (GUIDE_PAGES[newPath]) {
+    showGuide(newPath)
+  } else {
+    dismissGuide()
+  }
+})
 
 // ---- whisper 高精度语音（按住说话：录音 → 上传本地 faster-whisper → 转写）----
 const wBusy = ref(false)
@@ -323,6 +434,62 @@ function scrollMsgs() {
 }
 function clearMsgs() { messages.value = [] }
 
+// ---- 把 AI 回复一键存入知识库 ----
+const showKbModal = ref(false)
+const kbBusy = ref(false)
+const kbError = ref('')
+const kbOwner = ref(false)
+const kbForm = ref({ title: '', content: '', category: '软件工程', tags: '' })
+
+async function openSaveToKB(m) {
+  kbError.value = ''
+  const { data } = await getOwnerUser()
+  kbOwner.value = !!data?.user
+  const text = String(m.text || '').trim()
+  // 自动取第一句作为标题
+  const firstLine = text.split(/[。\n]/).map(s => s.trim()).find(Boolean) || ''
+  kbForm.value = {
+    title: firstLine.slice(0, 40) || '来自星途助手的知识',
+    content: text,
+    category: '软件工程',
+    tags: '',
+  }
+  showKbModal.value = true
+}
+
+async function saveToKB() {
+  if (!kbForm.value.title.trim()) { kbError.value = '标题必填'; return }
+  kbBusy.value = true
+  kbError.value = ''
+  try {
+    await createEntry({
+      title: kbForm.value.title,
+      content: kbForm.value.content,
+      category: kbForm.value.category,
+      tags: kbForm.value.tags,
+      summary: kbForm.value.content.slice(0, 100),
+      stage: 'seedling',
+      published: true,
+    })
+    showKbModal.value = false
+    // 简单的成功提示（不依赖 toast store，用浏览器通知兜底）
+    try {
+      const { useToastStore } = await import('@/stores/modules/toast')
+      useToastStore().success('已存入知识库 🌱')
+    } catch {
+      alert('已存入知识库')
+    }
+  } catch (e) {
+    if (String(e.message || '').includes('permission') || String(e.message || '').includes('policy')) {
+      kbError.value = '无写入权限：请到 /knowledge 页面用 Supabase 账号登录站主'
+    } else {
+      kbError.value = e.message || '保存失败'
+    }
+  } finally {
+    kbBusy.value = false
+  }
+}
+
 // ---- TTS: 说话（Edge 神经网络音色优先，浏览器语音兜底）----
 // Edge 音色质量高但走公网；失败/超时自动回退本地 speechSynthesis，保证必能发声
 function localSpeech(text) {
@@ -380,19 +547,35 @@ function testSpeak() {
 }
 
 // ---- 本地降级：命令路由（未登录/后端不可用时） ----
+// 覆盖全站所有路由页面，喊"打开XX"即可跳转
 const LOCAL_CMDS = [
   { match: ['首页', '主页'], action: '/', reply: '正在回到首页' },
-  { match: ['社区', '文章'], action: '/community', reply: '正在打开技术社区' },
+  { match: ['社区', '论坛', '文章'], action: '/community', reply: '正在打开技术社区' },
+  { match: ['博客', '日志'], action: '/blog', reply: '正在打开博客' },
   { match: ['商城', '购物', '商店'], action: '/shop', reply: '正在打开在线商城' },
-  { match: ['媒体', '视频'], action: '/media', reply: '正在打开多媒体中心' },
-  { match: ['音乐'], action: '/music', reply: '正在打开音乐馆' },
-  { match: ['量化', '交易', '股票', '行情'], action: '/quant', reply: '正在打开金融量化平台' },
+  { match: ['购物车'], action: '/shop/cart', reply: '正在打开购物车' },
+  { match: ['媒体', '书影音', '视频'], action: '/media', reply: '正在打开多媒体中心' },
+  { match: ['音乐'], action: '/media', reply: '正在打开音乐馆' },
+  { match: ['量化', '交易', '股票', '行情', '看板'], action: '/quant', reply: '正在打开金融量化平台' },
   { match: ['工具', '脚本'], action: '/tools', reply: '正在打开在线工具' },
+  { match: ['API中心', 'api'], action: '/tools/api', reply: '正在打开 API 中心' },
+  { match: ['分享网站', '外链', '好站'], action: '/tools/sites', reply: '正在打开分享网站' },
   { match: ['软件', '下载'], action: '/software', reply: '正在打开软件库' },
   { match: ['资源'], action: '/resources', reply: '正在打开资源中心' },
-  { match: ['个人中心', '我的'], action: '/profile', reply: '正在打开个人中心' },
+  { match: ['上传'], action: '/upload', reply: '正在打开资源上传' },
+  { match: ['美甲'], action: '/nails', reply: '正在打开美甲小铺' },
+  { match: ['3D', '粒子', '星空漫游'], action: '/three', reply: '正在打开 3D 星空漫游' },
+  { match: ['架构'], action: '/architecture', reply: '正在打开微服务架构图鉴' },
+  { match: ['AI 中转站', '中转站', 'ai-station', '令牌'], action: '/ai-station', reply: '正在打开 AI 中转站' },
+  { match: ['AI引擎', 'AI助手', '知识库'], action: '/ai', reply: '正在打开 AI 引擎' },
+  { match: ['Agent', '智能体', '工作流'], action: '/agent', reply: '正在打开 Agent 工作台' },
   { match: ['相册'], action: '/album', reply: '正在打开相册集' },
-  { match: ['友链'], action: '/link', reply: '正在打开友人帐' },
+  { match: ['友链', '友人帐'], action: '/link', reply: '正在打开友人帐' },
+  { match: ['留言'], action: '/comments', reply: '正在打开留言板' },
+  { match: ['关于', '介绍'], action: '/about', reply: '正在打开关于页面' },
+  { match: ['个人中心', '我的'], action: '/profile', reply: '正在打开个人中心' },
+  { match: ['订单'], action: '/profile/orders', reply: '正在打开我的订单' },
+  { match: ['支付', '充值'], action: '/pay', reply: '正在打开支付页面' },
   { match: ['登录'], action: '/login', reply: '正在跳转到登录页面' },
 ]
 
@@ -420,15 +603,15 @@ function navigate(path) {
 }
 
 // ---- Wake word detection ----
-// 只有说出"星途星途"才唤醒响应；唤醒后 5 秒内可直接下达指令
+// 说出"星图星图 / 星途星途"即唤醒并自动弹出面板；唤醒后 5 秒内可直接下达指令
 // 支持多种近音识别（Vosk 离线模型对自定义词识别不准，用模糊匹配兜底）
-const WAKE_EXACT = ['星途星途', 'xingtu xingtu']
-const WAKE_FUZZY = ['星途', '行途', '行图', '星图', '新途', '兴途', '刑图', '幸途', 'xingtu']
+const WAKE_EXACT = ['星图星图', '星途星途', '星图 星图', '星途 星图', 'xingtu xingtu', 'hey xingtu']
+const WAKE_FUZZY = ['星图', '星途', '行途', '行图', '新途', '兴途', '刑图', '幸途', 'xingtu']
 function matchWake(text) {
-  const lower = text.toLowerCase().trim()
-  // 精确匹配
-  for (const w of WAKE_EXACT) { if (lower.includes(w)) return { match: true, exact: true } }
-  // 模糊匹配：仅当文本很短（<8字）时才判定为唤醒词，避免"我想去星途旅行"误触发
+  const lower = text.toLowerCase().replace(/\s+/g, '')
+  // 精确匹配（重复喊两遍必唤醒）
+  for (const w of WAKE_EXACT) { if (lower.includes(w.replace(/\s+/g, ''))) return { match: true, exact: true } }
+  // 模糊匹配：仅当文本很短（<=8字）时才判定为唤醒词，避免"我想去星途旅行"误触发
   if (lower.length <= 8) {
     for (const w of WAKE_FUZZY) { if (lower.includes(w)) return { match: true, exact: false } }
   }
@@ -445,11 +628,12 @@ function processTranscript(raw) {
     wakeWordTimer = setTimeout(() => { wakeWordDetected = false }, 5000)
     // 去掉唤醒词部分，提取指令
     let cmd = text
-      .replace(/星途星途/g, '').replace(/xingtu xingtu/gi, '')
-      .replace(/星途|行途|行图|星图|新途|兴途|刑图|幸途/g, '')
+      .replace(/星图星图|星途星途|星图\s*星图|星途\s*星图/g, '')
+      .replace(/xingtu\s*xingtu/gi, '')
+      .replace(/星图|星途|行途|行图|新途|兴途|刑图|幸途/g, '')
       .replace(/xingtu/gi, '')
       .trim()
-    if (!isOpen.value) isOpen.value = true
+    if (!isOpen.value) isOpen.value = true   // 喊唤醒词自动弹出面板
     if (!cmd) {
       addMsg('user', '唤醒')
       const welcome = '我在！可以帮你打开网站各个模块，也可以聊天。'
@@ -839,6 +1023,24 @@ function requestMicPermission() {
   } catch {}
 }
 
+// ---- 后台自动监听唤醒词 ----
+// 页面加载后自动开启连续监听（喊"星图星图"随时唤醒）；
+// 浏览器要求首次麦克风授权需用户手势，故兜底在首次点击/按键时再启动
+let autoListenTried = false
+function tryAutoListen() {
+  if (autoListenTried || disposed || isListening.value || wBusy.value) return
+  autoListenTried = true
+  requestMicPermission()
+  setTimeout(() => {
+    if (!disposed && !isListening.value && !manualStop) startListening()
+  }, 600)
+}
+function onFirstGesture() {
+  tryAutoListen()
+  window.removeEventListener('pointerdown', onFirstGesture)
+  window.removeEventListener('keydown', onFirstGesture)
+}
+
 // ---- Voice: Edge 音色选择 ----
 function onVoiceChange() {
   selectedVoiceURI = voiceURI.value || 'zh-CN-XiaoxiaoNeural'
@@ -883,27 +1085,176 @@ onMounted(() => {
 
   window.addEventListener('pointerup', onOrbPointerUp)
 
+  // 自动监听唤醒词：先尝试静默启动；失败则在首次点击/按键时启动
+  tryAutoListen()
+  window.addEventListener('pointerdown', onFirstGesture)
+  window.addEventListener('keydown', onFirstGesture)
+
   // First visit welcome
   if (!hasVisited()) {
     setTimeout(() => {
-      addMsg('assistant', '你好！我是星途智能助手，欢迎来到我的网站！点击我说话，或者直接说"星途星途"唤醒我。')
+      addMsg('assistant', '你好！我是星途智能助手，欢迎来到我的网站！点击我说话，或者直接说"星图星图"唤醒我。')
       isOpen.value = true
       markVisited()
     }, 1500)
   }
+
+  // 初始页面引导（首次加载时若在主导航页面则弹出）
+  setTimeout(() => {
+    if (GUIDE_PAGES[route.path]) showGuide(route.path)
+  }, 800)
 })
 
 onBeforeUnmount(() => {
   disposed = true
   window.removeEventListener('pointerup', onOrbPointerUp)
+  window.removeEventListener('pointerdown', onFirstGesture)
+  window.removeEventListener('keydown', onFirstGesture)
   stopListening()
   stopVoskRecognition()
   if (synth) synth.cancel()
   stopEdgeSpeech()
+  dismissGuide()
 })
 </script>
 
 <style scoped>
+/* ===== 页面引导小框 ===== */
+.page-guide {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 420px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(15, 20, 40, 0.92), rgba(20, 15, 35, 0.92));
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 211, 238, 0.1);
+  cursor: pointer;
+}
+.guide-orb {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22d3ee, #a855f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
+}
+.guide-body { flex: 1; min-width: 0; }
+.guide-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #67e8f9;
+  margin-bottom: 3px;
+  letter-spacing: 0.05em;
+}
+.guide-text {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.85);
+  word-break: break-word;
+}
+.guide-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.12em;
+  background: #67e8f9;
+  animation: guideBlink 0.8s steps(1) infinite;
+}
+@keyframes guideBlink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+.guide-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.guide-close:hover { color: #fff; }
+.guide-pop-enter-active { transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.guide-pop-leave-active { transition: all 0.25s ease; }
+.guide-pop-enter-from { opacity: 0; transform: translate(-50%, -12px); }
+.guide-pop-leave-to { opacity: 0; transform: translate(-50%, -8px); }
+
+/* ===== 引导框与星途球联动 ===== */
+/* 球在引导框显示时发光脉冲，模拟"球在介绍页面" */
+.xingtu-orb.orb-guide-active {
+  border-color: rgba(34, 211, 238, 0.9);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.6), 0 0 42px rgba(168, 85, 247, 0.4);
+  animation: orbGuideGlow 1.6s ease-in-out infinite;
+}
+.xingtu-orb.orb-guide-active .orb-core {
+  background: linear-gradient(135deg, #22d3ee, #a855f7);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.8), 0 0 40px rgba(168, 85, 247, 0.5);
+  animation: coreGuidePulse 1.2s ease-in-out infinite alternate;
+}
+.xingtu-orb.orb-guide-active .orb-ring,
+.xingtu-orb.orb-guide-active .orb-ring-2 {
+  border-color: rgba(34, 211, 238, 0.5);
+  animation-duration: 1.4s;
+}
+@keyframes orbGuideGlow {
+  0%, 100% { box-shadow: 0 0 18px rgba(34, 211, 238, 0.5), 0 0 42px rgba(168, 85, 247, 0.35); }
+  50% { box-shadow: 0 0 26px rgba(34, 211, 238, 0.85), 0 0 60px rgba(168, 85, 247, 0.6); }
+}
+@keyframes coreGuidePulse {
+  from { transform: scale(1); filter: brightness(1); }
+  to { transform: scale(1.2); filter: brightness(1.4); }
+}
+
+/* 引导框底部的联动连线，指向右下角星途球方向 */
+.page-guide {
+  position: relative;
+}
+.guide-link-line {
+  position: absolute;
+  bottom: -28px;
+  right: 18%;
+  width: 2px;
+  height: 28px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.5), rgba(168, 85, 247, 0));
+  pointer-events: none;
+}
+.guide-link-line::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.8);
+  animation: guideDotPulse 1.2s ease-in-out infinite;
+}
+@keyframes guideDotPulse {
+  0%, 100% { opacity: 0.4; transform: translateX(-50%) scale(0.8); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.3); }
+}
+/* 打字时引导框边框呼吸 */
+.page-guide.guide-typing {
+  border-color: rgba(34, 211, 238, 0.5);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(34, 211, 238, 0.2);
+}
+
 .xingtu-container {
   position: fixed;
   bottom: 24px;
@@ -1128,7 +1479,9 @@ onBeforeUnmount(() => {
 .msg.assistant .msg-avatar { background: rgba(118, 75, 162, 0.15); border: 1px solid rgba(118, 75, 162, 0.25); }
 
 .msg-content { flex: 1; min-width: 0; }
-.msg-role { font-size: 0.6rem; color: rgba(255,255,255,0.6); margin-bottom: 3px; letter-spacing: 0.03em; }
+.msg-role { font-size: 0.6rem; color: rgba(255,255,255,0.6); margin-bottom: 3px; letter-spacing: 0.03em; display: flex; align-items: center; gap: 6px; }
+.msg-save-btn { font-size: 12px; opacity: 0.45; transition: opacity .2s, transform .2s; }
+.msg-save-btn:hover { opacity: 1; transform: scale(1.15); }
 .msg-text { font-size: 0.8rem; color: rgba(255,255,255,0.92); line-height: 1.5; word-break: break-word; }
 
 .listening-dots { display: flex; gap: 4px; align-items: center; }

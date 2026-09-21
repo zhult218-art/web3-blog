@@ -30,3 +30,5 @@ export const uploadMedia = (file, config) => {
   formData.append('file', file)
   return request.post('/video/upload', formData, { ...config })
 }
+// 通过 yt-dlp 从 URL 下载视频（YouTube/B站/抖音等）
+export const downloadVideoFromUrl = data => request.post('/video/download', data)

@@ -18,6 +18,7 @@ const web3Routes = [
   { path: 'forum', redirect: '/community' },
   { path: 'forum/:path*', redirect: '/community' },
   { path: 'community', name: 'Community', component: () => import('@/views/community/index.vue'), meta: { requiresAuth: false, perm: 'community' } },
+  { path: 'community/chat', name: 'CommunityChat', component: () => import('@/views/community/ChatRoom.vue'), meta: { requiresAuth: false, perm: 'community' } },
   { path: 'community/create', name: 'CommunityCreate', component: () => import('@/views/community/create.vue'), meta: { requiresAuth: true, perm: 'community' } },
   { path: 'community/:type/:id', name: 'CommunityDetail', component: () => import('@/views/community/detail.vue'), meta: { requiresAuth: false, perm: 'community' } },
   // 商城
@@ -39,17 +40,22 @@ const web3Routes = [
   // 工具 / 软件 / 资源
   { path: 'tools', name: 'Tools', component: () => import('@/views/tools/index.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/api', name: 'ToolsApi', component: () => import('@/views/tools/ApiTools.vue'), meta: { requiresAuth: false, perm: 'tools' } },
+  { path: 'tools/api-plaza', name: 'ToolsApiPlaza', component: () => import('@/views/tools/ApiPlaza.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/sites', name: 'ToolsSites', component: () => import('@/views/tools/sites.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/:tool', name: 'ToolPage', component: () => import('@/views/tools/ToolPage.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'software', name: 'Software', component: () => import('@/views/software/index.vue'), meta: { requiresAuth: false, perm: 'software' } },
   { path: 'resources', name: 'Resources', component: () => import('@/views/resources/index.vue'), meta: { requiresAuth: false, perm: 'resources' } },
-  { path: 'upload', name: 'Upload', component: () => import('@/views/upload/index.vue'), meta: { requiresAuth: false } },
+  { path: 'upload', name: 'Upload', component: () => import('@/views/upload/index.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
   // 展示 / 可视化
   { path: 'nails', name: 'Nails', component: () => import('@/views/nails/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
   { path: 'three', name: 'ThreePage', component: () => import('@/views/three/index.vue'), meta: { requiresAuth: false } },
   { path: 'architecture', name: 'ArchPage', component: () => import('@/views/architecture/index.vue'), meta: { requiresAuth: false } },
+  { path: 'twin', name: 'DigitalTwin', component: () => import('@/views/twin/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
+  { path: 'project', name: 'Project', component: () => import('@/views/project/index.vue'), meta: { requiresAuth: false } },
   // 量化
   { path: 'quant', name: 'Quant', component: () => import('@/views/quant/index.vue'), meta: { requiresAuth: false, perm: 'quant' } },
+  { path: 'quant/dashboard', name: 'QuantDashboard', component: () => import('@/views/quant/Dashboard.vue'), meta: { requiresAuth: false, perm: 'quant' } },
+  { path: 'stock/:code', name: 'StockDetail', component: () => import('@/views/quant/StockDetail.vue'), meta: { requiresAuth: false, perm: 'quant' } },
   // 用户 / 支付
   { path: 'profile', name: 'Profile', component: () => import('@/views/profile/index.vue'), meta: { requiresAuth: true } },
   { path: 'profile/orders', name: 'ProfileOrders', component: () => import('@/views/profile/orders.vue'), meta: { requiresAuth: true } },
@@ -59,6 +65,9 @@ const web3Routes = [
   { path: 'link', name: 'Link', component: () => import('@/views/link/index.vue'), meta: { requiresAuth: false, perm: 'link' } },
   { path: 'comments', name: 'Comments', component: () => import('@/views/comments/index.vue'), meta: { requiresAuth: false, perm: 'comments' } },
   { path: 'about', name: 'About', component: () => import('@/views/about/index.vue'), meta: { requiresAuth: false, perm: 'about' } },
+  // 个人知识库（Supabase 存储，持续成长的学习地图）
+  { path: 'knowledge', name: 'Knowledge', component: () => import('@/views/knowledge/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
+  { path: 'knowledge/:id', name: 'KnowledgeDetail', component: () => import('@/views/knowledge/detail.vue'), meta: { requiresAuth: false, perm: 'home' } },
 ]
 
 const routes = [
@@ -85,6 +94,7 @@ const routes = [
     { path: 'media', name: 'AdminMedia', component: () => import('@/views/admin/media.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'quant', name: 'AdminQuant', component: () => import('@/views/admin/quant.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'traffic', name: 'AdminTraffic', component: () => import('@/views/admin/traffic.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: 'chat', name: 'AdminChat', component: () => import('@/views/admin/chatApproval.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'settings', name: 'AdminSettings', component: () => import('@/views/admin/settings.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'blog-links', name: 'AdminBlogLinks', component: () => import('@/views/admin/blog-links.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'blog-notice', name: 'AdminBlogNotice', component: () => import('@/views/admin/blog-notice.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
@@ -134,7 +144,8 @@ router.beforeEach(async (to) => {
     if (!auth.user && auth.isLoggedIn) {
       try { await auth.fetchProfile() } catch {}
     }
-    if (!hasPerm(auth.user, permMeta.meta.perm)) {
+    // 首页永远可达：即便权限数据异常也不重定向到自身（防止无限重定向）
+    if (permMeta.meta.perm !== 'home' && !hasPerm(auth.user, permMeta.meta.perm)) {
       return { path: '/' }
     }
   }

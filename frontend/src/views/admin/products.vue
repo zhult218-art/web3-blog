@@ -101,6 +101,7 @@ import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
+import { formatDayCN } from '@/utils/date'
 
 const toast = useToastStore()
 const list = ref([])
@@ -115,7 +116,7 @@ const submitting = ref(false)
 const form = ref({ name: '', description: '', price: null, stock: null, cover: '', category: '' })
 
 // 本地化格式化日期
-function formatDate(d) { return d ? new Date(d).toLocaleDateString('zh-CN') : '' }
+function formatDate(d) { return formatDayCN(d, '') }
 
 // 封面图加载失败的兜底：隐藏图片占位
 function onImgErr(e) { e.target.style.display = 'none' }

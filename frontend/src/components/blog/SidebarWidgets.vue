@@ -3,9 +3,9 @@
     <!-- 作者卡 -->
     <div class="panel p-5 text-center">
       <div class="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-2xl text-white font-black shadow-lg shadow-purple-500/25 mb-3">
-        {{ (author.nickname || 'W')[0] }}
+        {{ (author.nickname || 'A')[0] }}
       </div>
-      <h3 class="text-white font-bold">{{ author.nickname || 'Web3 Portal' }}</h3>
+      <h3 class="text-white font-bold">{{ author.nickname || 'Aurora-朱' }}</h3>
       <p class="text-xs text-gray-500 mt-1">{{ author.slogan || '探秘元宇宙，记录成长' }}</p>
       <div class="flex justify-center gap-3 mt-3 text-gray-400">
         <a v-if="author.github" :href="author.github" target="_blank" rel="noopener" class="hover:text-white transition-colors" title="Github">
@@ -88,6 +88,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getBlogStats, getBlogArchives, getBlogTags, getBlogCategories, getBlogRecent, getBlogSettings } from '@/api/blog'
+import { formatDay } from '@/utils/date'
 
 const router = useRouter()
 const stats = ref({})
@@ -101,7 +102,8 @@ const tagCloud = computed(() => tags.value.slice(0, 40))
 const tagCount = computed(() => tags.value.length)
 const categoryCount = computed(() => categories.value.length)
 
-function formatDate(d) { return d ? String(d).slice(0, 10) : '--' }
+// 日期格式化（统一走 utils/date）
+function formatDate(d) { return formatDay(d, '--') }
 function formatWords(n) {
   const v = Number(n || 0)
   if (v >= 10000) return (v / 10000).toFixed(1) + 'w'

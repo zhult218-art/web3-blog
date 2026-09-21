@@ -1,6 +1,6 @@
 <template>
   <div class="pointer-events-none fixed inset-0 z-0">
-    <canvas ref="canvas" class="h-full w-full" />
+    <canvas ref="canvas" class="bg-gl-canvas h-full w-full" />
     <div class="absolute inset-0 bg-gradient-to-br from-[#a855f7]/15 via-transparent to-[#06b6d4]/10" />
   </div>
 </template>
@@ -58,7 +58,8 @@ function init() {
   clock = new THREE.Clock()
   scene = new THREE.Scene()
   camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000)
-  renderer = new THREE.WebGLRenderer({ canvas: c, alpha: true, antialias: true })
+  // preserveDrawingBuffer: true —— 修复布局级路由切换（如首页→博客）过渡瞬间全屏白闪
+  renderer = new THREE.WebGLRenderer({ canvas: c, alpha: true, antialias: true, preserveDrawingBuffer: true })
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
   renderer.setSize(innerWidth, innerHeight)
   renderer.setClearColor(0x000000, 0)

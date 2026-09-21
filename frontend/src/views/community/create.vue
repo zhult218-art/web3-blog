@@ -40,22 +40,7 @@
           <div class="text-right text-[10px] text-gray-600 mt-1">{{ form.title.length }}/100</div>
         </div>
 
-        <!-- Cover image -->
-        <div v-if="form.type === 'article'">
-          <label class="text-xs text-gray-400 mb-2 block">封面图片 (可选)</label>
-          <div class="border-2 border-dashed border-white/[0.08] rounded-xl p-6 text-center hover:border-purple-400/20 transition-colors cursor-pointer relative overflow-hidden"
-            @click="pickCover">
-            <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="uploadCover" />
-            <div v-if="!form.coverImage" class="text-gray-600">
-              <svg class="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              <p class="text-xs">{{ coverUploading ? '上传中...' : '点击上传封面图片' }}</p>
-              <p class="text-[10px] text-gray-700 mt-1">支持 jpg / png / gif / webp，最大 500MB</p>
-            </div>
-            <img v-else :src="form.coverImage" class="w-full h-40 object-cover rounded-lg" />
-          </div>
-        </div>
-
-        <!-- Video upload (discussion with video) -->
+        <!-- Video upload -->
         <div v-if="form.type === 'video'">
           <label class="text-xs text-gray-400 mb-2 block">上传视频 <span class="text-gray-600">(mp4 / webm / mov / mkv / avi / flv，最大 500MB)</span></label>
           <div class="border-2 border-dashed border-white/[0.08] rounded-xl p-6 text-center hover:border-purple-400/20 transition-colors cursor-pointer"
@@ -116,7 +101,6 @@
 // ====================================================
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { createBlog } from '@/api/blog'
 import { createPost } from '@/api/forum'
 import { uploadMedia } from '@/api/media'
 import { useToastStore } from '@/stores/modules/toast'
@@ -134,7 +118,6 @@ const videoUploading = ref(false)
 const videoUploadProgress = ref(0)
 
 const types = [
-  { key: 'article', label: '文章', icon: '📝' },
   { key: 'discussion', label: '讨论', icon: '💬' },
   { key: 'video', label: '视频', icon: '🎬' },
 ]
@@ -142,7 +125,7 @@ const types = [
 const categories = ['前端', '后端', 'Web3', 'AI', 'DevOps', '数据库', '架构设计', '职场', '开源', '其他']
 
 const form = reactive({
-  type: 'article',
+  type: 'discussion',
   category: '',
   title: '',
   content: '',
@@ -223,34 +206,21 @@ async function uploadVideo(e) {
   }
 }
 
-// 提交发布：文章走 createBlog，讨论/视频走 createPost，成功后跳转详情
+// 提交发布：社区内容走 createPost（web3_forum），与博客分库
 async function submit() {
   if (!canSubmit.value) return
   submitting.value = true
   const authorName = currentUserName.value
   try {
-    if (form.type === 'article') {
-      await createBlog({
-        title: form.title,
-        content: form.content,
-        category: form.category,
-        tags: tagsInput.value,
-        coverImage: form.coverImage,
-        summary: form.content.slice(0, 200),
-        authorName,
-      })
-      toast.success('文章发布成功！')
-    } else {
-      await createPost({
-        title: form.title,
-        content: form.content,
-        category: form.category,
-        authorName,
-        mediaUrl: form.mediaUrl,
-        mediaType: form.mediaType,
-      })
-      toast.success(form.type === 'video' ? '视频发布成功！' : '帖子发布成功！')
-    }
+    await createPost({
+      title: form.title,
+      content: form.content,
+      category: form.category,
+      authorName,
+      mediaUrl: form.mediaUrl,
+      mediaType: form.mediaType,
+    })
+    toast.success(form.type === 'video' ? '视频发布成功！' : '帖子发布成功！')
     router.push('/community')
   } catch {
     toast.error('发布失败，请先登录')

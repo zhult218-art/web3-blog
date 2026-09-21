@@ -7,6 +7,12 @@
     <div class="section-container">
       <SectionHead num="[ 03 ]" title="技术干货与深度文章" sub="FEATURED ARTICLES" />
 
+      <!-- 接口不可用时的离线提示条 -->
+      <div v-if="isOffline" class="offline-tip">
+        <span class="tip-dot"></span>
+        <span>离线示例 · 暂未连接文章服务，以下为站内精选内容</span>
+      </div>
+
       <div class="article-grid">
         <article
           v-for="(art, i) in list"
@@ -40,6 +46,25 @@
             </div>
           </div>
         </article>
+      </div>
+
+      <!-- 查看更多：跳转博客列表 -->
+      <div class="more-bar" data-glow @click="goList">
+        <span class="more-line"></span>
+        <span class="more-text">
+          <span class="more-label">浏览全部文章</span>
+          <span class="more-sub">ENTER BLOG ARCHIVE</span>
+        </span>
+        <span class="more-arrow">→</span>
+        <span class="more-line"></span>
+      </div>
+
+      <!-- 热门标签云：丰富内容层次 -->
+      <div class="tag-cloud">
+        <span class="tag-cloud-title">🔥 热门标签</span>
+        <div class="tag-chips">
+          <span v-for="t in hotTags" :key="t" class="hot-tag" @click="goList">#{{ t }}</span>
+        </div>
       </div>
     </div>
   </section>
@@ -91,6 +116,8 @@ const DEFAULT_ARTICLES = [
 ]
 
 const list = ref(DEFAULT_ARTICLES)
+// 是否处于离线兜底状态：true 时展示内置精选并标注"离线示例"
+const isOffline = ref(true)
 let ctx = null
 
 // 三档封面渐变（按卡片顺序循环取用）
@@ -111,26 +138,40 @@ function go(id) {
   else router.push('/blog')
 }
 
+// 跳转到博客列表
+function goList() {
+  router.push('/blog')
+}
+
+// 热门标签（展示性数据）
+const hotTags = ['Vue3', 'Spring Cloud', 'WebGL', 'Three.js', 'RAG', 'LLM', '微服务', 'Docker', 'TypeScript', 'WebSocket', 'ECharts', 'Python']
+
 onMounted(async () => {
   try {
     const res = await getBlogList({ page: 1, size: 3 })
-    const rows = res?.data?.list || res?.data?.records || []
+    // 兼容 Supabase 信封 { data: { records } } 与后端分页 { data: { list } }
+    const rows = res?.data?.records || res?.data?.list || res?.records || []
     if (Array.isArray(rows) && rows.length) {
-      const tagArr = Array.isArray(b.tagsArr) && b.tagsArr.length
-        ? b.tagsArr
-        : String(b.tags || '').split(',').map(t => t.trim()).filter(Boolean)
-      list.value = rows.map((b, i) => ({
-        id: b.id,
-        title: b.title || DEFAULT_ARTICLES[i % 3].title,
-        excerpt: (b.summary || b.description || b.content || '').slice(0, 90),
-        tags: (tagArr.length ? tagArr.slice(0, 3) : DEFAULT_ARTICLES[i % 3].tags),
-        readTime: Math.max(3, Math.ceil((b.content || '').length / 500)),
-        date: (b.updateTime || b.createTime || '').slice(0, 10),
-        tag: 'LATEST',
-      }))
+      list.value = rows.slice(0, 3).map((b, i) => {
+        // 标签优先取数组形式，其次拆逗号字符串，均无则用兜底标签
+        const tagArr = Array.isArray(b.tagsArr) && b.tagsArr.length
+          ? b.tagsArr
+          : String(b.tags || '').split(',').map(t => t.trim()).filter(Boolean)
+        return {
+          id: b.id,
+          title: b.title || DEFAULT_ARTICLES[i % 3].title,
+          excerpt: (b.summary || b.description || b.content || '').slice(0, 90),
+          tags: (tagArr.length ? tagArr.slice(0, 3) : DEFAULT_ARTICLES[i % 3].tags),
+          readTime: Math.max(3, Math.ceil((b.content || '').length / 500)),
+          date: (b.updateTime || b.createTime || '').slice(0, 10),
+          tag: 'LATEST',
+        }
+      })
+      isOffline.value = false
     }
   } catch (e) {
-    // 接口不可用时保留静态文章
+    // 接口不可用时保留静态文章并展示"离线示例"提示
+    isOffline.value = true
   }
 
   ctx = gsap.context(() => {
@@ -175,6 +216,36 @@ onBeforeUnmount(() => {
 }
 
 .section-container { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; }
+
+/* 离线示例提示条 */
+.offline-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -1.8rem 0 1.6rem;
+  padding: 0.42rem 0.9rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 209, 102, 0.85);
+  background: rgba(255, 209, 102, 0.07);
+  border: 1px solid rgba(255, 209, 102, 0.25);
+  border-radius: 999px;
+  font-family: 'Courier New', monospace;
+}
+
+.tip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffd166;
+  box-shadow: 0 0 8px rgba(255, 209, 102, 0.8);
+  animation: tipPulse 2s ease-in-out infinite;
+}
+
+@keyframes tipPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 
 .article-grid {
   display: grid;
@@ -309,11 +380,112 @@ onBeforeUnmount(() => {
 .article-card:hover .article-link { color: #00d4ff; }
 .article-card:hover .link-arrow { transform: translateX(6px); }
 
+/* 查看更多条 */
+.more-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 2.4rem auto 0;
+  padding: 1rem 2rem;
+  max-width: 520px;
+  background: rgba(12, 12, 28, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.35s, box-shadow 0.35s, transform 0.35s;
+}
+
+.more-bar:hover {
+  border-color: rgba(0, 212, 255, 0.45);
+  box-shadow: 0 0 28px rgba(0, 212, 255, 0.18), 0 12px 30px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.more-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+}
+
+.more-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.more-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.08em;
+  transition: color 0.3s;
+}
+
+.more-sub {
+  font-size: 0.55rem;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Courier New', monospace;
+}
+
+.more-arrow {
+  font-size: 1.05rem;
+  color: #00d4ff;
+  transition: transform 0.3s;
+}
+
+.more-bar:hover .more-arrow { transform: translateX(4px); }
+.more-bar:hover .more-label { color: #00d4ff; }
+
 @media (max-width: 980px) {
   .article-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
   .articles { padding: 4rem 1.25rem; }
+}
+
+/* 热门标签云 */
+.tag-cloud {
+  margin-top: 2.5rem;
+  text-align: center;
+}
+
+.tag-cloud-title {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 1rem;
+  font-family: 'Courier New', monospace;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.hot-tag {
+  font-size: 0.72rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  color: #c4b5fd;
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: 'Courier New', monospace;
+}
+
+.hot-tag:hover {
+  color: #fff;
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
 }
 </style>

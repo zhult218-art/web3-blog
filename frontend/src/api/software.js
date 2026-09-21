@@ -13,3 +13,5 @@ export const createSoftware = data => request.post('/software', data)
 export const updateSoftware = (id, data) => request.put(`/software/${id}`, data)
 // 删除软件
 export const deleteSoftware = id => request.delete(`/software/${id}`)
+// 记录软件下载（下载计数 +1）
+export const recordSoftwareDownload = id => request.post(`/software/${id}/download`)

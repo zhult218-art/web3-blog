@@ -18,53 +18,9 @@
         <MusicHall />
       </template>
 
-      <!-- 图书模块 -->
+      <!-- 图书模块：全屏书桌场景（物品 → 书架弹窗 → 3D 阅读器） -->
       <template v-else-if="activeTab === 'book'">
-        <section class="glass-panel p-6">
-          <div class="flex items-center justify-between gap-3 mb-4">
-            <h2 class="text-xl font-bold text-white flex items-center gap-2"><span>📜</span>书籍</h2>
-            <span v-if="bookList.length" class="text-[11px] text-gray-500">{{ bookList.length }} 部古籍</span>
-          </div>
-
-          <!-- 分类过滤 -->
-          <div v-if="bookCategories.length" class="flex flex-wrap items-center gap-2 mb-5">
-            <button v-for="cat in bookCategories" :key="cat"
-              @click="bookCategory = cat"
-              class="px-3 py-1 rounded-full text-xs font-medium transition border"
-              :class="bookCategory === cat
-                ? 'bg-amber-500/25 text-amber-200 border-amber-400/40'
-                : 'text-gray-500 hover:text-white border-white/10 hover:border-amber-400/20'">
-              {{ cat }}
-            </button>
-          </div>
-
-          <div v-if="filteredBooks.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div v-for="book in filteredBooks" :key="book.id" @click="openBook(book)"
-              class="group glass-panel-sm p-4 cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-400/30">
-              <div class="flex items-start gap-3">
-                <div class="w-12 h-16 flex-shrink-0 rounded-sm bg-gradient-to-br from-amber-500/40 to-red-900/40 border border-amber-300/20 flex flex-col items-center justify-center shadow-lg">
-                  <span class="text-lg font-bold text-amber-100 font-serif" style="writing-mode: vertical-rl; letter-spacing: 0.15em;">{{ book.title.slice(0, 4) }}</span>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <h4 class="font-semibold text-white text-sm group-hover:text-amber-300 transition line-clamp-1 font-serif">{{ book.title }}</h4>
-                  <p class="text-[11px] text-gray-500 mt-1">
-                    <span v-if="book.author">{{ book.author }}</span><span v-if="book.dynasty"> · {{ book.dynasty }}</span>
-                  </p>
-                  <p v-if="book.description" class="text-[11px] text-gray-600 mt-1.5 line-clamp-2">{{ book.description }}</p>
-                  <div class="flex items-center gap-3 mt-2 text-[10px] text-gray-600">
-                    <span class="flex items-center gap-1"><span class="text-amber-400/70">共</span>{{ book.chapterCount }} 章</span>
-                    <span v-if="book.category" class="px-1.5 py-0.5 rounded-full border border-white/10">{{ book.category }}</span>
-                    <span v-if="book.categorySub" class="px-1.5 py-0.5 rounded-full border border-white/10">{{ book.categorySub }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="py-16 text-center">
-            <div class="text-4xl mb-3 opacity-15">📜</div>
-            <p class="text-xs text-gray-600">暂无书籍数据</p>
-          </div>
-        </section>
+        <BookDesk />
       </template>
 
       <!-- 视频模块 -->
@@ -86,8 +42,7 @@
             <div v-if="videoList.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div v-for="item in videoList" :key="item.id" class="glass-panel-sm overflow-hidden group cursor-pointer">
                 <div class="relative">
-                  <video class="w-full aspect-video bg-black/60" controls :src="item.url" :poster="item.cover"
-                    preload="metadata" @play="onVideoPlay" @pause="onVideoPause"></video>
+                  <EnhancedVideoPlayer :src="item.url" :poster="item.cover" :video-id="item.id" @play="onVideoPlay" />
                 </div>
                 <div class="p-4">
                   <h4 class="font-semibold text-white text-sm group-hover:text-cyan-300 transition">{{ item.title }}</h4>
@@ -104,7 +59,43 @@
             </div>
             <div v-else class="py-16 text-center">
               <div class="text-4xl mb-3 opacity-15">🎬</div>
-              <p class="text-xs text-gray-600">暂无在线视频</p>
+              <p class="text-xs text-gray-600">暂无在线视频，去「下载」标签粘贴 URL 下载吧</p>
+            </div>
+          </template>
+
+          <!-- URL 下载（HomeTube 风格：粘贴 URL → yt-dlp 下载 → 自动入库） -->
+          <template v-else-if="videoTab === 'download'">
+            <div class="glass-panel-sm p-5 max-w-2xl mx-auto">
+              <h3 class="text-base font-bold text-cyan-300 mb-1 flex items-center gap-2">⬇ 视频下载器</h3>
+              <p class="text-[11px] text-gray-500 mb-4">粘贴 YouTube / B站 / 抖音等平台 URL，自动下载并入库到「在线视频」。支持 1800+ 站点。</p>
+              <div class="space-y-3">
+                <input v-model="dlUrl" class="web3-input text-sm" placeholder="https://www.youtube.com/watch?v=xxx 或 https://www.bilibili.com/video/xxx" />
+                <div class="flex flex-wrap gap-3 items-center">
+                  <label class="text-xs text-gray-400">清晰度：</label>
+                  <select v-model="dlQuality" class="web3-input text-xs py-1.5" style="width:auto">
+                    <option value="best">自动最佳</option>
+                    <option value="1080p">1080p</option>
+                    <option value="720p">720p</option>
+                    <option value="480p">480p</option>
+                  </select>
+                  <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
+                    <input type="checkbox" v-model="dlSubtitle" /> 下载字幕
+                  </label>
+                  <input v-model="dlTags" class="web3-input text-xs py-1.5" style="width:auto;max-width:160px" placeholder="标签（可选）" />
+                </div>
+                <button class="web3-btn px-6" :disabled="dlLoading || !dlUrl" @click="startDownload">
+                  <span v-if="dlLoading" class="inline-block h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin"></span>
+                  {{ dlLoading ? '下载中...' : '开始下载' }}
+                </button>
+                <div v-if="dlResult" class="text-xs mt-2" :class="dlResult.ok ? 'text-emerald-400' : 'text-red-400'">
+                  {{ dlResult.msg }}
+                </div>
+              </div>
+              <div class="mt-5 pt-4 border-t border-white/5">
+                <p class="text-[11px] text-gray-600 leading-relaxed">
+                  💡 提示：后端需安装 <code class="text-cyan-400">yt-dlp</code> 与 <code class="text-cyan-400">ffmpeg</code>。下载可能需要数秒到数分钟，完成后视频会出现在「在线视频」列表。
+                </p>
+              </div>
             </div>
           </template>
 
@@ -189,20 +180,47 @@
 // 音乐馆为完整音乐馆组件；图书与视频在此内联
 // 播放条由 App.vue 级 GlobalPlayer 承载
 // ============================================================
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
 import MusicHall from './MusicHall.vue'
-import { getVideoList, getBookList } from '@/api/media'
+import BookDesk from '@/components/media/BookDesk.vue'
+import EnhancedVideoPlayer from '@/components/EnhancedVideoPlayer.vue'
+import { getVideoList, downloadVideoFromUrl } from '@/api/media'
 import { usePlayerStore } from '@/stores/modules/player'
 import { VIDEO_TABS, ANIME_RECOMMENDS, MOVIE_LINKS, MAGNET_RESOURCES } from '@/data/mediaResources'
 
-const router = useRouter()
 const player = usePlayerStore()
 const videoList = ref([])
-const bookList = ref([])
 const videoTab = ref('online')
-const bookCategory = ref('全部')
 const copiedHash = ref('')
+
+// 视频下载（HomeTube 风格）
+const dlUrl = ref('')
+const dlQuality = ref('best')
+const dlSubtitle = ref(false)
+const dlTags = ref('')
+const dlLoading = ref(false)
+const dlResult = ref(null)
+async function startDownload() {
+  if (!dlUrl.value.trim()) return
+  dlLoading.value = true
+  dlResult.value = null
+  try {
+    const res = await downloadVideoFromUrl({
+      url: dlUrl.value.trim(),
+      quality: dlQuality.value,
+      subtitle: dlSubtitle.value,
+      tags: dlTags.value || '网络下载',
+    })
+    const data = res?.data || res
+    dlResult.value = { ok: true, msg: `✓ 下载成功：${data?.title || '视频已入库'}，去「在线视频」查看` }
+    dlUrl.value = ''
+    // 刷新列表
+    await loadVideos()
+  } catch (e) {
+    dlResult.value = { ok: false, msg: '✗ 下载失败：' + (e?.response?.data?.message || e?.message || '网络错误') }
+  }
+  dlLoading.value = false
+}
 
 const tabs = [
   { key: 'music', label: '音乐馆', icon: '🎵' },
@@ -210,19 +228,7 @@ const tabs = [
   { key: 'video', label: '视频', icon: '🎬' },
 ]
 const activeTab = ref('music')
-
-// 书籍分类列表（自动取 book.category 去重；无分类时默认「全部」）
-const bookCategories = computed(() => {
-  const set = new Set(['全部'])
-  bookList.value.forEach(b => { if (b.category) set.add(b.category) })
-  return [...set]
-})
-
-// 当前分类下的书籍
-const filteredBooks = computed(() => {
-  if (bookCategory.value === '全部') return bookList.value
-  return bookList.value.filter(b => b.category === bookCategory.value)
-})
+const videoTabs = VIDEO_TABS
 
 // 秒数格式化为「m:ss」
 function formatDuration(secs) {
@@ -254,25 +260,18 @@ async function copyHash(hash, name) {
   }
 }
 
-// 跳转到电子书阅读页
-function openBook(book) {
-  router.push(`/media/book/${book.id}`)
-}
-
 // 播放视频时自动暂停全局音乐
 function onVideoPlay() { if (player.isPlaying) player.pause() }
 
-// 挂载时并行加载视频/图书两类列表数据（音乐列表由 MusicHall 自行加载）
-onMounted(() => {
-  getVideoList({ page: 1, size: 50 }).then(res => {
+// 挂载时加载视频列表（音乐列表由 MusicHall 自行加载，图书由 BookDesk 自行加载）
+async function loadVideos() {
+  try {
+    const res = await getVideoList({ page: 1, size: 50 })
     const data = res.data?.records || res.data || []
     videoList.value = data
-    if (!data.length) videoList.value = []
-  }).catch(() => { videoList.value = [] })
-
-  getBookList({ page: 1, size: 50 }).then(res => {
-    const data = res.data?.records || res.data || []
-    bookList.value = data
-  }).catch(() => { bookList.value = [] })
+  } catch { videoList.value = [] }
+}
+onMounted(() => {
+  loadVideos()
 })
 </script>

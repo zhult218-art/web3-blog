@@ -101,6 +101,7 @@ import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
+import { formatDateTimeCN } from '@/utils/date'
 
 const toast = useToastStore()
 const list = ref([])
@@ -110,7 +111,8 @@ const editing = ref(null)
 const submitting = ref(false)
 const form = ref({ name: '', url: '', category: '', description: '', icon: '', sort: 0, status: 1 })
 
-function formatDate(d) { return d ? new Date(d).toLocaleString('zh-CN') : '' }
+// 日期格式化（统一走 utils/date）
+function formatDate(d) { return formatDateTimeCN(d, '') }
 
 async function fetchSites() {
   loading.value = true

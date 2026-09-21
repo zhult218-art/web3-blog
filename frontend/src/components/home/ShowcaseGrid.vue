@@ -8,6 +8,11 @@
     <div class="section-container">
       <SectionHead num="[ 02 ]" title="核心作品与 Demo 橱窗" sub="FEATURED SHOWCASE" />
 
+      <p class="show-intro">
+        六个代表性项目的实机 Demo：从 AI 智能体到 3D 粒子云，从微服务脚手架到量化策略回测，
+        每张卡片都嵌入可即时观察的预览动画，点击卡片展开完整介绍。
+      </p>
+
       <div class="show-grid">
         <article
           v-for="(card, i) in cards"
@@ -20,13 +25,16 @@
           <div class="show-card" ref="cardEls" @mousemove="onTilt" @mouseleave="onTiltLeave">
             <div class="spotlight"></div>
 
-            <div class="demo-panel" :class="`demo-${i}`">
-              <template v-if="i === 0">
+            <div class="demo-panel" :class="`demo-${card.type}`">
+              <!-- AI 对话打字机 -->
+              <template v-if="card.type === 'chat'">
                 <div class="chat-row q">Q: {{ card.demo.q }}</div>
                 <div class="chat-row a typing" v-for="(line, li) in typedLines[i]" :key="li">{{ line }}</div>
                 <span class="caret" v-if="typingIdx[i] < card.demo.a.length"></span>
               </template>
-              <template v-else-if="i === 1">
+
+              <!-- 星系 -->
+              <template v-else-if="card.type === 'galaxy'">
                 <div class="galaxy">
                   <span class="star" v-for="s in 18" :key="s" :style="starStyle(s)"></span>
                   <div class="orbit o1"><div class="planet"></div></div>
@@ -34,7 +42,9 @@
                   <div class="orbit o3"><div class="planet p3"></div></div>
                 </div>
               </template>
-              <template v-else-if="i === 2">
+
+              <!-- 终端 -->
+              <template v-else-if="card.type === 'terminal'">
                 <div class="term">
                   <div class="term-bar"><span></span><span></span><span></span></div>
                   <div class="term-body">
@@ -43,10 +53,46 @@
                   </div>
                 </div>
               </template>
-              <template v-else>
+
+              <!-- 手势场 -->
+              <template v-else-if="card.type === 'gesture'">
                 <div class="gesture-field">
                   <div class="wave-line" v-for="w in 5" :key="w"></div>
                   <div class="hand-note">✋ {{ typedLines[i].join(' ') }}<span class="caret"></span></div>
+                </div>
+              </template>
+
+              <!-- 代码编辑器 -->
+              <template v-else-if="card.type === 'code'">
+                <div class="code-block">
+                  <div class="code-head">
+                    <span class="code-tab">▸ strategy.py</span>
+                    <span class="code-lang">PYTHON</span>
+                  </div>
+                  <pre class="code-body"><code v-for="(line, li) in typedLines[i]" :key="li">{{ line }}<span class="caret" v-if="li === typedLines[i].length - 1 && typingIdx[i] < card.demo.a.length"></span></code></pre>
+                </div>
+              </template>
+
+              <!-- 数据仪表盘 -->
+              <template v-else-if="card.type === 'chart'">
+                <div class="dashboard">
+                  <div class="dash-row">
+                    <div class="dash-kpi">
+                      <span class="kpi-val">{{ kpi[i].value }}</span>
+                      <span class="kpi-label">净值</span>
+                    </div>
+                    <div class="dash-kpi">
+                      <span class="kpi-val up">{{ kpi[i].roi }}%</span>
+                      <span class="kpi-label">年化</span>
+                    </div>
+                  </div>
+                  <div class="bars">
+                    <span v-for="(b, bi) in bars[i]" :key="bi" class="bar" :style="{ height: b + '%' }"></span>
+                  </div>
+                  <div class="dash-foot">
+                    <span class="dot up"></span><span>实盘运行中</span>
+                    <span class="dash-time">{{ dashTime[i] }}</span>
+                  </div>
                 </div>
               </template>
             </div>
@@ -107,7 +153,7 @@
 <script setup>
 // ============================================================
 // 首页"核心作品"橱窗区（ShowcaseGrid）
-// 四张 Demo 卡片：AI 对话打字机 / 星系动画 / 终端 / 手势场
+// 六张 Demo 卡片：AI 对话 / 星系 / 终端 / 手势 / 代码 / 仪表盘
 // 支持 3D 倾斜跟随、光圈 spotlight、全屏展开层（FLIP 动画）
 // ============================================================
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
@@ -120,9 +166,10 @@ gsap.registerPlugin(ScrollTrigger)
 
 const router = useRouter()
 
-// 橱窗卡片配置：标题 / 描述 / 标签 / 跳转路径 / 打字机演示文案 / 展开层特性
+// 橱窗卡片配置：标题 / 描述 / 标签 / 跳转路径 / 类型 / 演示文案 / 展开层特性
 const cards = [
   {
+    type: 'chat',
     title: 'AI 知识库智能体',
     desc: '接入 RAG 检索与 LLM 推理的问答体，支持长期记忆、工具调用与多轮对话。',
     tags: ['FastAPI', 'RAG', 'LLM'],
@@ -131,6 +178,7 @@ const cards = [
     features: ['RAG 文档检索与引用溯源', '多轮对话 + 上下文记忆', '函数调用 / 工具编排', '流式输出与语音交互'],
   },
   {
+    type: 'galaxy',
     title: '3D 交互粒子云 · 星系模拟',
     desc: '数万粒子在 GPU 中实时演化，鼠标拖拽旋转视角，体验沉浸式星云环绕。',
     tags: ['Three.js', 'WebGL', 'GLSL'],
@@ -139,6 +187,7 @@ const cards = [
     features: ['GPU 粒子流体模拟', '轨道力学 + 引力牵引', 'Shader 星云着色', '手势拖拽视点控制'],
   },
   {
+    type: 'terminal',
     title: 'Spring Cloud 微服务脚手架',
     desc: '一键生成网关、注册中心、配置中心与监控链路，开箱即用的生产级工程模板。',
     tags: ['Spring Cloud', 'Gateway', 'Docker'],
@@ -147,6 +196,7 @@ const cards = [
     features: ['Nacos 注册 / 配置中心', 'Gateway 统一网关', 'OpenFeign + 熔断降级', 'Docker Compose 一键编排'],
   },
   {
+    type: 'gesture',
     title: '手势控制 3D 虚拟展厅',
     desc: 'MediaPipe 手势捕捉驱动 WebGL 场景，挥手旋转展品、握拳拉近视角。',
     tags: ['MediaPipe', 'WebGL', 'Gesture'],
@@ -154,13 +204,40 @@ const cards = [
     demo: { q: '', a: '手部关键点 21 个已锁定\n握拳拉近 · 挥手旋转\n展厅视角实时跟随中' },
     features: ['21 点手部关键点追踪', '手势 → 视角映射算法', '近场交互力反馈', '多语言展厅场景'],
   },
+  {
+    type: 'code',
+    title: '量化策略回测平台',
+    desc: '多因子选股 + 趋势识别策略，按日/分钟级回测，自动生成净值曲线与归因报告。',
+    tags: ['Python', 'Pandas', 'Backtrader'],
+    path: '/quant',
+    demo: { q: '', a: 'class MomentumStrategy:\n    def on_bar(self, bar):\n        if self.cross_up():\n            self.buy(size=100)\n        elif self.cross_down():\n            self.sell_all()' },
+    features: ['多因子打分模型', 'Tick/分钟级撮合引擎', '夏普 / 最大回撤归因', '策略参数网格搜索'],
+  },
+  {
+    type: 'chart',
+    title: '实盘数据监控仪表盘',
+    desc: 'ECharts + WebSocket 实时驱动，监控策略持仓、PnL 与风险敞口，毫秒级刷新。',
+    tags: ['ECharts', 'WebSocket', 'Vue3'],
+    path: '/quant',
+    demo: { q: '', a: '' },
+    features: ['WebSocket 实时行情推送', '持仓与盈亏可视化', '风险敞口热力图', '多策略对比面板'],
+  },
 ]
 
 const cardEls = ref([])
 const overlay = reactive({ open: false, index: 0 })
-const typingIdx = ref([0, 0, 0, 0])
-const typedLines = ref([[], [], [], []])
+// 每张卡片独立的打字机进度
+const typingIdx = ref(cards.map(() => 0))
+const typedLines = ref(cards.map(() => []))
+// 仪表盘卡片实时数据
+const kpi = ref([
+  { value: '0', roi: '0' }, { value: '0', roi: '0' }, { value: '0', roi: '0' },
+  { value: '0', roi: '0' }, { value: '¥1.28M', roi: '+24.6' }, { value: '¥960K', roi: '+18.2' },
+])
+const bars = ref(cards.map(() => Array.from({ length: 14 }, () => 20 + Math.random() * 60)))
+const dashTime = ref(cards.map(() => '--:--:--'))
 let timers = new Map()
+let dashTimer = 0
 let ctx = null
 let lastRect = null
 
@@ -170,7 +247,6 @@ const overlayGlowStyle = computed(() => ({
 }))
 
 function starStyle(i) {
-  // 用下标做种子生成伪随机星星位置/大小/动画延迟
   const seed = i * 37
   return {
     left: (seed % 90) + 5 + '%',
@@ -193,19 +269,17 @@ function onTilt(e) {
   el.style.setProperty('--spot-y', (py + 0.5) * 100 + '%')
 }
 
-// 鼠标移出时回正卡片
 function onTiltLeave(e) {
   const el = e.currentTarget
   el.style.transform = ''
   el.style.transition = 'transform 0.5s cubic-bezier(0.23,1,0.32,1)'
 }
 
-// 跳转到 Demo 对应页面
 function go(path) {
   router.push(path)
 }
 
-// 启动各卡片的打字机演示（间隔逐字显示回答文案）
+// 启动各卡片的打字机演示
 function startTyping() {
   timers.forEach(clearInterval)
   timers = new Map()
@@ -228,7 +302,24 @@ function startTyping() {
   })
 }
 
-// 展开全屏层：记录卡片原始位置，用 FLIP 动画从卡片放大到全屏
+// 仪表盘数据滚动刷新（每 1.2s 更新一次）
+function startDashboard() {
+  if (dashTimer) clearInterval(dashTimer)
+  dashTimer = setInterval(() => {
+    cards.forEach((card, i) => {
+      if (card.type !== 'chart') return
+      bars.value[i] = bars.value[i].map(() => 20 + Math.random() * 70)
+      const base = 960 + Math.floor(Math.random() * 360)
+      kpi.value[i] = {
+        value: '¥' + (base + 'K'),
+        roi: '+' + (15 + Math.random() * 12).toFixed(1),
+      }
+      dashTime.value[i] = new Date().toLocaleTimeString('en-US', { hour12: false })
+    })
+  }, 1200)
+}
+
+// 展开全屏层：FLIP 动画从卡片放大到全屏
 function openOverlay(i) {
   const el = cardEls.value[i]
   lastRect = el ? el.getBoundingClientRect() : null
@@ -250,7 +341,6 @@ function openOverlay(i) {
   })
 }
 
-// 关闭全屏层：反向 FLIP 缩小回原卡片位置后再隐藏
 function closeOverlay() {
   const inner = document.querySelector('.show-overlay .overlay-inner')
   if (inner && lastRect) {
@@ -265,6 +355,7 @@ function closeOverlay() {
 
 onMounted(() => {
   startTyping()
+  startDashboard()
   ctx = gsap.context(() => {
     gsap.from('.show-card', {
       y: 80,
@@ -284,6 +375,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   timers.forEach(clearInterval)
+  if (dashTimer) clearInterval(dashTimer)
   if (ctx) ctx.revert()
 })
 </script>
@@ -293,7 +385,6 @@ onBeforeUnmount(() => {
   position: relative;
   padding: 6.5rem 2rem;
   overflow: hidden;
-  /* 上下边缘渐隐：与相邻区块自然融合 */
   background: linear-gradient(180deg,
     transparent 0%, rgba(6, 6, 14, 0.15) 16%,
     rgba(10, 10, 26, 0.32) 84%, transparent 100%);
@@ -322,10 +413,19 @@ onBeforeUnmount(() => {
 
 .section-container { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; }
 
+.show-intro {
+  max-width: 64ch;
+  margin: -2rem auto 2.4rem;
+  text-align: center;
+  font-size: 0.84rem;
+  line-height: 1.95;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .show-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.75rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
   perspective: 1300px;
 }
 
@@ -334,7 +434,7 @@ onBeforeUnmount(() => {
 .show-card {
   position: relative;
   z-index: 1;
-  padding: 1.25rem;
+  padding: 1.1rem;
   background: rgba(12, 12, 28, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -343,6 +443,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 0.1s ease-out, border-color 0.35s, box-shadow 0.35s;
   transform-style: preserve-3d;
+  height: 100%;
 }
 
 .show-card:hover {
@@ -400,10 +501,10 @@ onBeforeUnmount(() => {
 /* Demo 预览区 */
 .demo-panel {
   position: relative;
-  height: 190px;
+  height: 180px;
   border-radius: 14px;
   overflow: hidden;
-  margin-bottom: 1.15rem;
+  margin-bottom: 1.05rem;
   background:
     radial-gradient(ellipse at 50% -20%, rgba(102, 126, 234, 0.16), transparent 65%),
     rgba(255, 255, 255, 0.02);
@@ -467,9 +568,9 @@ onBeforeUnmount(() => {
   animation: orbitSpin 9s linear infinite;
 }
 
-.o1 { width: 110px; height: 110px; }
-.o2 { width: 150px; height: 150px; animation-duration: 14s; animation-direction: reverse; }
-.o3 { width: 190px; height: 190px; animation-duration: 20s; }
+.o1 { width: 90px; height: 90px; }
+.o2 { width: 130px; height: 130px; animation-duration: 14s; animation-direction: reverse; }
+.o3 { width: 170px; height: 170px; animation-duration: 20s; }
 
 @keyframes orbitSpin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
 
@@ -477,9 +578,9 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 50%;
   top: 4px;
-  width: 9px;
-  height: 9px;
-  margin-left: -4.5px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
   border-radius: 50%;
   background: #00d4ff;
   box-shadow: 0 0 14px rgba(0, 212, 255, 0.9);
@@ -491,7 +592,7 @@ onBeforeUnmount(() => {
 /* 终端 */
 .term {
   position: absolute;
-  inset: 14px;
+  inset: 12px;
   border-radius: 10px;
   background: rgba(4, 4, 12, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -501,7 +602,7 @@ onBeforeUnmount(() => {
 .term-bar {
   display: flex;
   gap: 5px;
-  padding: 8px 12px;
+  padding: 7px 11px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -511,9 +612,9 @@ onBeforeUnmount(() => {
 .term-bar span:nth-child(3) { background: rgba(76, 217, 148, 0.6); }
 
 .term-body {
-  padding: 10px 14px;
-  font-size: 0.7rem;
-  line-height: 1.8;
+  padding: 8px 12px;
+  font-size: 0.66rem;
+  line-height: 1.7;
   font-family: 'Courier New', monospace;
   color: rgba(255, 255, 255, 0.8);
 }
@@ -528,18 +629,18 @@ onBeforeUnmount(() => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.6rem;
   overflow: hidden;
 }
 
 .hand-note {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.6);
   font-family: 'Courier New', monospace;
 }
 
 .wave-line {
-  width: 150px;
+  width: 140px;
   height: 2px;
   border-radius: 2px;
   background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.4), transparent);
@@ -556,20 +657,134 @@ onBeforeUnmount(() => {
   50% { transform: scaleX(1.15); opacity: 1; }
 }
 
+/* 代码编辑器 */
+.code-block {
+  position: absolute;
+  inset: 10px;
+  border-radius: 10px;
+  background: rgba(4, 4, 12, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: 'Courier New', monospace;
+  font-size: 0.66rem;
+}
+
+.code-tab { color: #9db2ff; }
+.code-lang { color: rgba(255, 209, 102, 0.7); letter-spacing: 0.18em; font-size: 0.58rem; }
+
+.code-body {
+  margin: 0;
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.64rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.78);
+  overflow: hidden;
+  flex: 1;
+}
+
+.code-body code {
+  display: block;
+  white-space: pre;
+}
+
+/* 仪表盘 */
+.dashboard {
+  position: absolute;
+  inset: 10px;
+  border-radius: 10px;
+  background: rgba(4, 4, 12, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  font-family: 'Courier New', monospace;
+}
+
+.dash-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.dash-kpi { display: flex; flex-direction: column; }
+
+.kpi-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #00d4ff;
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.55);
+}
+
+.kpi-val.up { color: #4cd964; text-shadow: 0 0 8px rgba(76, 217, 100, 0.55); }
+
+.kpi-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 2px;
+}
+
+.bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  padding-top: 4px;
+  min-height: 60px;
+}
+
+.bar {
+  flex: 1;
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.85), rgba(102, 126, 234, 0.45));
+  border-radius: 2px 2px 0 0;
+  transition: height 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.35);
+}
+
+.dash-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.58rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 0.4rem;
+  justify-content: space-between;
+}
+
+.dash-foot > span:first-child { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #4cd964; box-shadow: 0 0 6px rgba(76, 217, 100, 0.7); animation: dotPulse 1.4s ease-in-out infinite; }
+.dot.up { background: #4cd964; }
+
+@keyframes dotPulse { 50% { opacity: 0.4; } }
+
+.dash-time { letter-spacing: 0.1em; }
+
 /* 卡片内容 */
-.show-body { padding: 0 0.4rem; transform: translateZ(14px); }
+.show-body { padding: 0 0.4rem 0.4rem; transform: translateZ(14px); }
 
 .show-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.5rem;
 }
 
-.show-title { font-size: 1.2rem; font-weight: 700; color: #fff; }
+.show-title { font-size: 1.05rem; font-weight: 700; color: #fff; }
 
 .show-arrow {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   color: rgba(255, 255, 255, 0.2);
   transition: all 0.3s;
 }
@@ -577,17 +792,21 @@ onBeforeUnmount(() => {
 .show-card:hover .show-arrow { color: #00d4ff; transform: translate(3px, -3px); }
 
 .show-desc {
-  font-size: 0.84rem;
-  line-height: 1.7;
+  font-size: 0.78rem;
+  line-height: 1.65;
   color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.85rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.show-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.show-tags { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 
 .tag {
-  font-size: 0.68rem;
-  padding: 0.28rem 0.65rem;
+  font-size: 0.64rem;
+  padding: 0.25rem 0.6rem;
   border-radius: 999px;
   color: #7fd9ff;
   background: rgba(0, 212, 255, 0.08);
@@ -599,7 +818,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-top: 1.2rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   transform: translateZ(10px);
 }
 
@@ -613,8 +834,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.68rem;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   color: #9db2ff;
@@ -765,11 +986,12 @@ onBeforeUnmount(() => {
 
 .cta-caret { letter-spacing: -0.1em; }
 
-@media (max-width: 900px) {
-  .show-grid { grid-template-columns: 1fr; }
+@media (max-width: 1100px) {
+  .show-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 640px) {
+  .show-grid { grid-template-columns: 1fr; }
   .showcase { padding: 4rem 1.25rem; }
   .overlay-inner { padding: 2rem 1.5rem; }
   .overlay-feats { grid-template-columns: 1fr; }

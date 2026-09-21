@@ -2,11 +2,12 @@
   <div id="bg-layer" aria-hidden="true">
     <!-- 视频壁纸：poster 首帧兜底（黑屏防护）；低端机/减少动效偏好 → 静态海报图 -->
     <video
-      v-if="bgVideo && canPlayVideo"
+      v-if="bgVideo && canPlayVideo && !videoFailed"
       ref="bgVideoEl"
       :src="bgVideo.video"
       :poster="bgVideo.poster"
-      muted loop playsinline autoplay disablepictureinpicture
+      muted loop playsinline autoplay disablepictureinpicture preload="metadata"
+      @error="videoFailed = true"
       :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }"
     ></video>
     <img v-else-if="bgVideo" :src="bgVideo.poster" :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }" />
@@ -69,6 +70,8 @@ const bgWallpaper = computed(() =>
 )
 const bgVideo = computed(() => (bgWallpaper.value?.video ? bgWallpaper.value : null))
 const bgVideoEl = ref(null)
+// 视频加载/播放出错时降级为静态海报，避免黑屏与反复报错
+const videoFailed = ref(false)
 
 function tryPlayVideo() {
   const v = bgVideoEl.value
@@ -96,7 +99,7 @@ watch(bgVideoEl, el => {
   el.addEventListener('play', () => clearTimeout(t), { once: true })
 })
 
-watch(bgWallpaper, () => tryPlayVideo())
+watch(bgWallpaper, () => { videoFailed.value = false; tryPlayVideo() })
 
 onMounted(() => document.addEventListener('visibilitychange', onVisibilityChange))
 onUnmounted(() => {
@@ -124,10 +127,12 @@ async function reportVisit() {
       userAgent: navigator.userAgent.slice(0, 400),
       pagePath: location.pathname + location.search
     }
+    // keepalive: 请求不随页面刷新/关闭被 abort（消除控制台 net::ERR_ABORTED /api/admin/visit）
     await fetch('/api/admin/visit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      keepalive: true
     })
   } catch {}
 }
@@ -213,16 +218,25 @@ html, body, #app {
 .page-leave-to {
   opacity: 0;
 }
-/* WebGL canvas 在路由透明过渡的合成阶段白屏/白框闪烁（Chromium 合成层问题），
-   opacity 渐变太慢会在 0.22s 的离开窗口残留半透明 WebGL 层 → 直接移出渲染树，
-   进入后恢复并靠自身 0.45s 淡入 */
-canvas.hero-canvas {
+/* WebGL canvas 路由过渡"白框"终极防护（Chromium 合成层问题）：
+   祖先 opacity 过渡时浏览器会临时创建/销毁 WebGL 合成层，层建立后的
+   头几帧纹理未就绪 → 画布区域闪现白色矩形框。
+   三重防护：
+   ① translate3d 让画布常驻独立合成层，层不随过渡重建，纹理始终有效；
+   ② 离开阶段第一时间移出渲染树，不参与 0.22s 的 opacity 渐变；
+   ③ 进入阶段等页面过渡结束后自身再 0.45s 淡入。 */
+canvas.hero-canvas,
+canvas.bg-gl-canvas {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
   transition: opacity 0.45s ease;
 }
-.page-leave-active canvas.hero-canvas {
+.page-leave-active canvas.hero-canvas,
+.page-leave-active canvas.bg-gl-canvas {
   display: none !important;
 }
-.page-enter-active canvas.hero-canvas {
+.page-enter-active canvas.hero-canvas,
+.page-enter-active canvas.bg-gl-canvas {
   opacity: 0;
 }
 

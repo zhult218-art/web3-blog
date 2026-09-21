@@ -1,8 +1,65 @@
 // ============================================================
-// 轻量 Markdown 渲染器（零依赖，离线可用）
+// 轻量 Markdown 渲染器（离线可用）
 // 支持：标题 / 粗体 / 斜体 / 行内代码 / 代码块 / 引用 / 列表 / 链接 / 图片 / 表格 / 分隔线
-// 输出 HTML 字符串，配合 v-html 使用；代码块不做高亮（保留纯文本）
+// 输出 HTML 字符串，配合 v-html 使用；代码块使用 highlight.js 做语法高亮
 // ============================================================
+import hljs from 'highlight.js/lib/core'
+import javascript from 'highlight.js/lib/languages/javascript'
+import typescript from 'highlight.js/lib/languages/typescript'
+import python from 'highlight.js/lib/languages/python'
+import java from 'highlight.js/lib/languages/java'
+import xml from 'highlight.js/lib/languages/xml'
+import css from 'highlight.js/lib/languages/css'
+import json from 'highlight.js/lib/languages/json'
+import bash from 'highlight.js/lib/languages/bash'
+import sql from 'highlight.js/lib/languages/sql'
+import yaml from 'highlight.js/lib/languages/yaml'
+import markdown from 'highlight.js/lib/languages/markdown'
+import c from 'highlight.js/lib/languages/c'
+import cpp from 'highlight.js/lib/languages/cpp'
+import csharp from 'highlight.js/lib/languages/csharp'
+import go from 'highlight.js/lib/languages/go'
+import rust from 'highlight.js/lib/languages/rust'
+import php from 'highlight.js/lib/languages/php'
+import ruby from 'highlight.js/lib/languages/ruby'
+import shell from 'highlight.js/lib/languages/shell'
+import dockerfile from 'highlight.js/lib/languages/dockerfile'
+import nginx from 'highlight.js/lib/languages/nginx'
+import plaintext from 'highlight.js/lib/languages/plaintext'
+
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('js', javascript)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('ts', typescript)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('py', python)
+hljs.registerLanguage('java', java)
+hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('html', xml)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('sh', bash)
+hljs.registerLanguage('sql', sql)
+hljs.registerLanguage('yaml', yaml)
+hljs.registerLanguage('yml', yaml)
+hljs.registerLanguage('markdown', markdown)
+hljs.registerLanguage('md', markdown)
+hljs.registerLanguage('c', c)
+hljs.registerLanguage('cpp', cpp)
+hljs.registerLanguage('c++', cpp)
+hljs.registerLanguage('csharp', csharp)
+hljs.registerLanguage('cs', csharp)
+hljs.registerLanguage('go', go)
+hljs.registerLanguage('rust', rust)
+hljs.registerLanguage('rs', rust)
+hljs.registerLanguage('php', php)
+hljs.registerLanguage('ruby', ruby)
+hljs.registerLanguage('rb', ruby)
+hljs.registerLanguage('shell', shell)
+hljs.registerLanguage('dockerfile', dockerfile)
+hljs.registerLanguage('nginx', nginx)
+hljs.registerLanguage('plaintext', plaintext)
 
 function escapeHtml(s) {
   return String(s ?? '')
@@ -62,7 +119,20 @@ function renderBlocks(text) {
   const blocks = splitCodeBlocks(text)
   for (const block of blocks) {
     if (block.type === 'code') {
-      html += `<pre class="code-block"><button class="code-copy" type="button">复制</button><code>${escapeHtml(block.content)}</code></pre>`
+      const lang = block.lang || 'plaintext'
+      let highlighted
+      try {
+        highlighted = hljs.highlight(block.content, { language: lang, ignoreIllegals: true }).value
+      } catch {
+        try {
+          highlighted = hljs.highlightAuto(block.content).value
+        } catch {
+          highlighted = escapeHtml(block.content)
+        }
+      }
+      const langLabel = lang.toUpperCase()
+      // 复制按钮使用 data-code 属性承载原始代码，配合 post.vue 的事件委托实现复制
+      html += `<div class="code-block-wrap"><div class="code-block-header"><span class="code-lang">${langLabel}</span><button class="code-copy" type="button" data-code="${encodeURIComponent(block.content)}">复制</button></div><pre class="code-block"><code class="hljs language-${lang}">${highlighted}</code></pre></div>`
       continue
     }
     const src = block.content

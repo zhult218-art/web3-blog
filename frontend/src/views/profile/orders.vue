@@ -64,6 +64,7 @@ import { getOrderList, cancelOrder, deleteOrder } from '@/api/shop'
 import PageBack from '@/components/PageBack.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm } from '@/composables/useDialog'
+import { formatDateTimeCN } from '@/utils/date'
 import Loading from '@/components/common/Loading.vue'
 
 const router = useRouter()
@@ -86,7 +87,7 @@ function badgeClass(s) {
 }
 
 // 本地化格式化订单时间
-function formatDate(d) { return d ? new Date(d).toLocaleString('zh-CN') : '' }
+function formatDate(d) { return formatDateTimeCN(d, '') }
 
 function goPay(order) { router.push(`/pay?orderId=${order.id}`) }
 

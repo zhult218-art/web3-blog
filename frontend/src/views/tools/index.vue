@@ -55,7 +55,13 @@
             </div>
           </div>
         </div>
-        <div v-else class="py-10"><Loading /></div>
+        <div v-else-if="!loaded" class="py-10"><Loading /></div>
+        <div v-else class="py-16 text-center">
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0e0e26] border border-white/[0.06] mb-4">
+            <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-4M10 4a2 2 0 002 2h0a2 2 0 002-2M10 4a2 2 0 012-2h0a2 2 0 012 2"/></svg>
+          </div>
+          <p class="text-sm text-gray-500">暂无脚本</p>
+        </div>
         <div class="mt-6" v-if="total > 0">
           <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="fetch" />
         </div>
@@ -141,7 +147,7 @@ import Loading from '@/components/common/Loading.vue'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 
 const toast = useToastStore()
-const list = ref([]); const page = ref(1); const size = ref(10); const total = ref(0)
+const list = ref([]); const page = ref(1); const size = ref(10); const total = ref(0); const loaded = ref(false)
 const showScript = ref(false); const selectedScript = ref(null)
 const selectedCat = ref('全部')
 const showForm = ref(false)
@@ -180,8 +186,10 @@ async function deleteScriptItem(item) {
 
 // 在线工具快捷入口配置
 const onlineTools = [
+  { id: 'plaza', name: '60秒 API 广场', icon: '🌐', desc: '60+接口在线调试', path: '/tools/api-plaza' },
+  { id: 'news60s', name: '60秒读世界', icon: '📰', desc: '每日新闻快报', path: '/tools/news60s' },
   { id: 'qrnote', name: 'API 工具中心', icon: '🧩', desc: '第三方免费API聚合', path: '/tools/api' },
-  { id: 'sites', name: '分享网站', icon: '🛰️', desc: '优质外链收藏', path: '/tools/sites' },
+  { id: 'sites', name: '分享网站', icon: '🛰️', desc: '优质外链收藏(含AI导航)', path: '/tools/sites' },
   { id: 'json', name: 'JSON格式化', icon: '{ }', desc: '格式化/压缩/验证', path: '/tools/json' },
   { id: 'base64', name: 'Base64编解码', icon: '🔤', desc: '加密解密转换', path: '/tools/base64' },
   { id: 'timestamp', name: '时间戳转换', icon: '🕐', desc: '时间戳日期互转', path: '/tools/timestamp' },
@@ -198,7 +206,7 @@ const onlineTools = [
 function fetch() {
   const params = { page: page.value, size: size.value }
   if (selectedCat.value !== '全部') params.category = selectedCat.value
-  getToolList(params).then(res => { const d = res.data || {}; list.value = d.records || []; total.value = d.total || 0 })
+  getToolList(params).then(res => { const d = res.data || {}; list.value = d.records || []; total.value = d.total || 0 }).finally(() => { loaded.value = true })
 }
 
 // 查看脚本内容弹窗

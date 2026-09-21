@@ -17,8 +17,8 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
             </svg>
           </div>
-          <h1 class="text-2xl font-bold tracking-tight text-white">Web3 Portal</h1>
-          <p class="mt-1.5 text-sm text-slate-400">去中心化未来 &middot; 元宇宙空间</p>
+          <h1 class="text-2xl font-bold tracking-tight text-white">Aurora-朱</h1>
+          <p class="mt-1.5 text-sm text-slate-400">极光之境 &middot; 数字星球</p>
           <div class="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent"></div>
         </div>
 
@@ -192,7 +192,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'v
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useToastStore } from '@/stores/modules/toast'
-import { getCaptcha, sendEmailCode, sendPhoneCode, getGoogleUrl } from '@/api/user'
+import { getCaptcha, sendEmailCode, sendPhoneCode, getGoogleUrl, googleDevLogin } from '@/api/user'
 import { animate, stagger } from 'animejs'
 import { useSupabase } from '@/composables/useSupabase'
 
@@ -414,12 +414,26 @@ async function handleGoogleLogin() {
     const res = await getGoogleUrl()
     const data = res.data || res
     if (data.url) {
+      // 生产已配置真实 Google OAuth → 跳转授权页
       window.location.href = data.url
-    } else {
-      toast.warning('Google 登录未启用')
+      return
     }
-  } catch {
-    toast.error('获取 Google 授权失败')
+    // 未配置真实 OAuth → 走 dev mock：弹输入框让用户输入邮箱，后端自动注册/登录
+    // 生产部署设置 GOOGLE_OAUTH_ENABLED=true 后，后端 /user/oauth/google/dev-login 会返回 403 拒绝
+    const email = window.prompt('Google 登录未配置真实 client_id，当前为 dev mock 模式。\n请输入任意邮箱（将以此邮箱自动注册/登录）：', '')
+    if (!email || !email.includes('@')) {
+      toast.warning('请输入合法邮箱')
+      return
+    }
+    const devRes = await googleDevLogin({ email })
+    const payload = devRes.data?.code === 200 ? (devRes.data?.data || devRes.data) : devRes.data
+    if (!payload?.token) throw new Error('未获取到令牌')
+    auth.setSession(payload)
+    toast.success('Google dev 登录成功')
+    const redirect = route.query.redirect || '/'
+    router.push(redirect)
+  } catch (e) {
+    toast.error(e?.response?.data?.message || e?.message || '获取 Google 授权失败，请确认网关与用户服务已启动')
   } finally {
     googleLoading.value = false
   }

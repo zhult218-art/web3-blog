@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-6">
-    <div class="mx-auto max-w-5xl">
+    <div class="mx-auto max-w-[1400px]">
       <!-- Reading Progress Bar -->
       <div class="fixed top-0 left-0 right-0 z-40 h-[2px] bg-transparent">
         <div class="h-full bg-gradient-to-r from-purple-500 to-cyan-500 transition-all duration-150" :style="{ width: readingProgress + '%' }"></div>
@@ -73,7 +73,7 @@
           <div class="holo-bar mb-8"></div>
 
           <!-- Content -->
-          <div class="prose-content text-gray-300 leading-[1.85] text-[15px] mb-8 whitespace-pre-wrap">{{ detail.content }}</div>
+          <div class="article-body text-gray-300 leading-[1.85] text-[15px] mb-8" v-html="contentHtml"></div>
 
           <!-- Tags -->
           <div v-if="detail.tags" class="flex flex-wrap gap-2 mb-8">
@@ -176,15 +176,17 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getBlogDetail, likeBlog, favoriteBlog, checkBlogFavorite, checkBlogLike } from '@/api/blog'
 import { getForumDetail } from '@/api/forum'
 import { likePost, getCommentList, createComment } from '@/api/forum'
+import { renderMarkdown } from '@/utils/markdown'
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
 import Loading from '@/components/common/Loading.vue'
 
 const route = useRoute()
+const router = useRouter()
 const toast = useToastStore()
 const authStore = useAuthStore()
 const detail = ref(null)
@@ -204,6 +206,9 @@ const currentUserInitial = computed(() => {
 
 const commentCount = computed(() => comments.value.length)
 
+// 正文按 Markdown 渲染（社区帖子正文存的是 markdown 源码）
+const contentHtml = computed(() => detail.value?.content ? renderMarkdown(detail.value.content) : '')
+
 const readingTime = computed(() => {
   if (!detail.value?.content) return 1
   const words = detail.value.content.length
@@ -222,8 +227,10 @@ function handleScroll() {
 }
 
 async function loadComments() {
+  // 博客文章不在社区页加载评论（已跳转博客详情页）
+  if (isArticle) return
   try {
-    const res = await getCommentList(id, isArticle ? 'article' : 'post', { page: 1, size: 100 })
+    const res = await getCommentList(id, 'post', { page: 1, size: 100 })
     comments.value = res.data?.records || res.records || []
   } catch (e) {
     console.warn('Failed to load comments:', e)
@@ -231,19 +238,17 @@ async function loadComments() {
 }
 
 async function loadDetail() {
+  // 博客文章（web3_blog）走博客详情页渲染，社区页只读论坛库（web3_forum），两者分库不混用
+  if (isArticle) {
+    router.replace(`/blog/post/${id}`)
+    return
+  }
   try {
-    const res = isArticle ? await getBlogDetail(id) : await getForumDetail(id)
+    const res = await getForumDetail(id)
     const data = res.data || res
     detail.value = data.article || data
     if (!detail.value || !detail.value.title) {
       toast.error('内容不存在或已被删除')
-    }
-    if (isArticle && authStore.token) {
-      try {
-        const [favRes, likeRes] = await Promise.all([checkBlogFavorite(id), checkBlogLike(id)])
-        bookmarked.value = favRes.data?.favorited || false
-        liked.value = likeRes.data?.liked || false
-      } catch {}
     }
   } catch (e) {
     console.warn('Failed to load detail:', e)

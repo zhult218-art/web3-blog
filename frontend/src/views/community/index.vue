@@ -12,15 +12,19 @@
             <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
             <span class="text-[11px] text-gray-400">{{ onlineCount }} 在线</span>
           </div>
-          <router-link to="/community/create" class="web3-btn text-xs !px-4 !py-2.5 flex items-center gap-1.5">
+          <button class="web3-btn text-xs !px-4 !py-2.5 flex items-center gap-1.5" @click="router.push('/community/chat')">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            群聊
+          </button>
+          <button class="web3-btn text-xs !px-4 !py-2.5 flex items-center gap-1.5" @click="showPublish = true">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             发布内容
-          </router-link>
+          </button>
         </div>
       </div>
 
       <!-- Filter Tabs -->
-      <div class="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+      <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
         <button v-for="tab in tabs" :key="tab.key" @click="switchTab(tab.key)"
           :class="['px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-300 border',
             activeTab === tab.key
@@ -30,6 +34,17 @@
           <span v-if="tab.count" class="ml-1.5 text-[10px] opacity-60">{{ tab.count }}</span>
         </button>
       </div>
+
+      <!-- Hot Tag Chips -->
+      <div v-if="trendingTags.length" class="flex items-center gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
+        <span class="text-[10px] text-gray-600 matrix-text flex-shrink-0">热门标签</span>
+        <button v-for="t in trendingTags" :key="t.tag" @click="searchTag(t.tag)"
+          class="flex-shrink-0 text-[11px] px-2.5 py-1 rounded-lg bg-[#0e0e26] text-gray-400 border border-white/[0.06] hover:border-purple-400/25 hover:text-purple-300 hover:shadow transition-all duration-200">
+          #{{ t.tag }}
+          <span class="ml-1 text-[9px] text-gray-600">{{ t.cnt }}</span>
+        </button>
+      </div>
+      <div v-else class="mb-6"></div>
 
       <div class="flex gap-6">
         <!-- Main Feed -->
@@ -58,12 +73,11 @@
                 <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"></div>
                 <div class="absolute bottom-3 left-4 flex items-center gap-2">
                   <span :class="['text-[10px] px-2 py-0.5 rounded-lg font-medium',
-                    item.type === 'article'
-                      ? 'bg-purple-500/20 text-purple-300 border border-purple-400/20'
+                    item.type === 'video'
+                      ? 'bg-pink-500/20 text-pink-300 border border-pink-400/20'
                       : 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/20']">
-                    {{ item.type === 'article' ? '文章' : '讨论' }}
+                    {{ item.type === 'video' ? '视频' : '讨论' }}
                   </span>
-                  <span v-if="item.mediaType === 'video'" class="text-[10px] px-2 py-0.5 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-400/20">视频</span>
                 </div>
               </div>
 
@@ -116,17 +130,37 @@
             </div>
           </div>
 
-          <!-- Loading / Empty -->
-          <div v-else-if="loading" class="py-16 space-y-4">
+          <!-- Loading skeleton -->
+          <div v-else-if="loading" class="space-y-4">
             <div v-for="i in 4" :key="i" class="glass-panel p-5">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="skeleton w-7 h-7 rounded-full"></div>
+                <div class="skeleton h-3 w-24"></div>
+                <div class="skeleton h-2 w-12 ml-auto"></div>
+              </div>
               <div class="skeleton h-5 w-3/4 mb-3"></div>
               <div class="skeleton h-3 w-full mb-2"></div>
-              <div class="skeleton h-3 w-2/3"></div>
+              <div class="skeleton h-3 w-2/3 mb-4"></div>
+              <div class="flex gap-3 pt-3 border-t border-white/[0.04]">
+                <div class="skeleton h-3 w-10"></div>
+                <div class="skeleton h-3 w-10"></div>
+                <div class="skeleton h-3 w-10"></div>
+              </div>
             </div>
           </div>
+          <!-- Empty state -->
           <div v-else class="py-20 text-center">
-            <div class="text-4xl mb-4 opacity-20">📭</div>
-            <p class="text-sm text-gray-600">还没有内容，来发布第一条吧</p>
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#0e0e26] border border-white/[0.06] mb-5">
+              <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 0V5a2 2 0 012-2h10a2 2 0 012 2v14l-3-1.5L12 21l-3-1.5L6 21V5z"/>
+              </svg>
+            </div>
+            <p class="text-sm text-gray-400 mb-1">这里还很安静</p>
+            <p class="text-xs text-gray-600 mb-5">成为第一个分享内容的人</p>
+            <button @click="showPublish = true" class="web3-btn text-xs !px-5 !py-2.5 inline-flex items-center gap-1.5">
+              去发布
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            </button>
           </div>
 
           <!-- Pagination -->
@@ -199,6 +233,9 @@
         </aside>
       </div>
     </div>
+
+    <!-- 发布弹窗：覆盖在本页上层，不再跳转独立页面 -->
+    <PublishModal v-model="showPublish" @published="fetch" />
   </div>
 </template>
 
@@ -209,13 +246,15 @@
 // ====================================================
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getBlogList, getHotArticles, likeBlog } from '@/api/blog'
 import { getForumList, likePost, getPostStats } from '@/api/forum'
 import { getOnlineCount } from '@/api/admin'
 import { useToastStore } from '@/stores/modules/toast'
+import PublishModal from '@/components/community/PublishModal.vue'
 
 const router = useRouter()
 const toast = useToastStore()
+
+const showPublish = ref(false)
 
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -232,7 +271,6 @@ const todayPosts = ref(0)
 
 const tabs = [
   { key: 'all', label: '全部', count: null },
-  { key: 'article', label: '文章', count: null },
   { key: 'discussion', label: '讨论', count: null },
   { key: 'video', label: '视频', count: null },
   { key: 'hot', label: '热门', count: null },
@@ -259,33 +297,17 @@ function formatDate(d) {
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 
-// 按当前 tab/排序并行请求文章与帖子列表，合并后统一排序渲染
+// 按当前 tab/排序请求论坛帖子（web3_forum），社区与博客分库，互不混用
 async function fetch() {
   loading.value = true
   try {
-    const promises = []
-    if (activeTab.value === 'all' || activeTab.value === 'article' || activeTab.value === 'hot') {
-      promises.push(getBlogList({ page: page.value, size: size.value }).catch(() => ({ data: { records: [] } })))
-    }
-    if (activeTab.value === 'all' || activeTab.value === 'discussion' || activeTab.value === 'video' || activeTab.value === 'hot') {
-      promises.push(getForumList({ page: page.value, size: size.value * 3 }).catch(() => ({ data: { records: [] } })))
-    }
-
-    const results = await Promise.all(promises)
+    const res = await getForumList({ page: page.value, size: size.value * 3 }).catch(() => ({ data: { records: [] } }))
+    const records = (res.data?.records || res.data || [])
     const combined = []
-    results.forEach((res, idx) => {
-      const records = (res.data?.records || res.data || [])
-      const isForum = idx === 1 || activeTab.value === 'discussion' || activeTab.value === 'video'
-      records.forEach(r => {
-        if (activeTab.value === 'article' && !isForum) {
-          combined.push({ ...r, type: 'article' })
-          return
-        }
-        if (activeTab.value === 'discussion' && (r.mediaType === 'video')) return
-        if (activeTab.value === 'video' && r.mediaType !== 'video') return
-        const item = { ...r, type: r.mediaType === 'video' ? 'video' : isForum ? 'discussion' : 'article' }
-        combined.push(item)
-      })
+    records.forEach(r => {
+      if (activeTab.value === 'discussion' && r.mediaType === 'video') return
+      if (activeTab.value === 'video' && r.mediaType !== 'video') return
+      combined.push({ ...r, type: r.mediaType === 'video' ? 'video' : 'discussion' })
     })
 
     // Sort
@@ -321,21 +343,15 @@ function switchTab(key) {
   fetch()
 }
 
-// 点击条目跳转到文章或帖子详情页
+// 点击条目跳转到帖子详情页（社区只读 web3_forum）
 function goDetail(item) {
-  const type = item.type === 'article' ? 'article' : 'post'
-  const id = item.id
-  router.push(`/community/${type}/${id}`)
+  router.push(`/community/post/${item.id}`)
 }
 
-// 点赞/取消点赞：文章走 likeBlog，帖子走 likePost
+// 点赞/取消点赞：社区帖子走 likePost（web3_forum）
 async function like(item) {
   try {
-    if (item.type === 'article') {
-      await likeBlog(item.id)
-    } else {
-      await likePost(item.id)
-    }
+    await likePost(item.id)
     item.likeCount = (item.likeCount || 0) + (item.liked ? -1 : 1)
     item.liked = !item.liked
     toast.success(item.liked ? '点赞成功' : '已取消点赞')

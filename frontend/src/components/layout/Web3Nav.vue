@@ -1,13 +1,28 @@
 <template>
   <header class="xhdr sticky top-0 z-40">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-      <!-- Logo -->
-      <router-link to="/" class="group flex items-center gap-2.5">
-        <div class="relative w-8 h-8 rounded-lg bg-gradient-to-br from-[#a855f7] to-[#06b6d4] flex items-center justify-center text-sm font-black text-white shadow-lg shadow-purple-500/25 group-hover:shadow-purple-500/40 transition-shadow">
-          W
-          <span class="absolute -inset-1 rounded-lg bg-gradient-to-br from-[#a855f7] to-[#06b6d4] opacity-0 group-hover:opacity-30 blur-lg transition-opacity -z-10"></span>
-        </div>
-        <span class="text-base font-bold text-gray-100 group-hover:text-gradient-cyber transition-all duration-300 hidden sm:inline">{{ brand }}</span>
+      <!-- Logo：极光渐变 "A" + 朱红点（Aurora-朱 品牌标） -->
+      <router-link to="/" class="group flex items-center gap-2.5" title="Aurora-朱">
+        <svg viewBox="0 0 40 40" class="relative w-9 h-9 drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] transition-transform duration-300 group-hover:scale-110" aria-label="Aurora-朱 logo">
+          <defs>
+            <linearGradient id="logoAurora" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#22d3ee"/>
+              <stop offset="0.52" stop-color="#a855f7"/>
+              <stop offset="1" stop-color="#34d399"/>
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="36" height="36" rx="11" fill="#0b0b1e"/>
+          <rect x="2.8" y="2.8" width="34.4" height="34.4" rx="10.2" fill="none" stroke="url(#logoAurora)" stroke-width="1.5" opacity="0.75"/>
+          <!-- 极光拱形 A -->
+          <path d="M11.5 28.5 L20 10.5 L28.5 28.5" fill="none" stroke="url(#logoAurora)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 23 H25" stroke="url(#logoAurora)" stroke-width="2.6" stroke-linecap="round" opacity="0.9"/>
+          <!-- 朱红落点 -->
+          <circle cx="31.6" cy="9.6" r="3.2" fill="#fb3b5c"/>
+          <circle cx="31.6" cy="9.6" r="5.4" fill="#fb3b5c" opacity="0.25"/>
+        </svg>
+        <span class="text-base font-bold group-hover:opacity-80 transition-all duration-300 hidden sm:inline">
+          <span class="bg-gradient-to-r from-cyan-300 via-purple-300 to-emerald-300 bg-clip-text text-transparent">Aurora</span><span class="text-rose-400">-朱</span>
+        </span>
       </router-link>
 
       <!-- Desktop Nav -->
@@ -255,7 +270,7 @@ const themes = [
   { id: 'inferno', label: '熔岩橙', swatch: 'linear-gradient(135deg,#fb923c,#ef4444)' },
   { id: 'quantum', label: '量子绿', swatch: 'linear-gradient(135deg,#34d399,#22d3ee)' }
 ]
-const brand = 'VerseNote-Aurora'
+const brand = 'Aurora-朱'
 const { theme, wallpaper, setTheme, setWallpaper } = useTheme()
 const wallpapers = WALLPAPERS
 const wallGroups = WALLPAPER_GROUPS
@@ -306,6 +321,7 @@ const serviceGroups = [
     { path: '/ai-station', label: 'AI 中转站', sub: '令牌·模型', perm: 'home', svc: 'ai-proxy-service', icon: '🤖' },
   ]},
   { name: '工具资源', items: [
+    { path: '/knowledge', label: '星图知识库', sub: '持续成长·学习地图', perm: 'home', icon: '🧭' },
     { path: '/tools', label: '炼金道具', sub: '实用工具', perm: 'tools', svc: 'tool-service', icon: '🛠️' },
     { path: '/software', label: '魔导工坊', sub: '软件中心', perm: 'software', svc: 'software-service', icon: '💾' },
     { path: '/resources', label: '宝物仓库', sub: '资源库', perm: 'resources', svc: 'resource-service', icon: '📦' },
@@ -322,6 +338,7 @@ const moreGroups = [
     { path: '/nails', label: '美甲小铺', sub: '预约·作品集', perm: 'home', svc: 'media-service', icon: '💅' },
     { path: '/three', label: '星空漫游', sub: '3D 粒子空间', perm: 'home', icon: '🌀' },
     { path: '/architecture', label: '架构图鉴', sub: '微服务拓扑', perm: 'home', icon: '🏛️' },
+    { path: '/twin', label: '世界之眼', sub: '服务数字孪生', perm: 'home', icon: '🌐' },
   ]},
   { name: '交流关于', items: [
     { path: '/link', label: '同伴名册', sub: '友人帐', perm: 'link', icon: '🤝' },

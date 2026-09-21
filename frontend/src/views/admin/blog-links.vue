@@ -100,6 +100,7 @@ import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
+import { formatDateTimeCN } from '@/utils/date'
 
 const toast = useToastStore()
 const list = ref([])
@@ -109,7 +110,8 @@ const editing = ref(null)
 const submitting = ref(false)
 const form = ref({ name: '', url: '', avatar: '', description: '', groupName: 'default', sort: 0, status: 'PUBLISHED' })
 
-function formatDate(d) { return d ? new Date(d).toLocaleString('zh-CN') : '' }
+// 日期格式化（统一走 utils/date）
+function formatDate(d) { return formatDateTimeCN(d, '') }
 function statusLabel(s) { return { PUBLISHED: '已发布', PENDING: '待审核', DISABLED: '已禁用' }[s] || s }
 function statusClass(s) {
   return s === 'PUBLISHED' ? 'web3-badge-green' : s === 'PENDING' ? 'web3-badge-orange' : 'web3-badge-purple'
@@ -117,7 +119,11 @@ function statusClass(s) {
 
 async function fetchLinks() {
   loading.value = true
-  try { list.value = (await getAdminLinks()) || [] }
+  try {
+    // 拦截器返回 ApiResponse 信封，需取 .data；否则 v-for 会遍历 {code,message,data} 导致 id 丢失、删除失效
+    const res = await getAdminLinks()
+    list.value = Array.isArray(res) ? res : (res?.data || [])
+  }
   catch {}
   finally { loading.value = false }
 }
@@ -161,7 +167,9 @@ async function doDelete(l) {
     await deleteAdminLink(l.id)
     toast.success('已删除')
     fetchLinks()
-  } catch {}
+  } catch (e) {
+    toast.error(e.response?.data?.message || '删除失败，请重试')
+  }
 }
 
 onMounted(fetchLinks)

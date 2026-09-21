@@ -60,7 +60,10 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="text-xs text-gray-400 block mb-1">分类</label>
-            <input v-model="form.category" class="web3-input text-sm" placeholder="如: 技术 / 随笔" />
+            <input v-model="form.category" list="blog-category-list" class="web3-input text-sm" placeholder="选择或输入分类" />
+            <datalist id="blog-category-list">
+              <option v-for="c in BLOG_CATEGORIES" :key="c" :value="c"></option>
+            </datalist>
           </div>
           <div>
             <label class="text-xs text-gray-400 block mb-1">标签（逗号分隔）</label>
@@ -112,6 +115,13 @@ import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
+import { formatDayCN } from '@/utils/date'
+
+// 博客标准分类体系（硬件→嵌入式→软件→网络→攻防 全覆盖；仍可手动输入新分类）
+const BLOG_CATEGORIES = [
+  '硬件底层', '嵌入式', '软件工程', '网络工程', '网络安全',
+  '运维与效率', '前沿AI', 'Web3', '建站记录', '随笔',
+]
 
 const toast = useToastStore()
 const list = ref([])
@@ -126,7 +136,7 @@ const submitting = ref(false)
 const form = ref({ title: '', summary: '', category: '', tags: '', cover: '', status: 'PUBLISHED', isTop: 0, content: '' })
 
 // 本地化格式化日期
-function formatDate(d) { return d ? new Date(d).toLocaleDateString('zh-CN') : '' }
+function formatDate(d) { return formatDayCN(d, '') }
 
 // 判断文章是否为已发布（status 为字符串）
 function isPublished(a) { return String(a.status || '').toUpperCase() === 'PUBLISHED' }

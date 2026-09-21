@@ -42,12 +42,12 @@
 
     <!-- 底部播放器栏 -->
     <div class="player-bar" data-glow>
-      <!-- 进度区 -->
+      <!-- 进度区（支持点击与拖拽定位） -->
       <div class="bar-progress">
         <span class="bar-time">{{ format(ui.time) }}</span>
-        <div class="progress-track" @click="onSeekClick">
-          <div class="progress-fill" :style="{ width: progressPct + '%' }">
-            <span class="progress-knob"></span>
+        <div class="progress-track" ref="progressTrack" @pointerdown="onSeekPointerDown">
+          <div class="progress-fill" :style="{ width: (dragPct ?? progressPct) + '%' }">
+            <span class="progress-knob" :class="{ 'knob-active': dragging }"></span>
           </div>
         </div>
         <span class="bar-time">{{ format(ui.duration) }}</span>
@@ -79,10 +79,12 @@
 
         <span class="ctl-divider"></span>
 
-        <button class="ctl" title="音量" @click="muted = !muted">
-          <svg v-if="muted" class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        <button class="ctl" title="音量" @click="toggleMute">
+          <svg v-if="muted || volumePct === 0" class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
           <svg v-else class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05A4.5 4.5 0 0016.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
         </button>
+        <input class="vol-slider" type="range" min="0" max="100" :value="volumePct"
+          @input="onVolumeInput" :title="`音量 ${volumePct}%`" />
 
         <button class="ctl" data-glow :title="liked ? '取消喜欢' : '喜欢'" @click="toggleLike">
           <svg class="icon" :class="{ 'like-on': liked }" viewBox="0 0 24 24">
@@ -152,6 +154,63 @@ const muted = ref(false)
 const liked = ref(false)
 function toggleLike() { liked.value = !liked.value }
 
+// ---- 进度条拖拽（pointer 事件：按住拖动实时预览，松手真正 seek）----
+const progressTrack = ref(null)
+const dragging = ref(false)
+const dragPct = ref(null)
+
+// 根据指针事件换算相对进度条的百分比（0~100）
+function pctFromEvent(e) {
+  const el = progressTrack.value
+  if (!el) return 0
+  const rect = el.getBoundingClientRect()
+  return Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100))
+}
+
+function onSeekPointerDown(e) {
+  dragging.value = true
+  dragPct.value = pctFromEvent(e)
+  window.addEventListener('pointermove', onSeekPointerMove)
+  window.addEventListener('pointerup', onSeekPointerUp)
+}
+
+function onSeekPointerMove(e) {
+  if (!dragging.value) return
+  dragPct.value = pctFromEvent(e)
+}
+
+function onSeekPointerUp(e) {
+  if (!dragging.value) return
+  const pct = pctFromEvent(e)
+  dragging.value = false
+  dragPct.value = null
+  window.removeEventListener('pointermove', onSeekPointerMove)
+  window.removeEventListener('pointerup', onSeekPointerUp)
+  player.seekByPercent(pct)
+}
+
+// ---- 音量：滑块调节 + 静音切换（记住静音前的音量）----
+let savedVolume = player.volume > 0 ? player.volume : 0.7
+const volumePct = computed(() => Math.round((player.volume ?? 0.7) * 100))
+
+function onVolumeInput(e) {
+  const v = Math.min(1, Math.max(0, Number(e.target.value) / 100))
+  muted.value = v === 0
+  if (v > 0) savedVolume = v
+  player.setVolume(v)
+}
+
+function toggleMute() {
+  if (!muted.value) {
+    if (player.volume > 0) savedVolume = player.volume
+    player.setVolume(0)
+    muted.value = true
+  } else {
+    player.setVolume(savedVolume > 0 ? savedVolume : 0.7)
+    muted.value = false
+  }
+}
+
 // 统一暴露给模板的响应式状态：直接映射全局 store
 const ui = reactive({
   get track() { return player.currentTrack },
@@ -171,7 +230,7 @@ watch(() => props.tracks, (list) => {
   const normalized = (list || []).map((t, i) => ({
     ...t,
     id: t.id || t.musicId || i + 1,
-    neteaseId: t.neteaseId || '',
+    neteaseId: t.neteaseId || t.netease_id || '',
     duration: Number(t.duration) || 240,
     url: t.url || t.audio_url || '',
   }))
@@ -237,14 +296,6 @@ function cycleMode() {
   player.setMode(map[(idx + 1) % map.length])
 }
 
-// 点击进度条跳转到对应播放进度
-function onSeekClick(e) {
-  const el = e.currentTarget
-  const rect = el.getBoundingClientRect()
-  const pct = ((e.clientX - rect.left) / rect.width) * 100
-  player.seekByPercent(pct)
-}
-
 // 点击歌词行时跳到对应时间点定位播放
 function onKey(e) {
   if (e.code === 'Space' && e.target.tagName !== 'BUTTON') {
@@ -259,6 +310,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
+  window.removeEventListener('pointermove', onSeekPointerMove)
+  window.removeEventListener('pointerup', onSeekPointerUp)
 })
 </script>
 
@@ -425,19 +478,19 @@ onBeforeUnmount(() => {
   font-size: 0.68rem;
   letter-spacing: 0.3em;
   font-family: 'Courier New', monospace;
-  color: #9a958c;
+  color: rgba(148, 163, 184, 0.65);
 }
 
 .dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #b8b2a6;
+  background: rgba(148, 163, 184, 0.6);
 }
 
 .dot-on {
-  background: #2f9e6e;
-  box-shadow: 0 0 10px rgba(47, 158, 110, 0.8);
+  background: #6ee7b7;
+  box-shadow: 0 0 10px rgba(110, 231, 183, 0.8);
   animation: dotPulse 1.2s ease-in-out infinite;
 }
 
@@ -449,7 +502,7 @@ onBeforeUnmount(() => {
   height: 320px;
   overflow: hidden;
   padding: 0 0.4rem 0 1rem;
-  border-left: 1px solid rgba(0, 0, 0, 0.1);
+  border-left: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .lyrics-inner {
@@ -462,7 +515,7 @@ onBeforeUnmount(() => {
   align-items: center;
   height: 46px;
   font-size: 1.02rem;
-  color: rgba(30, 26, 20, 0.4);
+  color: rgba(203, 213, 225, 0.32);
   letter-spacing: 0.08em;
   transition: color 0.45s ease, transform 0.45s ease, opacity 0.45s ease;
   transform: scale(1);
@@ -470,7 +523,8 @@ onBeforeUnmount(() => {
 }
 
 .lyric-active {
-  color: #17140f;
+  color: #f1f5ff;
+  text-shadow: 0 0 18px rgba(165, 243, 252, 0.35);
   transform: scale(1.06);
   opacity: 1;
   font-weight: 700;
@@ -484,14 +538,14 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 0.7rem;
   font-size: 0.85rem;
-  color: rgba(30, 26, 20, 0.45);
+  color: rgba(148, 163, 184, 0.5);
   letter-spacing: 0.1em;
 }
 
 .empty-note {
   font-size: 0.66rem;
   letter-spacing: 0.35em;
-  color: rgba(30, 26, 20, 0.3);
+  color: rgba(148, 163, 184, 0.35);
   font-family: 'Courier New', monospace;
 }
 
@@ -500,11 +554,11 @@ onBeforeUnmount(() => {
   position: relative;
   padding: 1.1rem 1.6rem 1rem;
   border-radius: 20px;
-  background: rgba(250, 246, 238, 0.72);
+  background: rgba(10, 12, 32, 0.72);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 18px 50px rgba(90, 70, 40, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(148, 163, 184, 0.12);
 }
 
 .bar-progress {
@@ -517,7 +571,7 @@ onBeforeUnmount(() => {
 .bar-time {
   font-size: 0.7rem;
   font-family: 'Courier New', monospace;
-  color: rgba(30, 26, 20, 0.5);
+  color: rgba(148, 163, 184, 0.7);
   min-width: 44px;
   text-align: center;
 }
@@ -536,7 +590,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 4px;
   border-radius: 999px;
-  background: rgba(20, 16, 10, 0.12);
+  background: rgba(148, 163, 184, 0.18);
 }
 
 .progress-fill {
@@ -544,7 +598,8 @@ onBeforeUnmount(() => {
   left: 0;
   height: 4px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #c8b393, #8c7350);
+  background: linear-gradient(90deg, #22d3ee, #a855f7);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
   transition: width 0.12s linear;
 }
 
@@ -556,13 +611,22 @@ onBeforeUnmount(() => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #17140f;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  background: #e0e7ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   opacity: 0;
   transition: opacity 0.25s;
 }
 
 .progress-track:hover .progress-knob { opacity: 1; }
+.progress-knob.knob-active { opacity: 1; box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.3); }
+
+/* 音量滑块 */
+.vol-slider {
+  width: 64px;
+  height: 3px;
+  accent-color: #22d3ee;
+  cursor: pointer;
+}
 
 .bar-controls {
   display: flex;
@@ -575,8 +639,8 @@ onBeforeUnmount(() => {
   margin-right: auto;
   font-size: 0.6rem;
   letter-spacing: 0.22em;
-  color: rgba(30, 26, 20, 0.45);
-  border: 1px solid rgba(30, 26, 20, 0.15);
+  color: rgba(148, 163, 184, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 999px;
   padding: 0.32rem 0.8rem;
   font-family: 'Courier New', monospace;
@@ -586,7 +650,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  color: rgba(30, 26, 20, 0.6);
+  color: rgba(203, 213, 225, 0.65);
   background: none;
   border: none;
   cursor: pointer;
@@ -596,8 +660,8 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.ctl:hover { color: #17140f; background: rgba(20, 16, 10, 0.06); transform: translateY(-1px); }
-.ctl-on { background: rgba(20, 16, 10, 0.08); color: #17140f; }
+.ctl:hover { color: #f1f5ff; background: rgba(148, 163, 184, 0.1); transform: translateY(-1px); }
+.ctl-on { background: rgba(103, 232, 249, 0.12); color: #a5f3fc; }
 
 .icon {
   width: 19px;
@@ -607,7 +671,7 @@ onBeforeUnmount(() => {
 
 .icon-lg { width: 22px; height: 22px; }
 
-.like-on { color: #c0463a; filter: drop-shadow(0 0 6px rgba(192, 70, 58, 0.5)); }
+.like-on { color: #fb7185; filter: drop-shadow(0 0 6px rgba(251, 113, 133, 0.55)); }
 
 .ctl-num {
   font-size: 0.62rem;
@@ -618,7 +682,7 @@ onBeforeUnmount(() => {
 .ctl-divider {
   width: 1px;
   height: 22px;
-  background: rgba(20, 16, 10, 0.14);
+  background: rgba(148, 163, 184, 0.2);
   margin: 0 0.3rem;
 }
 
@@ -626,18 +690,18 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  background: radial-gradient(circle at 32% 28%, #26221c, #17140f 68%);
-  color: #f3ecdd;
+  border: 1px solid rgba(165, 243, 252, 0.4);
+  background: radial-gradient(circle at 32% 28%, #312e81, #0f0f2e 68%);
+  color: #eef2ff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 22px rgba(20, 16, 10, 0.3);
+  box-shadow: 0 8px 26px rgba(124, 58, 237, 0.4), 0 0 18px rgba(34, 211, 238, 0.2);
   transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s;
 }
 
-.play-btn:hover { transform: scale(1.07); box-shadow: 0 12px 30px rgba(20, 16, 10, 0.4); }
+.play-btn:hover { transform: scale(1.07); box-shadow: 0 12px 34px rgba(124, 58, 237, 0.55), 0 0 26px rgba(34, 211, 238, 0.3); }
 
 /* ---- 歌单面板 ---- */
 .playlist-panel {
@@ -646,10 +710,10 @@ onBeforeUnmount(() => {
   right: 0;
   bottom: calc(100% + 12px);
   border-radius: 16px;
-  background: rgba(250, 246, 238, 0.94);
+  background: rgba(8, 10, 28, 0.95);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 18px 50px rgba(90, 70, 40, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 24px rgba(124, 58, 237, 0.15);
   padding: 1rem;
   max-height: 300px;
   overflow: hidden;
@@ -662,9 +726,9 @@ onBeforeUnmount(() => {
   font-size: 0.66rem;
   letter-spacing: 0.22em;
   font-family: 'Courier New', monospace;
-  color: rgba(30, 26, 20, 0.5);
+  color: rgba(148, 163, 184, 0.65);
   padding: 0.2rem 0.4rem 0.8rem;
-  border-bottom: 1px solid rgba(20, 16, 10, 0.1);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   margin-bottom: 0.5rem;
 }
 
@@ -672,11 +736,11 @@ onBeforeUnmount(() => {
   max-height: 224px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(20, 16, 10, 0.25) transparent;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
 }
 
 .pl-list::-webkit-scrollbar { width: 5px; }
-.pl-list::-webkit-scrollbar-thumb { background: rgba(20, 16, 10, 0.2); border-radius: 999px; }
+.pl-list::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 999px; }
 
 .pl-item {
   display: flex;
@@ -688,23 +752,23 @@ onBeforeUnmount(() => {
   transition: background 0.2s;
 }
 
-.pl-item:hover { background: rgba(20, 16, 10, 0.05); }
+.pl-item:hover { background: rgba(148, 163, 184, 0.08); }
 
-.pl-item-on { background: rgba(20, 16, 10, 0.07); }
+.pl-item-on { background: rgba(103, 232, 249, 0.1); }
 
 .pl-idx {
   width: 26px;
   font-size: 0.68rem;
   font-family: 'Courier New', monospace;
-  color: rgba(30, 26, 20, 0.45);
+  color: rgba(148, 163, 184, 0.5);
   text-align: center;
 }
 
-.pl-item-on .pl-idx { color: #a06b3a; }
+.pl-item-on .pl-idx { color: #67e8f9; }
 
-.pl-title { flex: 1; font-size: 0.86rem; font-weight: 600; color: #17140f; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.pl-artist { font-size: 0.72rem; color: rgba(30, 26, 20, 0.5); }
-.pl-dur { font-size: 0.68rem; font-family: 'Courier New', monospace; color: rgba(30, 26, 20, 0.4); }
+.pl-title { flex: 1; font-size: 0.86rem; font-weight: 600; color: #eef2ff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pl-artist { font-size: 0.72rem; color: rgba(148, 163, 184, 0.7); }
+.pl-dur { font-size: 0.68rem; font-family: 'Courier New', monospace; color: rgba(148, 163, 184, 0.55); }
 
 .list-fade-enter-active, .list-fade-leave-active { transition: opacity 0.25s, transform 0.25s; }
 .list-fade-enter-from, .list-fade-leave-to { opacity: 0; transform: translateY(8px); }
@@ -718,7 +782,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 900px) {
   .player-main { grid-template-columns: 1fr; gap: 1.6rem; }
-  .lyrics-wrap { border-left: none; border-top: 1px solid rgba(0, 0, 0, 0.1); padding: 1rem 0 0; height: 240px; }
+  .lyrics-wrap { border-left: none; border-top: 1px solid rgba(148, 163, 184, 0.14); padding: 1rem 0 0; height: 240px; }
   .quality-chip { display: none; }
+  .vol-slider { display: none; }
 }
 </style>

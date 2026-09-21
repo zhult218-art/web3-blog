@@ -135,6 +135,7 @@ import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
+import { formatDayCN } from '@/utils/date'
 
 const toast = useToastStore()
 const list = ref([])
@@ -187,7 +188,7 @@ async function savePerms() {
 }
 
 // 本地化格式化日期
-function formatDate(d) { return d ? new Date(d).toLocaleDateString('zh-CN') : '' }
+function formatDate(d) { return formatDayCN(d, '') }
 
 // 按分页与搜索关键字加载用户列表
 async function fetchUsers() {

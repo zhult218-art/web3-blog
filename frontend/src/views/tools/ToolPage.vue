@@ -212,6 +212,25 @@
             </table>
           </div>
         </div>
+
+        <!-- 60秒读世界（数据源：github-myblog/60s-main 同款 API） -->
+        <div v-else-if="activeTool === 'news60s'" class="space-y-4">
+          <div class="flex items-center gap-3">
+            <button class="web3-btn text-xs" :disabled="newsLoading" @click="load60sNews">{{ newsLoading ? '加载中...' : '刷新今日新闻' }}</button>
+            <span v-if="newsDate" class="text-xs text-gray-500">{{ newsDate }}</span>
+            <a href="https://github.com/vikiboss/60s" target="_blank" rel="noopener" class="text-xs text-cyan-400 hover:text-cyan-300 ml-auto">API 项目源码 ↗</a>
+          </div>
+          <div v-if="newsError" class="text-xs text-red-400 bg-red-500/10 rounded-lg px-4 py-3">{{ newsError }}</div>
+          <div v-if="newsList.length" class="space-y-2">
+            <div v-for="(n, i) in newsList" :key="i" class="glass-panel-sm px-4 py-2.5 flex gap-3 items-start hover:border-cyan-400/20 transition">
+              <span class="text-[11px] font-mono text-cyan-500/80 flex-shrink-0 mt-0.5">{{ String(i + 1).padStart(2, '0') }}</span>
+              <p class="text-sm text-gray-300 leading-relaxed">{{ n }}</p>
+            </div>
+          </div>
+          <div v-else-if="!newsLoading && !newsError" class="text-center text-xs text-gray-600 py-8">点击上方按钮获取每天 60 秒读懂世界的新闻快报</div>
+        </div>
+
+        <!-- 免费 API 站点导航已迁移至「分享网站 → AI导航」Tab -->
       </div>
     </div>
   </div>
@@ -287,7 +306,38 @@ const toolConfig = {
   qrcode: { title: '二维码生成', desc: '在线生成 QR Code 二维码图片', placeholder: '输入要编码的文本或URL...' },
   color: { title: '颜色转换', desc: 'HEX ↔ RGB ↔ HSL 颜色格式互转', placeholder: '输入颜色值，如 #ff6600 或 rgb(255,102,0)' },
   url: { title: 'URL 编解码', desc: 'encodeURIComponent / decodeURIComponent URL编码转换', placeholder: '输入URL或文本...' },
-  diff: { title: '文本差异对比', desc: '并排对比两段文本的差异，高亮不同行', placeholder: '' }
+  diff: { title: '文本差异对比', desc: '并排对比两段文本的差异，高亮不同行', placeholder: '' },
+  news60s: { title: '60秒读世界', desc: '每天 60 秒读懂世界 · 每日新闻快报', placeholder: '' }
+}
+
+// ==================== 60秒读世界 ====================
+const newsLoading = ref(false)
+const newsList = ref([])
+const newsDate = ref('')
+const newsError = ref('')
+
+// 拉取每日新闻快报（主源 + 备源，浏览器直连公共 API）
+async function load60sNews() {
+  newsLoading.value = true
+  newsError.value = ''
+  const sources = ['https://60s.viki.moe/v2/60s', 'https://60s-cf.viki.moe/v2/60s']
+  try {
+    for (const url of sources) {
+      try {
+        const res = await fetch(url)
+        if (!res.ok) continue
+        const json = await res.json()
+        const items = json?.data?.news || []
+        if (!items.length) continue
+        newsList.value = items
+        newsDate.value = json?.data?.date || json?.data?.update_time || ''
+        return
+      } catch { /* 尝试下一个源 */ }
+    }
+    newsError.value = '新闻源暂时不可用，请稍后重试'
+  } finally {
+    newsLoading.value = false
+  }
 }
 
 const toolTitle = computed(() => toolConfig[activeTool.value]?.title || '在线工具')
@@ -516,6 +566,7 @@ watch(() => route.params.tool, (val) => {
   placeholder.value = toolConfig[val]?.placeholder || ''
   if (val === 'uuid') generateUUID()
   if (val === 'regex') { runRegex() }
+  if (val === 'news60s' && !newsList.value.length) load60sNews()
 }, { immediate: true })
 
 onMounted(() => {

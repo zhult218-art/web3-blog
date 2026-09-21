@@ -44,15 +44,21 @@
             <span class="text-[10px] text-gray-600">{{ formatDate(item.createdAt) }}</span>
           </div>
           <div class="md:col-span-1 text-right flex items-center gap-2">
-            <button class="text-[11px] text-cyan-400 hover:text-cyan-300" @click.stop="editItem(item)">编辑</button>
-            <button class="text-[11px] text-red-400 hover:text-red-300" @click.stop="deleteItem(item)">删除</button>
+            <button v-if="isAdmin" class="text-[11px] text-cyan-400 hover:text-cyan-300" @click.stop="editItem(item)">编辑</button>
+            <button v-if="isAdmin" class="text-[11px] text-red-400 hover:text-red-300" @click.stop="deleteItem(item)">删除</button>
             <button class="web3-btn text-[11px] !px-3 !py-1.5" @click.stop="download(item)">
               下载
             </button>
           </div>
         </div>
       </div>
-      <div v-else class="py-10"><Loading /></div>
+      <div v-else-if="!loaded" class="py-10"><Loading /></div>
+      <div v-else class="py-16 text-center">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0e0e26] border border-white/[0.06] mb-4">
+          <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+        </div>
+        <p class="text-sm text-gray-500">暂无资源</p>
+      </div>
 
       <div class="mt-6" v-if="total > 0">
         <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="fetch" />
@@ -91,26 +97,32 @@
 // 资源下载页：资源列表 + 分类筛选 + 分页，
 // 支持下载、编辑与删除资源
 // ====================================================
-import { ref, reactive, onMounted } from 'vue'
-import { getResourceList, updateResource, deleteResource } from '@/api/resources'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { getResourceList, updateResource, deleteResource, recordResourceDownload } from '@/api/resources'
 import { useToastStore } from '@/stores/modules/toast'
+import { useAuthStore } from '@/stores/modules/auth'
 import { downloadFile } from '@/utils/download'
+import { formatDayCN } from '@/utils/date'
 import Pagination from '@/components/common/Pagination.vue'
 import Loading from '@/components/common/Loading.vue'
 import Modal from '@/components/common/Modal.vue'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 
-const list = ref([]); const page = ref(1); const size = ref(15); const total = ref(0)
+const list = ref([]); const page = ref(1); const size = ref(15); const total = ref(0); const loaded = ref(false)
 const selectedCat = ref('全部')
 const toast = useToastStore()
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
 const showEditModal = ref(false)
 const editingItem = ref(null)
 const form = reactive({ title: '', category: '', description: '' })
 
-// 下载资源：浏览器直接下载（blob 优先，跨域回退直链）
+// 下载资源：先调用后端计数接口，再触发浏览器下载
 async function download(item) {
   if (!item?.downloadUrl) { toast.warning('暂无下载链接'); return }
   try {
+    await recordResourceDownload(item.id).catch(() => {})
+    item.downloadCount = (item.downloadCount || 0) + 1
     const direct = await downloadFile(item.downloadUrl, item.title)
     if (direct) toast.success('已开始下载')
   } catch {
@@ -127,7 +139,7 @@ function formatSize(bytes) {
 }
 
 // 本地化格式化资源日期
-function formatDate(d) { return d ? new Date(d).toLocaleDateString('zh-CN') : '' }
+function formatDate(d) { return formatDayCN(d, '') }
 
 // 根据文件类型返回对应图标
 function fileIcon(type) {
@@ -161,7 +173,7 @@ async function deleteItem(item) {
 function fetch() {
   const params = { page: page.value, size: size.value }
   if (selectedCat.value !== '全部') params.category = selectedCat.value
-  getResourceList(params).then(res => { const d = res.data || {}; list.value = d.records || []; total.value = d.total || 0 })
+  getResourceList(params).then(res => { const d = res.data || {}; list.value = d.records || []; total.value = d.total || 0 }).finally(() => { loaded.value = true })
 }
 
 onMounted(fetch)

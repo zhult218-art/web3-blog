@@ -275,18 +275,8 @@
       </div>
     </div>
 
-    <!-- 完整令牌一次性展示弹窗 -->
-    <div v-if="revealedToken" class="fixed inset-0 z-[110] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="glass-panel w-full max-w-md p-6 space-y-4 border-web3-accent/30">
-        <h3 class="text-base font-bold text-amber-300">⚠ 请立即保存你的完整令牌</h3>
-        <p class="text-xs text-gray-400 leading-relaxed">这是唯一一次展示机会，关闭后只能看到前缀。请复制并妥善保管：</p>
-        <code class="block matrix-text text-xs break-all bg-black/40 border border-white/10 rounded-lg p-3 text-emerald-300 select-all">{{ revealedToken }}</code>
-        <div class="flex justify-end gap-2">
-          <button class="web3-btn text-xs !px-4" @click="copyRevealed">📋 复制</button>
-          <button class="web3-btn text-xs !px-4" @click="revealedToken = null">我已保存</button>
-        </div>
-      </div>
-    </div>
+    <!-- 完整令牌一次性展示弹窗（抽出到子组件 TokenRevealModal.vue，v-model 控制显示） -->
+    <TokenRevealModal v-model:token="revealedToken" />
   </teleport>
 </template>
 
@@ -306,6 +296,7 @@ import {
 } from '@/api/aiproxy'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm, prompt as dlgPrompt } from '@/composables/useDialog'
+import TokenRevealModal from './components/TokenRevealModal.vue'
 
 const toast = useToastStore()
 
@@ -511,9 +502,7 @@ async function saveToken() {
   revealedToken.value = res.data.fullToken
   loadTokens(1)
 }
-function copyRevealed() {
-  navigator.clipboard.writeText(revealedToken.value).then(() => toast.success('已复制到剪贴板'))
-}
+// copyRevealed 已移入子组件 TokenRevealModal.vue
 async function toggleToken(t) {
   await updateToken(t.id, { status: t.status === 1 ? 0 : 1 })
   toast.success(t.status === 1 ? '令牌已停用' : '令牌已启用')

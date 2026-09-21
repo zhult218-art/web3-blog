@@ -46,11 +46,14 @@ export function permLabel(code) {
 }
 
 // 计算用户实际生效的权限：ADMIN 返回 null（拥有全部）；
-// 有显式权限记录则用记录；否则回退到默认权限
+// 默认权限人人恒有，显式授权在此之上叠加（修复：此前显式权限会替代默认权限，
+// 导致仅有 quant/tools 的用户回首页触发"无限重定向"）
 export function effectivePerms(user) {
   if (!user) return [...DEFAULT_PERMS]
   if (user.role === 'ADMIN') return null
-  if (Array.isArray(user.permissions) && user.permissions.length) return user.permissions
+  if (Array.isArray(user.permissions) && user.permissions.length) {
+    return [...new Set([...DEFAULT_PERMS, ...user.permissions])]
+  }
   return [...DEFAULT_PERMS]
 }
 

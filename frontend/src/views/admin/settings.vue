@@ -9,7 +9,7 @@
             <div class="space-y-4">
               <div>
                 <label class="text-xs text-gray-500 block mb-1.5">Site Name</label>
-                <input class="web3-input" value="Web3 Portal" />
+                <input class="web3-input" value="Aurora-朱" />
               </div>
               <div>
                 <label class="text-xs text-gray-500 block mb-1.5">Site Description</label>
@@ -59,7 +59,7 @@ const toast = useToastStore()
 
 // 站点基础设置表单（站点名/简介等）
 const form = reactive({
-  siteName: 'Web3 Portal',
+  siteName: 'Aurora-朱',
   description: 'Web3极简未来科技风个人综合技术门户',
   keywords: 'web3, blog, forum, shop, quant, metaverse'
 })

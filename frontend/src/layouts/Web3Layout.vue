@@ -7,7 +7,7 @@
       <router-view v-slot="{ Component }">
         <Suspense :timeout="0">
           <transition name="page" mode="out-in">
-            <component :is="Component" />
+            <component :is="Component" v-if="Component" />
           </transition>
           <template #fallback>
             <div class="flex items-center justify-center min-h-[calc(100vh-64px)]">

@@ -11,9 +11,26 @@ import { supabase } from '@/lib/supabase/client'
 // 后端信封：{ code, data, message }（与 request 拦截器返回形状一致）
 const ok = data => ({ code: 200, message: 'success', data })
 
+// 文章缺少封面时，按主题匹配本地高质感 SVG（统一品红/电光青视觉）
+// 无关键词命中时按 id 稳定取图，保证同一文章每次封面一致
+const FALLBACK_COVER_IDS = [34, 35, 36, 37, 38, 39]
+function fallbackCover(r) {
+  const s = `${r.title || ''} ${r.category || ''}`
+  let id
+  if (/博客|搭建|入门|portal/i.test(s)) id = 34          // 传送门圆环
+  else if (/supabase|数据库|接入|api|浏览器|后端/i.test(s)) id = 37 // 浏览器窗口
+  else if (/代码|编程|开发|技术|vue|前端|工程/i.test(s)) id = 35 // 代码尖括号
+  else if (/defi|金融|币|交易|流动性/i.test(s)) id = 36  // DeFi 三币互联
+  else if (/nft|数字藏品|藏品|艺术/i.test(s)) id = 38    // NFT 三卡叠
+  else if (/安全|加密|防护|隐私|盾/i.test(s)) id = 39    // 盾牌勾
+  else id = FALLBACK_COVER_IDS[Math.abs(Number(r.id) || 0) % FALLBACK_COVER_IDS.length]
+  return `/images/blog/cover-${id}.svg`
+}
+
 // Supabase 行（snake_case）→ 前端 VO（camelCase，含旧字段兼容）
 function mapArticle(r) {
   const tags = Array.isArray(r.tags) ? r.tags : []
+  const cover = r.cover_url || fallbackCover(r)
   return {
     id: Number(r.id),
     title: r.title,
@@ -23,8 +40,8 @@ function mapArticle(r) {
     category: r.category || '',
     tags: tags.join(',') || '',
     tagsArr: tags,
-    cover: r.cover_url || '',
-    coverImage: r.cover_url || '',
+    cover,
+    coverImage: cover,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     createTime: r.created_at,
