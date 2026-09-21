@@ -56,4 +56,6 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # 显式指定 accountId，避免 wrangler 查询 /memberships（token 无 User 级权限会 10000 报错）
+          accountId: 3ade4ded1a978a0371d4638a0bd02bfd
           command: pages deploy frontend/dist --project-name=web3-blog --branch=main
