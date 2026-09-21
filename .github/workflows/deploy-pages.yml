@@ -1,0 +1,59 @@
+# Web3 Portal — 前端自动部署到 Cloudflare Pages
+# 触发：push 到 main 且 frontend/ 有变更；也支持手动触发
+#
+# 前置条件（GitHub Secrets，已配置）：
+#   CLOUDFLARE_API_TOKEN           Cloudflare API Token（Pages:Edit + Account Settings:Read）
+#   VITE_API_BASE                  后端网关地址（Cloudflare Tunnel URL）
+#   VITE_SUPABASE_URL              Supabase 项目 URL
+#   VITE_SUPABASE_PUBLISHABLE_KEY  Supabase publishable key（RLS 只读）
+
+name: Deploy Frontend to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+        # postbuild 会自动清理 >25MB 的文件（如 vosk/cn.tar.gz）
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: pages deploy frontend/dist --project-name=web3-blog --branch=main
