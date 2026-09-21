@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#160a30"/><stop offset="1" stop-color="#06040f"/>
+    </linearGradient>
+    <radialGradient id="g" cx="0.72" cy="0.36" r="0.6">
+      <stop offset="0" stop-color="#d946ef" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#d946ef" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dots" width="38" height="38" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.6" fill="#ffffff" opacity="0.16"/>
+    </pattern>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect width="1280" height="720" fill="url(#dots)"/>
+  <rect width="1280" height="720" fill="url(#g)"/>
+  <g fill="none" stroke-linecap="round" filter="url(#glow)">
+    <circle cx="940" cy="270" r="152" stroke="#d946ef" stroke-width="5" stroke-dasharray="46 30" opacity="0.95"/>
+    <circle cx="940" cy="270" r="102" stroke="#22d3ee" stroke-width="5" opacity="0.95"/>
+    <circle cx="940" cy="270" r="50" stroke="#d946ef" stroke-width="5"/>
+    <line x1="882" y1="424" x2="882" y2="116" stroke="#22d3ee" stroke-width="3" opacity="0.35"/>
+    <line x1="998" y1="424" x2="998" y2="116" stroke="#22d3ee" stroke-width="3" opacity="0.35"/>
+  </g>
+  <circle cx="940" cy="270" r="9" fill="#f0abfc"/>
+  <rect x="72" y="446" width="104" height="34" rx="17" fill="#d946ef" opacity="0.14" stroke="#d946ef" stroke-opacity="0.5"/>
+  <text x="124" y="469" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#f0abfc">公告</text>
+  <text x="72" y="524" font-family="sans-serif" font-size="19" letter-spacing="7" fill="#d946ef">WEB3 PORTAL · 博客</text>
+  <text x="70" y="596" font-family="sans-serif" font-size="45" font-weight="700" fill="#ffffff">欢迎来到 Web3 Portal</text>
+</svg>

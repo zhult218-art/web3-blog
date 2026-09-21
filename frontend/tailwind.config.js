@@ -8,9 +8,9 @@ export default {
         web3: {
           bg: '#030014',
           surface: '#0a0a1a',
-          primary: '#7c3aed',
-          accent: '#22d3ee',
-          glow: '#a78bfa'
+          primary: '#c026d3',
+          accent: '#00e5ff',
+          glow: '#e879f9'
         }
       },
       animation: {
