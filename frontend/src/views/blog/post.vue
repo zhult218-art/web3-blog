@@ -5,7 +5,7 @@
     <Web3Nav />
     <ReadingProgress />
 
-    <main class="relative z-10 max-w-[860px] mx-auto px-4 py-8 space-y-6">
+    <main class="relative z-10 max-w-[1400px] mx-auto px-4 md:px-6 py-8 space-y-6">
       <!-- 返回按钮 -->
       <div class="post-back" ref="backRef">
         <router-link to="/blog" class="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-white transition-colors">
@@ -14,51 +14,79 @@
         </router-link>
       </div>
 
-      <template v-if="article">
+      <!-- 加载骨架 -->
+      <template v-if="loading">
+        <div class="panel p-6 md:p-8 space-y-4">
+          <div class="h-3 w-24 rounded bg-white/8 animate-pulse"></div>
+          <div class="h-7 w-2/3 rounded bg-white/10 animate-pulse"></div>
+          <div class="h-3 w-1/3 rounded bg-white/8 animate-pulse"></div>
+        </div>
+        <div class="panel p-6 md:p-8">
+          <div class="space-y-3">
+            <div class="h-3 w-full rounded bg-white/8 animate-pulse"></div>
+            <div class="h-3 w-5/6 rounded bg-white/8 animate-pulse"></div>
+            <div class="h-3 w-4/6 rounded bg-white/8 animate-pulse"></div>
+            <div class="h-3 w-full rounded bg-white/8 animate-pulse"></div>
+            <div class="h-3 w-3/4 rounded bg-white/8 animate-pulse"></div>
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="article">
         <!-- 文章头 -->
         <header class="post-header panel p-6 md:p-8" ref="headerRef">
           <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 mb-3">
-            <span class="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/20">{{ article.category || '未分类' }}</span>
+            <span class="post-category">{{ article.category || '未分类' }}</span>
             <span class="opacity-50">·</span>
-            <time>{{ formatDate(article.createdAt) }}</time>
+            <time class="post-meta-time">{{ formatDate(article.createdAt) }}</time>
             <template v-if="formatDate(article.updatedAt) !== formatDate(article.createdAt)">
               <span class="opacity-50">·</span>
               <span>更新于 {{ formatDate(article.updatedAt) }}</span>
             </template>
           </div>
-          <h1 class="post-title text-2xl md:text-3xl font-black text-white leading-snug mb-3">{{ article.title }}</h1>
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
-            <span>字数 {{ wordCount }}</span>
-            <span>阅读 {{ readingMin }} 分钟</span>
-            <span v-if="commentTotal !== null">评论 {{ commentTotal }}</span>
-            <span>浏览 {{ article.viewCount ?? 0 }}</span>
-            <span class="flex items-center gap-1 cursor-pointer hover:text-pink-300 transition-colors" @click="toggleLike">
-              <svg class="w-3.5 h-3.5" :class="liked ? 'text-pink-500 fill-pink-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-              {{ article.likeCount ?? 0 }}
-            </span>
-            <span class="flex items-center gap-1 cursor-pointer hover:text-amber-300 transition-colors" @click="toggleFavorite" :title="favorited ? '取消收藏' : '收藏'">
-              <svg class="w-3.5 h-3.5" :class="favorited ? 'text-amber-400 fill-amber-400' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.48 3.5a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.5.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.441a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
-              收藏
-            </span>
+          <h1 class="post-title text-2xl md:text-[2rem] font-black text-white leading-snug mb-4">{{ article.title }}</h1>
+          <!-- 元数据分组：信息区 + 操作区 -->
+          <div class="post-meta-bar">
+            <div class="post-meta-info">
+              <span class="post-meta-chip">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 0L12 9.586V12h2.414l5.586-5.586a2 2 0 000-2.828z"/></svg>
+                字数 {{ wordCount }}
+              </span>
+              <span class="post-meta-chip">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                阅读 {{ readingMin }} 分钟
+              </span>
+              <span v-if="commentTotal !== null" class="post-meta-chip">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 21l1.8-3.2A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                评论 {{ commentTotal }}
+              </span>
+              <span class="post-meta-chip">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                浏览 {{ article.viewCount ?? 0 }}
+              </span>
+            </div>
+            <div class="post-meta-actions">
+              <button class="post-action" :class="{ 'is-active': liked }" @click="toggleLike">
+                <svg class="w-3.5 h-3.5" :class="liked ? 'fill-pink-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                {{ article.likeCount ?? 0 }}
+              </button>
+              <button class="post-action" :class="{ 'is-active': favorited }" @click="toggleFavorite" :title="favorited ? '取消收藏' : '收藏'">
+                <svg class="w-3.5 h-3.5" :class="favorited ? 'fill-amber-400' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.48 3.5a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.5.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.441a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
+                收藏
+              </button>
+            </div>
           </div>
           <!-- 标签行 -->
-          <div v-if="articleTags.length" class="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-white/[0.06]">
+          <div v-if="articleTags.length" class="post-tags-row">
             <span class="text-[11px] text-gray-500"># 标签</span>
-            <span v-for="t in articleTags" :key="t" @click="goTag(t)"
-              class="cursor-pointer px-2 py-0.5 rounded-md text-[11px] text-gray-400 hover:text-purple-300 hover:bg-purple-500/15 transition-colors">{{ t }}</span>
+            <span v-for="t in articleTags" :key="t" @click="goTag(t)" class="post-tag">{{ t }}</span>
           </div>
         </header>
 
-        <!-- 封面 -->
-        <div v-if="article.cover" class="post-cover rounded-2xl border border-white/[0.06] overflow-hidden" ref="coverRef">
-          <div v-if="coverFailed" class="w-full aspect-[2/1] flex items-center justify-center bg-gradient-to-br from-purple-500/25 via-[rgba(10,10,40,0.6)] to-cyan-500/20 text-white/50 text-3xl">✦</div>
-          <img v-else :src="article.cover" :alt="article.title" referrerpolicy="no-referrer" @error="coverFailed = true" class="w-full object-cover" />
-        </div>
-
-        <!-- 正文 + 目录 -->
-        <div class="grid grid-cols-1 xl:grid-cols-[1fr_220px] gap-6 items-start">
-          <div class="post-body panel p-6 md:p-8 article-body" ref="bodyRef" v-html="contentHtml"></div>
-          <PostToc v-if="toc.length" :toc="toc" class="hidden xl:block sticky top-24" />
+        <!-- 目录 + 正文 -->
+        <div class="grid grid-cols-1 xl:grid-cols-[220px_1fr] gap-6 items-start">
+          <PostToc v-if="toc.length" :toc="toc" class="hidden xl:block sticky top-24 order-first" />
+          <article class="post-body panel p-6 md:p-8 article-body" ref="bodyRef" v-html="contentHtml" @click="onBodyClick"></article>
         </div>
 
         <!-- 上/下一篇 -->
@@ -133,6 +161,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getBlogDetail, getBlogRelated, likeBlog, favoriteBlog, checkBlogLike, checkBlogFavorite } from '@/api/blog'
 import { renderMarkdown, extractToc } from '@/utils/markdown'
+import { formatDay } from '@/utils/date'
 import { useReadMark } from '@/composables/useReadMark'
 import PostToc from '@/components/blog/PostToc.vue'
 import CommentPanel from '@/components/blog/CommentPanel.vue'
@@ -143,6 +172,7 @@ import ThreeBackground from '@/components/layout/ThreeBackground.vue'
 import Web3Nav from '@/components/layout/Web3Nav.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
 import { animate, stagger } from 'animejs'
+import 'highlight.js/styles/atom-one-dark.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -151,6 +181,7 @@ const toast = useToastStore()
 const { markRead } = useReadMark()
 
 const article = ref(null)
+const loading = ref(true)
 const coverFailed = ref(false)
 const prev = ref(null)
 const next = ref(null)
@@ -178,8 +209,33 @@ const articleTags = computed(() => {
   return String(raw || '').split(',').map(s => s.trim()).filter(Boolean)
 })
 
-function formatDate(d) { return d ? String(d).slice(0, 10) : '' }
+// 日期格式化（统一走 utils/date）
+function formatDate(d) { return formatDay(d, '') }
 function goTag(tag) { router.push({ path: '/blog', query: { tag } }) }
+
+// 正文 Markdown 中的站内链接（如 /tools/hash、/knowledge/3）走前端路由，不整页刷新；
+// 文章里提到工具时直接 [Hash 生成](/tools/hash) 即可跳到对应工具站
+function onBodyClick(e) {
+  // 代码块复制按钮（v-html 渲染，无 Vue 事件绑定，用事件委托处理）
+  const copyBtn = e.target.closest('.code-copy')
+  if (copyBtn && bodyRef.value?.contains(copyBtn)) {
+    e.preventDefault()
+    const code = decodeURIComponent(copyBtn.getAttribute('data-code') || '')
+    navigator.clipboard?.writeText(code).then(() => {
+      const orig = copyBtn.textContent
+      copyBtn.textContent = '已复制 ✓'
+      setTimeout(() => { copyBtn.textContent = orig }, 1500)
+    }).catch(() => toast.error('复制失败'))
+    return
+  }
+  const a = e.target.closest('a')
+  if (!a || !bodyRef.value?.contains(a)) return
+  const href = a.getAttribute('href') || ''
+  if (href.startsWith('/') && !href.startsWith('//')) {
+    e.preventDefault()
+    if (href !== route.fullPath) router.push(href)
+  }
+}
 
 function runEntrance() {
   nextTick(() => {
@@ -233,6 +289,9 @@ function runEntrance() {
 }
 
 async function fetchDetail(id) {
+  loading.value = true
+  article.value = null
+  coverFailed.value = false
   try {
     const d = await getBlogDetail(id)
     const payload = d?.data ?? d
@@ -250,6 +309,8 @@ async function fetchDetail(id) {
     runEntrance()
   } catch {
     article.value = null
+  } finally {
+    loading.value = false
   }
 }
 
@@ -306,7 +367,7 @@ function share(type) {
   if (target) window.open(target, '_blank', 'noopener,width=640,height=480')
 }
 
-watch(() => route.params.id, (id) => { if (id) fetchDetail(id) })
+watch(() => route.params.id, (id) => { if (id) { loading.value = true; fetchDetail(id) } })
 onMounted(() => { if (route.params.id) fetchDetail(route.params.id) })
 </script>
 
@@ -316,6 +377,44 @@ onMounted(() => { if (route.params.id) fetchDetail(route.params.id) })
 .share-btn {
   @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-gray-400
     border border-white/[0.08] hover:text-white hover:border-white/[0.18] hover:bg-white/[0.04] transition-colors;
+}
+
+/* 文章头排版优化 */
+.post-header { position: relative; }
+.post-category {
+  @apply px-2 py-0.5 rounded-md text-[11px] font-medium border;
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.22);
+  color: #d8b4fe;
+}
+.post-meta-time { @apply text-gray-400 tabular-nums; }
+
+.post-meta-bar {
+  @apply flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t border-white/[0.06];
+}
+.post-meta-info { @apply flex flex-wrap items-center gap-2; }
+.post-meta-chip {
+  @apply inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-gray-400
+    bg-white/[0.03] border border-white/[0.06] tabular-nums;
+}
+.post-meta-chip svg { @apply opacity-60; }
+.post-meta-actions { @apply flex items-center gap-2; }
+.post-action {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-gray-400
+    border border-white/[0.08] hover:text-white hover:border-white/[0.18] hover:bg-white/[0.04] transition-all;
+}
+.post-action.is-active {
+  color: #fff;
+  border-color: transparent;
+}
+.post-action.is-active svg { @apply text-pink-500 fill-pink-500/30; }
+.post-action.is-active:nth-of-type(2) svg { color: #fbbf24; }
+.post-tags-row {
+  @apply flex flex-wrap items-center gap-1.5 mt-4 pt-3 border-t border-white/[0.06];
+}
+.post-tag {
+  @apply cursor-pointer px-2 py-0.5 rounded-md text-[11px] text-gray-400
+    hover:text-purple-300 hover:bg-purple-500/15 transition-colors;
 }
 </style>
 
@@ -332,16 +431,32 @@ onMounted(() => { if (route.params.id) fetchDetail(route.params.id) })
 .article-body strong { color: #fff; }
 .article-body code { background: rgba(168,85,247,0.12); color: #e9d5ff; padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.85em; font-family: var(--font-mono); }
 .article-body pre.code-block {
-  position: relative; background: rgba(2, 2, 12, 0.85); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; padding: 1rem 1.2rem; overflow-x: auto; margin: 1.2em 0;
+  background: #282c34; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 0 0 12px 12px; padding: 1rem 1.2rem; overflow-x: auto; margin: 0;
 }
-.article-body pre.code-block code { background: transparent; color: #cbd5e1; padding: 0; font-size: 0.85rem; }
-.article-body pre.code-block .code-copy {
-  position: absolute; top: 8px; right: 8px; font-size: 10px; color: #6b7280;
+.article-body .code-block-wrap {
+  margin: 1.2em 0; border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08); background: #282c34;
+}
+.article-body .code-block-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px; background: #21252b; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.article-body .code-lang {
+  font-size: 11px; font-weight: 600; color: #98c379; letter-spacing: 0.5px;
+  font-family: var(--font-mono);
+}
+.article-body pre.code-block code {
+  background: transparent; color: #abb2bf; padding: 0; font-size: 0.85rem;
+  font-family: var(--font-mono); line-height: 1.6;
+}
+.article-body pre.code-block code.hljs { background: transparent; padding: 0; }
+.article-body .code-block-wrap .code-copy {
+  font-size: 11px; color: #6b7280;
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px; padding: 2px 8px; cursor: pointer; opacity: 0; transition: opacity 0.2s;
+  border-radius: 6px; padding: 2px 10px; cursor: pointer; transition: all 0.2s;
 }
-.article-body pre.code-block:hover .code-copy { opacity: 1; }
+.article-body .code-block-wrap .code-copy:hover { color: #e9d5ff; border-color: rgba(168,85,247,0.4); }
 .article-body blockquote { border-left: 3px solid var(--color-primary); background: rgba(168,85,247,0.06); padding: 0.6em 1em; border-radius: 0 8px 8px 0; margin: 1em 0; color: #9ca3af; }
 .article-body ul, .article-body ol { margin: 0.8em 0; padding-left: 1.5em; }
 .article-body ul { list-style: disc; }

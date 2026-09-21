@@ -1,0 +1,19 @@
+# Cloudflare Pages 自定义响应头：
+# https://developers.cloudflare.com/pages/configuration/headers/
+
+# 安全头（适用于所有 HTML 文档）
+/*.html
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Vite 产物（assets/ 下带 hash 文件名）可长缓存
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 壁纸、SVG 封面等静态资源 7 天缓存
+/images/*
+  Cache-Control: public, max-age=604800
+/wallpapers/*
+  Cache-Control: public, max-age=604800

@@ -1,0 +1,5 @@
+# Cloudflare Pages SPA 路由兜底：
+# 1) 静态资源优先匹配（assets/ 下带 hash 的 JS/CSS/图片）
+# 2) 其余所有路径回退到 /index.html，让 vue-router 接管
+# 详见：https://developers.cloudflare.com/pages/configuration/redirects/
+/*  /index.html  200
