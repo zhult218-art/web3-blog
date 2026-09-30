@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.springframework.context.annotation.Bean
- *  org.springframework.context.annotation.Configuration
- *  org.springframework.security.config.annotation.web.builders.HttpSecurity
- *  org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
- *  org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer$AuthorizedUrl
- *  org.springframework.security.web.SecurityFilterChain
- */
 package com.web3.jarvis.config;
 
 import org.springframework.context.annotation.Bean;
@@ -25,6 +14,13 @@ import org.springframework.security.web.SecurityFilterChain;
  * {@code @EnableWebSecurity} 启用 Web 安全。当前策略为放行所有请求
  * (permitAll)并关闭 CSRF,接口的登录/管理员鉴权由业务代码通过
  * {@link com.web3.common.security.AuthUtils} 手动校验 JWT 完成。</p>
+ *
+ * <p>关键注解作用：
+ * <ul>
+ *   <li>@Configuration：声明为 Spring 配置类</li>
+ *   <li>@EnableWebSecurity：启用 Spring Security Web 安全配置</li>
+ *   <li>@Bean：注册安全过滤器链 Bean</li>
+ * </ul>
  */
 @Configuration
 @EnableWebSecurity
@@ -38,7 +34,8 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth -> ((AuthorizeHttpRequestsConfigurer.AuthorizedUrl)auth.anyRequest()).permitAll());
-        return (SecurityFilterChain)http.build();
+        http.csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> ((AuthorizeHttpRequestsConfigurer.AuthorizedUrl) auth.anyRequest()).permitAll());
+        return http.build();
     }
 }

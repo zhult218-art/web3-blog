@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.core.mapper.BaseMapper
- *  org.apache.ibatis.annotations.Mapper
- */
 package com.web3.shop.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -22,8 +15,7 @@ import org.apache.ibatis.annotations.Update;
  * 额外提供原子扣减库存方法（带充足库存条件更新，并发安全，扣减同时累计销量）。
  */
 @Mapper
-public interface ProductMapper
-extends BaseMapper<Product> {
+public interface ProductMapper extends BaseMapper<Product> {
     /** 原子扣减库存并累计销量：仅在库存充足（stock >= quantity）且非逻辑删除时生效，返回受影响行数 */
     @Update("UPDATE product SET stock = stock - #{quantity}, sales = COALESCE(sales, 0) + #{quantity} WHERE id = #{id} AND deleted = 0 AND stock >= #{quantity}")
     int deductStockAtomic(@Param("id") Long id, @Param("quantity") int quantity);

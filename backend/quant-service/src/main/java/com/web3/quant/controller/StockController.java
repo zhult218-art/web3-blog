@@ -34,14 +34,15 @@ public class StockController {
 
     /**
      * 查询股票池全部股票的最新行情(前端路由 GET /stock/list)。
+     * 批量调用网关获取全市场行情，避免逐个请求导致超时。
      *
      * @return 股票行情 VO 列表,包含代码、名称、现价、涨跌幅等信息
      */
     @GetMapping(value={"/list"})
     public ApiResponse<List<StockVO>> list() {
         List<StockVO> result = new ArrayList<StockVO>();
-        for (String symbol : this.stockPriceService.getStockPool().keySet()) {
-            result.add(this.stockPriceService.toVO(this.stockPriceService.findLatest(symbol)));
+        for (Object o : this.stockPriceService.findAllLatest()) {
+            result.add(this.stockPriceService.toVO((com.web3.quant.entity.StockPrice)o));
         }
         return ApiResponse.ok(result);
     }
@@ -78,6 +79,7 @@ public class StockController {
     /**
      * 查询大盘仪表盘统计(前端路由 GET /stock/dashboard),
      * 汇总股票池全部股票的涨跌家数、平均涨跌幅等行情概况。
+     * 批量调用网关获取全市场行情，避免逐个请求导致超时。
      *
      * @return 包含 hotStocks(热门股票列表)、avgChangePercent(平均涨跌幅)、
      *         upCount(上涨家数)、downCount(下跌家数)、total(股票总数)的 Map
@@ -88,9 +90,9 @@ public class StockController {
         BigDecimal sum = BigDecimal.ZERO;
         int up = 0;
         int down = 0;
-        Map<String, String> pool = this.stockPriceService.getStockPool();
-        for (String symbol : pool.keySet()) {
-            StockVO vo = this.stockPriceService.toVO(this.stockPriceService.findLatest(symbol));
+        List<com.web3.quant.entity.StockPrice> all = this.stockPriceService.findAllLatest();
+        for (com.web3.quant.entity.StockPrice sp : all) {
+            StockVO vo = this.stockPriceService.toVO(sp);
             hotStocks.add(vo);
             sum = sum.add(vo.getChangePercent() == null ? BigDecimal.ZERO : vo.getChangePercent());
             if (vo.getChangePercent() == null || vo.getChangePercent().compareTo(BigDecimal.ZERO) < 0) {
@@ -99,13 +101,14 @@ public class StockController {
                 ++up;
             }
         }
-        BigDecimal avg = pool.isEmpty() ? BigDecimal.ZERO : sum.divide(BigDecimal.valueOf(pool.size()), 2, RoundingMode.HALF_UP);
+        int total = all.size();
+        BigDecimal avg = total == 0 ? BigDecimal.ZERO : sum.divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("hotStocks", hotStocks);
         data.put("avgChangePercent", avg);
         data.put("upCount", up);
         data.put("downCount", down);
-        data.put("total", pool.size());
+        data.put("total", total);
         return ApiResponse.ok(data);
     }
 }

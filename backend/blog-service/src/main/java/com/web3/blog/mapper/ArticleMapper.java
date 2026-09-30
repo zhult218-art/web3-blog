@@ -1,20 +1,14 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.core.mapper.BaseMapper
- *  org.apache.ibatis.annotations.Mapper
- */
 package com.web3.blog.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.web3.blog.entity.Article;
-import java.util.List;
-import java.util.Map;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * ArticleMapper —— 文章表数据访问接口
@@ -31,8 +25,7 @@ import org.apache.ibatis.annotations.Update;
  * </ul>
  */
 @Mapper
-public interface ArticleMapper
-extends BaseMapper<Article> {
+public interface ArticleMapper extends BaseMapper<Article> {
     /** 文章点赞数 +1（仅统计未删除记录） */
     @Update("UPDATE article SET like_count = IFNULL(like_count, 0) + 1 WHERE id = #{id} AND deleted = 0")
     int incrLikeCount(@Param("id") Long id);

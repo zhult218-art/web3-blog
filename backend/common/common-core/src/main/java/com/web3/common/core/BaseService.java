@@ -1,9 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.extension.service.IService
- */
 package com.web3.common.core;
 
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -16,6 +10,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
  *
  * @param <T> 对应的实体类型（Entity）
  */
-public interface BaseService<T>
-extends IService<T> {
+public interface BaseService<T> extends IService<T> {
 }

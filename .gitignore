@@ -6,8 +6,10 @@
 # Dependencies
 node_modules/
 frontend/node_modules/
+**/.venv/
 quant-py-service/.venv/
-quant-py-service/__pycache__/
+qzone-service/.venv/
+__pycache__/
 
 # Build output
 dist/
@@ -26,10 +28,15 @@ node_modules/.vite/
 
 # Environment & secrets
 .env
+.env.development
+.env.production
+.env.local
 *.local
 
 # Runtime data
-frontend/media-service/runtime/
+backend/media-service/runtime/
+# 仓库根 runtime/：本地运行时上传目录（media-service 以仓库根为工作目录启动时产生）
+/runtime/
 *.pid
 
 # Test artifacts
@@ -37,3 +44,9 @@ quant-py-service/test_output.txt
 quant-py-service/test_error.txt
 quant-py-service/stderr.log
 quant-py-service/stdout.log
+
+# Debug/repro temp files
+_repro_*.txt
+_repro_*.png
+frontend/logs-*.txt
+*.log.*

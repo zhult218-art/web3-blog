@@ -148,7 +148,9 @@ public class ProxyEngineService {
         }
         finishFailure(requestId, token, model, candidates.get(0), startMs, 503,
                 lastFailure == null ? "all channels failed" : lastFailure.getMessage(), clientIp);
-        return openAiError(HttpStatus.SERVICE_UNAVAILABLE.value(), "upstream_error", "upstream error");
+        return openAiError(HttpStatus.SERVICE_UNAVAILABLE.value(), "upstream_error",
+                "all channels failed: "
+                        + (lastFailure == null ? "unknown" : lastFailure.getMessage()));
     }
 
     /** 流式响应：先发 event-stream 头；写线程内做候选降级、字节透传、收尾计费 */
@@ -297,9 +299,14 @@ public class ProxyEngineService {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(resp.getBody());
         } catch (Exception e) {
+            String detail = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             writeLog(requestId, token, null, model, stream, 0, 0, 0L,
-                    latency(startMs), 503, "fallback unavailable", null);
-            return openAiError(503, "upstream_error", "upstream error");
+                    latency(startMs), 503, "fallback unavailable: " + detail, null);
+            // 报错带原因与指引：兜底直连失败多半是上游地址不可达/未配置
+            return openAiError(503, "upstream_error",
+                    "fallback upstream unavailable via " + properties.getFallbackBaseUrl()
+                            + " (" + detail + "). Fix: set APP_OPENAI_API_BASE_URL to a reachable upstream, "
+                            + "or use an sk- token bound to an enabled channel.");
         }
     }
 

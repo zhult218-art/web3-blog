@@ -48,46 +48,69 @@ onBeforeUnmount(() => clearTimeout(timer))
 <style scoped>
 .daily-quote {
   position: relative;
-  max-width: 640px;
+  max-width: 660px;
   margin: 1.2rem auto 0;
+  padding: 0.7rem 1.4rem;
   text-align: center;
-  font-size: 0.92rem;
-  line-height: 1.9;
-  color: rgba(255, 255, 255, 0.78);
+  font-size: 1.02rem;
+  line-height: 1.95;
+  color: rgba(255, 255, 255, 0.92);
   letter-spacing: 0.05em;
+  /* 柔和暗底光晕：任何壁纸下都保证诗句可读，且无生硬边框 */
+  background: radial-gradient(ellipse 92% 88% at 50% 45%,
+    rgba(5, 7, 20, 0.55) 0%, rgba(5, 7, 20, 0.28) 55%, transparent 78%);
+  border-radius: 1.1rem;
   animation: fadeIn 1.4s ease-out 0.6s both;
 }
 
 .typed-text {
-  background: linear-gradient(120deg, #a78bfa, #67e8f9, #f9a8d4);
+  background: linear-gradient(120deg, #ddd6fe 0%, #c4b5fd 28%, #a5f3fc 62%, #fbcfe8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  /* 字形级暗投影：透明填充文字也能从亮背景中分离 */
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.75))
+          drop-shadow(0 0 10px rgba(139, 92, 246, 0.28));
+  font-weight: 500;
 }
 
 .quote-mark {
-  font-size: 1.1rem;
-  color: rgba(167, 139, 250, 0.6);
+  font-size: 1.2rem;
+  color: rgba(196, 181, 253, 0.92);
   vertical-align: super;
   margin: 0 2px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
 }
 .quote-mark.close { vertical-align: sub; }
 
 .cursor {
   display: inline-block;
-  color: #67e8f9;
+  color: #a5f3fc;
   animation: blink 0.8s steps(2) infinite;
   margin-left: 2px;
+  text-shadow: 0 0 8px rgba(165, 243, 252, 0.7);
 }
 
 .author {
   display: block;
-  margin-top: 0.5rem;
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 0.12em;
+  margin-top: 0.55rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.76);
+  letter-spacing: 0.14em;
   font-family: 'Courier New', monospace;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
   animation: fadeIn 0.8s ease-out;
+}
+
+/* 手机端：略收字号与留白，保持单行不拥挤 */
+@media (max-width: 640px) {
+  .daily-quote {
+    max-width: 92vw;
+    font-size: 0.94rem;
+    line-height: 1.85;
+    padding: 0.6rem 0.9rem;
+  }
+  .author { font-size: 0.74rem; }
 }
 
 @keyframes blink {

@@ -439,12 +439,14 @@ onBeforeUnmount(() => {
 .more-bar:hover .more-arrow { transform: translateX(4px); }
 .more-bar:hover .more-label { color: #00d4ff; }
 
+/* 平板段：两列，充分利用横向空间 */
 @media (max-width: 980px) {
-  .article-grid { grid-template-columns: 1fr; }
+  .article-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 640px) {
   .articles { padding: 4rem 1.25rem; }
+  .article-grid { grid-template-columns: 1fr; }
 }
 
 /* 热门标签云 */

@@ -11,6 +11,78 @@ import { supabase } from '@/lib/supabase/client'
 // 后端信封：{ code, data, message }（与 request 拦截器返回形状一致）
 const ok = data => ({ code: 200, message: 'success', data })
 
+// ============================================================
+// 元数据共享缓存（列表页 / 侧栏 / 归档页共享同一份数据）
+// - in-flight 去重：同一时刻多个组件发起相同请求只打一次网络
+// - TTL 内直接命中；过期先返回旧值并后台静默刷新（stale-while-revalidate）
+// - sessionStorage 持久化：刷新页面 / 从详情页返回时秒开
+// ============================================================
+const SS_PREFIX = 'blog_meta:'
+const metaStore = new Map() // key -> { t, v }
+const inflight = new Map() // key -> Promise
+const refreshing = new Set()
+
+function restore(key) {
+  if (metaStore.has(key)) return
+  try {
+    const raw = sessionStorage.getItem(SS_PREFIX + key)
+    if (raw) {
+      const o = JSON.parse(raw)
+      if (o && o.t && o.v) metaStore.set(key, o)
+    }
+  } catch { /* 隐私模式等 */ }
+}
+
+function persist(key) {
+  const o = metaStore.get(key)
+  if (!o) return
+  try { sessionStorage.setItem(SS_PREFIX + key, JSON.stringify(o)) } catch { /* 配额满等 */ }
+}
+
+// 后台静默刷新，不阻塞调用方、不产生未处理异常
+function refreshInBg(key, loader) {
+  if (refreshing.has(key) || inflight.has(key)) return
+  refreshing.add(key)
+  Promise.resolve().then(loader)
+    .then(v => { metaStore.set(key, { t: Date.now(), v }); persist(key) })
+    .catch(() => {})
+    .then(() => refreshing.delete(key))
+}
+
+function withCache(key, ttl, loader) {
+  restore(key)
+  const hit = metaStore.get(key)
+  if (hit) {
+    if (Date.now() - hit.t >= ttl) refreshInBg(key, loader)
+    return Promise.resolve(hit.v)
+  }
+  if (inflight.has(key)) return inflight.get(key)
+  const p = Promise.resolve().then(loader)
+    .then(v => {
+      metaStore.set(key, { t: Date.now(), v })
+      persist(key)
+      inflight.delete(key)
+      return v
+    }, e => { inflight.delete(key); throw e })
+  inflight.set(key, p)
+  return p
+}
+
+/** 清除元数据缓存（不传 key 清全部；管理员写操作后调用） */
+export function clearBlogMetaCache(keys) {
+  try {
+    if (!keys) {
+      Array.from(sessionStorage)
+        .filter(([k]) => k.startsWith(SS_PREFIX))
+        .forEach(([k]) => sessionStorage.removeItem(k))
+    } else {
+      keys.forEach(k => sessionStorage.removeItem(SS_PREFIX + k))
+    }
+  } catch { /* ignore */ }
+  if (!keys) metaStore.clear()
+  else keys.forEach(k => metaStore.delete(k))
+}
+
 // 文章缺少封面时，按主题匹配本地高质感 SVG（统一品红/电光青视觉）
 // 无关键词命中时按 id 稳定取图，保证同一文章每次封面一致
 const FALLBACK_COVER_IDS = [34, 35, 36, 37, 38, 39]
@@ -56,11 +128,14 @@ function mapArticle(r) {
 
 const kw = v => String(v || '').replace(/[%']/g, '')
 
+// 列表页精简列：不拉取正文（content 是最大的载荷），阅读时长在卡片侧按摘要估算
+const LIST_COLS = 'id,title,slug,summary,category,tags,cover_url,author_name,created_at,updated_at,views,likes,is_top'
+
 // 分页查询文章列表（支持 page/size/keyword/category/tag/month）
-export const getBlogList = async params => {
+const fetchBlogList = async params => {
   const p = { ...(params || {}) }
   try {
-    let q = supabase.from('blog_articles').select('*', { count: 'exact' }).eq('published', true)
+    let q = supabase.from('blog_articles').select(LIST_COLS, { count: 'exact' }).eq('published', true)
     if (p.keyword) {
       const k = kw(p.keyword)
       if (k) q = q.or(`title.ilike.%${k}%,summary.ilike.%${k}%,content.ilike.%${k}%`)
@@ -86,6 +161,21 @@ export const getBlogList = async params => {
     if (import.meta.env.DEV) console.warn('[blog] getBlogList supabase 不可用，回退后端', e?.message || e)
     return request.get('/article/list', { params: p })
   }
+}
+
+// 列表短时缓存（60s SWR）：从详情页返回 / 重复进入时秒开，过期后台静默刷新
+// key 含全部查询参数，避免不同筛选互相串数据
+const listCacheKey = p => 'list:' + JSON.stringify({
+  page: Number(p.page) || 1,
+  size: Number(p.size) || 10,
+  keyword: p.keyword || '',
+  category: p.category || '',
+  tag: p.tag || '',
+  month: p.month || '',
+})
+export const getBlogList = (params) => {
+  const p = params || {}
+  return withCache(listCacheKey(p), MIN, () => fetchBlogList(p))
 }
 
 // 查询文章详情（返回 { article, prevArticle, nextArticle }，与后端一致）
@@ -186,7 +276,7 @@ export const getBlogRandom = async () => {
 }
 
 // 归档（按年月分组，倒序）
-export const getBlogArchives = async () => {
+const fetchArchives = async () => {
   try {
     const { data, error } = await supabase
       .from('blog_articles')
@@ -210,7 +300,7 @@ export const getBlogArchives = async () => {
 }
 
 // 分类列表 [{ name, count }]
-export const getBlogCategories = async () => {
+const fetchCategories = async () => {
   try {
     const { data, error } = await supabase
       .from('blog_articles')
@@ -233,7 +323,7 @@ export const getBlogCategories = async () => {
 }
 
 // 标签列表（含出现次数）
-export const getBlogTags = async () => {
+const fetchTags = async () => {
   try {
     const { data, error } = await supabase
       .from('blog_articles')
@@ -258,7 +348,7 @@ export const getBlogTags = async () => {
 }
 
 // 站点资讯（文章总数/全站字数/最后更新）
-export const getBlogStats = async () => {
+const fetchStats = async () => {
   try {
     const { data, error } = await supabase
       .from('blog_articles')
@@ -286,7 +376,7 @@ export const getBlogStats = async () => {
 }
 
 // 最近更新
-export const getBlogRecent = async (limit = 5) => {
+const fetchRecent = async (limit = 5) => {
   try {
     const { data, error } = await supabase
       .from('blog_articles')
@@ -328,14 +418,41 @@ export const getHotArticles = async (limit = 5) => {
   }
 }
 
+// ============================================================
+// 缓存包装：所有元数据读取统一走 withCache
+// ============================================================
+const MIN = 60 * 1000
+export const getBlogCategories = () => withCache('categories', 10 * MIN, fetchCategories)
+export const getBlogTags = () => withCache('tags', 10 * MIN, fetchTags)
+export const getBlogArchives = () => withCache('archives', 10 * MIN, fetchArchives)
+export const getBlogRecent = (limit = 5) =>
+  withCache(`recent:${Number(limit) || 5}`, 3 * MIN, () => fetchRecent(limit))
+// 统计需拉取全站正文，最重：缓存 30 分钟（SWR 后台静默更新）
+export const getBlogStats = () => withCache('stats', 30 * MIN, fetchStats)
+export const getBlogSettings = () => withCache('settings', 10 * MIN, fetchSettings)
+
+/** 悬停「博客」导航时预热：分类 + 统计 + 列表页 chunk，点击即秒开 */
+export function prefetchBlogMeta() {
+  try {
+    getBlogCategories()
+    getBlogStats()
+    import('@/views/blog/index.vue')
+  } catch { /* ignore */ }
+}
+
 // ---------- 以下均为后端（blog-service / forum-service 公共接口）----------
 
+// 写操作成功后清空元数据缓存（简单稳妥，下个页面自动重取）
+const bumpMeta = p => p.then(
+  r => { clearBlogMetaCache(); return r },
+  e => { throw e }
+)
 // 新建文章
-export const createBlog = data => request.post('/article', data)
+export const createBlog = data => bumpMeta(request.post('/article', data))
 // 更新文章
-export const updateBlog = (id, data) => request.put(`/article/${id}`, data)
+export const updateBlog = (id, data) => bumpMeta(request.put(`/article/${id}`, data))
 // 删除文章
-export const deleteBlog = id => request.delete(`/article/${id}`)
+export const deleteBlog = id => bumpMeta(request.delete(`/article/${id}`))
 // 管理端：全量文章列表（含未发布，仅后端）
 export const getAdminBlogList = params => request.get('/article/list', { params })
 // 点赞文章
@@ -359,7 +476,7 @@ export const getBlogNotice = () => request.get('/blog/notice')
 // 公开公告列表（历史公告，启用中倒序）
 export const getBlogNotices = () => request.get('/blog/notice/list')
 // 站点公开配置（作者/打赏/页脚友链/ICP）
-export const getBlogSettings = () => request.get('/blog/settings')
+const fetchSettings = () => request.get('/blog/settings')
 // 管理端：友链全部列表（含待审核）
 export const getAdminLinks = () => request.get('/blog/admin/links')
 // 管理端：友链编辑/审核
@@ -375,4 +492,4 @@ export const getAdminNotices = () => request.get('/blog/admin/notice/list')
 // 管理端：公告删除
 export const deleteAdminNotice = id => request.delete(`/blog/admin/notice/${id}`)
 // 管理端：站点配置批量保存
-export const saveAdminSettings = data => request.put('/blog/admin/settings', data)
+export const saveAdminSettings = data => bumpMeta(request.put('/blog/admin/settings', data))

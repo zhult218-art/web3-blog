@@ -2,12 +2,12 @@
   <div class="min-h-screen px-4 md:px-6 py-6">
     <div class="mx-auto max-w-7xl">
       <!-- Header -->
-      <div class="flex items-center justify-between mb-8">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 class="text-3xl md:text-4xl font-black text-gradient-cyber">社区广场</h1>
           <p class="text-xs text-gray-500 matrix-text mt-1.5 tracking-wider">TECHNICAL COMMUNITY · 探索 · 创作 · 交流</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 self-stretch sm:self-auto">
           <div class="hidden sm:flex items-center gap-1.5 bg-[#0e0e26] rounded-xl px-3 py-2 border border-white/[0.06]">
             <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
             <span class="text-[11px] text-gray-400">{{ onlineCount }} 在线</span>

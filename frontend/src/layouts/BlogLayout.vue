@@ -1,7 +1,7 @@
 <template>
   <div class="relative min-h-screen">
-    <ThreeBackground />
-    <ParticleBackground />
+    <ThreeBackground v-if="dynamicBgOn" />
+    <ParticleBackground v-if="dynamicBgOn" />
     <Web3Nav />
     <ReadingProgress />
     <main class="relative z-10">
@@ -40,6 +40,7 @@
         </aside>
       </div>
     </main>
+    <SiteFooter />
   </div>
 </template>
 
@@ -50,15 +51,20 @@
 // 顶层挂载：公告条、阅读进度条、背景、光标、导航
 // 音乐播放由 App 级 GlobalPlayer 全局接管（跨页不断流）
 // ============================================================
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { getBlogRandom } from '@/api/blog'
+import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
 import ParticleBackground from '@/components/layout/ParticleBackground.vue'
 import ThreeBackground from '@/components/layout/ThreeBackground.vue'
 import Web3Nav from '@/components/layout/Web3Nav.vue'
+import SiteFooter from '@/components/layout/SiteFooter.vue'
 import SidebarWidgets from '@/components/blog/SidebarWidgets.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
 
 const router = useRouter()
+const site = useSiteSettingsStore()
+const dynamicBgOn = computed(() => site.featureOn('dynamicBg'))
 
 async function randomPost() {
   try {

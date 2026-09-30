@@ -63,7 +63,7 @@
             </dl>
             <p class="d-role">{{ ROLE[selected.id] || '该节点未在注册表中单独描述。' }}</p>
             <p v-if="selected.status === 'UNKNOWN'" class="d-note">
-              未纳入健康探测（基础设施与辅助服务由外部进程托管），显示为中性色。
+              暂未探测到状态（服务可能未启动或网络不通）。
             </p>
           </div>
 
@@ -104,23 +104,26 @@ import ServiceTwin from '@/components/three/ServiceTwin.vue'
 import PageBack from '@/components/PageBack.vue'
 import { SERVICE_REGISTRY } from '@/api/admin'
 import { useServiceHealth } from '@/composables/useServiceHealth'
+import { useAuthStore } from '@/stores/modules/auth'
 
 const { serviceStatus, loading, refresh } = useServiceHealth()
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
 
 const LAYER_NAME = { 1: '客户端层', 2: '网关层', 3: '业务服务层', 4: '基础设施 / 辅助服务' }
 const STATUS_TEXT = { RUNNING: '运行中', STOPPED: '已停止', UNKNOWN: '状态未知' }
 
-// 基础设施与辅助服务：不参与 /admin/services/status 探测，统一显示为未知
+// 基础设施与辅助服务：sub 含端口/数据库信息，非管理员隐藏
 const INFRA = [
-  { id: 'mysql', label: 'MySQL', sub: '业务库 · :3306' },
-  { id: 'redis', label: 'Redis', sub: '缓存 · :6379' },
-  { id: 'rabbitmq', label: 'RabbitMQ', sub: '消息队列 · :5672' },
-  { id: 'nacos', label: 'Nacos', sub: '注册配置中心' },
-  { id: 'minio', label: 'MinIO', sub: '对象存储' },
-  { id: 'supabase', label: 'Supabase', sub: '云端 Postgres' },
-  { id: 'quant-py', label: '量化引擎', sub: 'FastAPI · :9006' },
-  { id: 'whisper', label: '语音识别', sub: 'faster-whisper · :9011' },
-  { id: 'netease', label: '网易云代理', sub: 'Node · :3000' },
+  { id: 'mysql', label: 'MySQL', sub: '业务库 · :3306', subPublic: '业务数据库' },
+  { id: 'redis', label: 'Redis', sub: '缓存 · :6379', subPublic: '缓存服务' },
+  { id: 'rabbitmq', label: 'RabbitMQ', sub: '消息队列 · :5672', subPublic: '消息队列' },
+  { id: 'nacos', label: 'Nacos', sub: '注册配置中心 · :8848', subPublic: '注册配置中心' },
+  { id: 'minio', label: 'MinIO', sub: '对象存储 · :9000', subPublic: '对象存储' },
+  { id: 'supabase', label: 'Supabase', sub: '云端 Postgres', subPublic: '云端数据库' },
+  { id: 'quant-py', label: '量化引擎', sub: 'FastAPI · :9006', subPublic: '量化引擎' },
+  { id: 'whisper', label: '语音识别', sub: 'faster-whisper · :9011', subPublic: '语音识别' },
+  { id: 'netease', label: '网易云代理', sub: 'Node · :3000', subPublic: '网易云代理' },
 ]
 
 // 节点职责说明（详情面板用）
@@ -151,9 +154,9 @@ const ROLE = {
 }
 
 const NOTES = [
-  { title: '颜色即状态', desc: '绿=运行中、红=已停止、灰=未知。状态来自 admin-service 的真实端口探测，不是写死的示意数据。' },
+  { title: '颜色即状态', desc: '绿=运行中、红=已停止、灰=未知。微服务状态来自 admin-service 端口探测；基础设施通过 HTTP 探测或依赖推断获取。' },
   { title: '粒子即流量', desc: '每条链路上循环前进的光点代表一次调用；目标服务停止后，链路会变暗并把粒子降到近乎静止。' },
-  { title: '探测边界', desc: 'MySQL / Redis / Nacos 等基础设施与 Python、Node 辅助服务由外部进程托管，不参与探测，统一显示为灰色。' },
+  { title: '权限边界', desc: isAdmin.value ? '你以管理员身份查看，可看到所有服务端口与数据库信息。普通用户仅看到服务名称。' : '当前为普通用户视图，端口与数据库信息已隐藏。管理员可查看完整拓扑。' },
 ]
 
 const bizServices = SERVICE_REGISTRY.filter(s => s.name !== 'gateway')
@@ -162,11 +165,22 @@ const statusOf = name => serviceStatus.value[name] || 'UNKNOWN'
 
 const nodes = computed(() => [
   { id: 'web', label: '星空浏览器', sub: 'Vue3 SPA', layer: 1, status: 'RUNNING' },
-  { id: 'gateway', label: 'API 网关', sub: ':8080', layer: 2, status: statusOf('gateway') },
+  {
+    id: 'gateway', label: 'API 网关',
+    sub: isAdmin.value ? ':8080' : '网关入口',
+    layer: 2, status: statusOf('gateway'),
+  },
   ...bizServices.map(s => ({
-    id: s.name, label: s.label, sub: `:${s.port}`, layer: 3, status: statusOf(s.name),
+    id: s.name, label: s.label,
+    sub: isAdmin.value ? `:${s.port}` : s.label,
+    layer: 3, status: statusOf(s.name),
   })),
-  ...INFRA.map(i => ({ ...i, layer: 4, status: 'UNKNOWN' })),
+  ...INFRA.map(i => ({
+    ...i,
+    sub: isAdmin.value ? i.sub : i.subPublic,
+    layer: 4,
+    status: statusOf(i.id),
+  })),
 ])
 
 // 调用关系：入口 → 网关 → 各服务 → 依赖的基础设施
@@ -198,11 +212,13 @@ const selected = computed(() => nodes.value.find(n => n.id === selectedId.value)
 
 const stat = computed(() => {
   const probe = nodes.value.filter(n => n.layer === 3 || n.id === 'gateway')
+  const infra = nodes.value.filter(n => n.layer === 4)
+  const all = [...probe, ...infra]
   return {
-    total: probe.length,
-    run: probe.filter(n => n.status === 'RUNNING').length,
-    stop: probe.filter(n => n.status === 'STOPPED').length,
-    unknown: probe.filter(n => n.status === 'UNKNOWN').length,
+    total: all.length,
+    run: all.filter(n => n.status === 'RUNNING').length,
+    stop: all.filter(n => n.status === 'STOPPED').length,
+    unknown: all.filter(n => n.status === 'UNKNOWN').length,
   }
 })
 

@@ -1,15 +1,5 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.core.conditions.Wrapper
- *  com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper
- *  org.springframework.beans.factory.annotation.Autowired
- *  org.springframework.stereotype.Service
- */
 package com.web3.admin.service;
 
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.web3.admin.entity.DashboardStat;
@@ -18,14 +8,15 @@ import com.web3.admin.entity.VisitLog;
 import com.web3.admin.mapper.DashboardStatMapper;
 import com.web3.admin.mapper.OperationLogMapper;
 import com.web3.admin.mapper.VisitLogMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 /**
  * 类名：AdminService
@@ -33,6 +24,9 @@ import org.springframework.stereotype.Service;
  * 职责：管理后台业务逻辑服务，负责控制台概览统计聚合、管理操作日志记录与查询、站点访问记录上报/分页查询/汇总统计等业务实现。
  * 关键注解：@Service 注册为 Spring 业务 Bean。
  * 说明：概览数据来自当日（自然日零点后）写入的 DashboardStat 统计项；访问统计基于 visit_log 表。
+ *
+ * <p>2026-09-20 重写样板（CFR 反编译 → 手写）：移除反编译头注释、未使用的 {@code Wrapper} 导入、
+ * 显式 {@code (Object)} 强转与 {@code for (Object o ...)} 强转循环，改回泛型与菱形语法，行为等价。</p>
  */
 @Service
 public class AdminService {
@@ -52,14 +46,14 @@ public class AdminService {
     public Map<String, Object> countOnlineUsers() {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
         LambdaQueryWrapper<VisitLog> qw = new LambdaQueryWrapper<VisitLog>();
-        qw.ge(VisitLog::getCreatedAt, (Object)cutoff);
+        qw.ge(VisitLog::getCreatedAt, cutoff);
         List<VisitLog> recent = this.visitLogMapper.selectList(qw);
         long online = recent.stream()
             .map(VisitLog::getIp)
             .filter(ip -> ip != null && !ip.isEmpty())
             .distinct()
             .count();
-        HashMap<String, Object> result = new HashMap<String, Object>();
+        HashMap<String, Object> result = new HashMap<>();
         result.put("onlineCount", online);
         return result;
     }
@@ -72,14 +66,13 @@ public class AdminService {
     public Map<String, Object> getDashboardOverview() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LambdaQueryWrapper<DashboardStat> qw = new LambdaQueryWrapper<DashboardStat>();
-        qw.gt(DashboardStat::getStatDate, (Object)todayStart);
+        qw.gt(DashboardStat::getStatDate, todayStart);
         List<DashboardStat> todayStats = this.statMapper.selectList(qw);
-        HashMap<String, String> keyMap = new HashMap<String, String>();
-        for (Object o : todayStats) {
-            DashboardStat st = (DashboardStat)o;
+        HashMap<String, String> keyMap = new HashMap<>();
+        for (DashboardStat st : todayStats) {
             keyMap.put(st.getStatKey(), st.getStatValue());
         }
-        HashMap<String, Object> overview = new HashMap<String, Object>();
+        HashMap<String, Object> overview = new HashMap<>();
         overview.put("totalUsers", statLong(keyMap, "totalUsers"));
         overview.put("totalArticles", statLong(keyMap, "totalArticles"));
         overview.put("totalPosts", statLong(keyMap, "totalPosts"));
@@ -88,7 +81,7 @@ public class AdminService {
         overview.put("activeUsers", statLong(keyMap, "activeUsers"));
         overview.put("todayVisits", statLong(keyMap, "todayVisits"));
         overview.put("systemHealth", keyMap.getOrDefault("systemHealth", "unknown"));
-        HashMap<String, Object> serviceStatus = new HashMap<String, Object>();
+        HashMap<String, Object> serviceStatus = new HashMap<>();
         for (Map.Entry<String, String> entry : keyMap.entrySet()) {
             if (entry.getKey() == null || !entry.getKey().startsWith("service:")) continue;
             serviceStatus.put(entry.getKey().substring("service:".length()), entry.getValue());
@@ -199,7 +192,7 @@ public class AdminService {
         log.setPagePath(asStr(body.get("pagePath")));
         log.setCreatedAt(LocalDateTime.now());
         this.visitLogMapper.insert(log);
-        HashMap<String, Object> result = new HashMap<String, Object>();
+        HashMap<String, Object> result = new HashMap<>();
         result.put("id", log.getId());
         return result;
     }
@@ -212,11 +205,11 @@ public class AdminService {
      * @return 结果 Map，含 total 与 records
      */
     public Map<String, Object> listVisits(int page, int size) {
-        Page<VisitLog> p = new Page<VisitLog>(Math.max(page, 1), Math.min(Math.max(size, 1), 100));
+        Page<VisitLog> p = new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 100));
         LambdaQueryWrapper<VisitLog> qw = new LambdaQueryWrapper<VisitLog>();
         qw.orderByDesc(VisitLog::getCreatedAt);
         this.visitLogMapper.selectPage(p, qw);
-        HashMap<String, Object> result = new HashMap<String, Object>();
+        HashMap<String, Object> result = new HashMap<>();
         result.put("total", p.getTotal());
         result.put("records", p.getRecords());
         return result;
@@ -236,7 +229,7 @@ public class AdminService {
                 .ge(VisitLog::getCreatedAt, LocalDate.now().minusDays(7).atStartOfDay()));
         long uniqueIps = all.stream().map(VisitLog::getIp).filter(ip -> ip != null && !ip.isEmpty()).distinct().count();
         long geoLocated = all.stream().filter(v -> v.getLatitude() != null && v.getLongitude() != null).count();
-        HashMap<String, Object> result = new HashMap<String, Object>();
+        HashMap<String, Object> result = new HashMap<>();
         result.put("total", total);
         result.put("today", today);
         result.put("uniqueIps7d", uniqueIps);

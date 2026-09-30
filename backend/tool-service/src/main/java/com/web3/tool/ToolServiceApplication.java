@@ -1,12 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.mybatis.spring.annotation.MapperScan
- *  org.springframework.boot.SpringApplication
- *  org.springframework.boot.autoconfigure.SpringBootApplication
- *  org.springframework.cloud.client.discovery.EnableDiscoveryClient
- */
 package com.web3.tool;
 
 import org.mybatis.spring.annotation.MapperScan;
@@ -35,6 +26,6 @@ public class ToolServiceApplication {
      * @param args 启动参数
      */
     public static void main(String[] args) {
-        SpringApplication.run(ToolServiceApplication.class, (String[])args);
+        SpringApplication.run(ToolServiceApplication.class, args);
     }
 }

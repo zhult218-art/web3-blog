@@ -26,12 +26,16 @@ CREATE TABLE IF NOT EXISTS `comment` (
   `target_id` BIGINT NOT NULL,
   `target_type` VARCHAR(32) NOT NULL,
   `content` TEXT NOT NULL,
+  `parent_id` BIGINT DEFAULT NULL,
+  `reply_to_name` VARCHAR(64) DEFAULT NULL,
   `author_id` BIGINT DEFAULT NULL,
   `author_name` VARCHAR(64) DEFAULT NULL,
+  `status` VARCHAR(32) NOT NULL DEFAULT 'published',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `deleted` INT DEFAULT 0,
   PRIMARY KEY (`id`),
-  KEY `idx_target` (`target_type`, `target_id`)
+  KEY `idx_target` (`target_type`, `target_id`),
+  KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `like_record` (

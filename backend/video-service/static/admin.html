@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>视频后台管理</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style type="text/tailwindcss">
+  body { background: #0b0d12; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #2a3242; border-radius: 3px; }
+  .inp { @apply w-full bg-[#141922] border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-cyan-400/50; }
+</style>
+</head>
+<body class="text-gray-200 min-h-screen">
+
+<!-- ═══ 顶部导航 ═══ -->
+<nav class="border-b border-white/5">
+  <div class="max-w-[1000px] mx-auto px-4 h-12 flex items-center justify-between">
+    <a href="/static/player.html" class="text-sm font-bold tracking-widest text-cyan-400">▶ 视频后台</a>
+    <button id="btnLogout" class="hidden text-xs text-gray-500 hover:text-red-400 transition">退出</button>
+  </div>
+</nav>
+
+<!-- ═══ 登录模块 ═══ -->
+<div id="loginPage" class="max-w-[360px] mx-auto mt-28 bg-[#12161f] border border-white/10 rounded-xl p-8">
+  <h1 class="text-base font-bold text-white mb-5">管理员登录</h1>
+  <input id="tokenInput" type="password" placeholder="管理员 Token" class="inp mb-3" />
+  <button id="btnLogin" class="w-full bg-cyan-500/90 hover:bg-cyan-400 text-[#06202a] font-bold text-sm rounded-lg py-2 transition">登录</button>
+  <p id="loginErr" class="text-xs text-red-400 mt-3 hidden"></p>
+</div>
+
+<!-- ═══ 管理主体 ═══ -->
+<div id="adminPage" class="hidden max-w-[1000px] mx-auto px-4 py-6 space-y-6">
+
+  <!-- ── 上传区域 ── -->
+  <section class="bg-[#12161f] border border-white/10 rounded-xl p-6">
+    <h2 class="text-sm font-bold text-white mb-4">上传视频（仅 mp4，≤2GB）</h2>
+    <div class="grid sm:grid-cols-[1fr_1fr_auto] gap-3 items-end mb-3">
+      <input id="upTitle" placeholder="视频标题" class="inp" />
+      <input id="upDesc" placeholder="简介（可空）" class="inp" />
+      <input id="upFile" type="file" accept=".mp4,video/mp4" class="inp file:mr-3 file:px-3 file:py-1 file:rounded file:border-0 file:bg-cyan-500/20 file:text-cyan-300 text-xs" />
+    </div>
+    <button id="btnUpload" class="bg-cyan-500/90 hover:bg-cyan-400 text-[#06202a] font-bold text-xs rounded-lg px-5 py-2 transition disabled:opacity-40">开始上传</button>
+    <!-- 上传进度条 -->
+    <div id="upProgressBox" class="hidden mt-4">
+      <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+        <div id="upProgress" class="h-full bg-gradient-to-r from-cyan-400 to-violet-400 transition-all" style="width:0%"></div>
+      </div>
+      <p id="upStatus" class="text-xs text-gray-500 mt-2">上传中 0%</p>
+    </div>
+  </section>
+
+  <!-- ── 视频列表 ── -->
+  <section class="bg-[#12161f] border border-white/10 rounded-xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-bold text-white">视频列表</h2>
+      <button id="btnRefresh" class="text-xs text-cyan-400 hover:text-cyan-300">刷新</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs min-w-[720px]">
+        <thead><tr class="text-gray-500 text-left border-b border-white/5">
+          <th class="py-2 pr-3">封面</th><th class="py-2 pr-3">标题</th><th class="py-2 pr-3">时长</th>
+          <th class="py-2 pr-3">创建时间</th><th class="py-2 pr-3">状态</th><th class="py-2">操作</th>
+        </tr></thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+    <!-- 分页 -->
+    <div id="pager" class="flex items-center justify-center gap-2 mt-4 text-xs"></div>
+  </section>
+</div>
+
+<script>
+/* ═══════════════ 全局配置：后端接口地址（换域名只改这里） ═══════════════ */
+const API_BASE = 'http://127.0.0.1:8300';
+const PAGE_SIZE = 10;
+
+let curPage = 1, pollTimer = null;
+const $ = id => document.getElementById(id);
+const token = () => localStorage.getItem('adminToken') || '';
+const fmtDur = s => { s = Math.round(s || 0); return s >= 60 ? `${Math.floor(s/60)}分${s%60}秒` : s + '秒'; };
+const fmtTime = ts => new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false });
+
+/* ─── 鉴权头 ─── */
+function authHeaders(extra = {}) { return { 'X-Admin-Token': token(), ...extra }; }
+
+/* ─── 登录：token 只做本地保存，真正校验由后端接口完成（传错会被 401） ─── */
+$('btnLogin').onclick = () => {
+  const t = $('tokenInput').value.trim();
+  if (!t) return;
+  localStorage.setItem('adminToken', t);
+  enterAdmin();
+};
+$('tokenInput').addEventListener('keydown', e => e.key === 'Enter' && $('btnLogin').click());
+$('btnLogout').onclick = () => { localStorage.removeItem('adminToken'); location.reload(); };
+
+function enterAdmin() {
+  if (!token()) return;
+  $('loginPage').classList.add('hidden');
+  $('adminPage').classList.remove('hidden');
+  $('btnLogout').classList.remove('hidden');
+  loadList();
+}
+
+/* ═══════════════ 上传（XHR 以获得进度回调） ═══════════════ */
+$('btnUpload').onclick = () => {
+  const file = $('upFile').files[0];
+  if (!file) return alert('请选择 mp4 文件');
+  if (!file.name.toLowerCase().endsWith('.mp4')) return alert('只允许 mp4 格式');
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('title', $('upTitle').value || file.name);
+  fd.append('desc', $('upDesc').value || '');
+
+  $('btnUpload').disabled = true;
+  $('upProgressBox').classList.remove('hidden');
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', `${API_BASE}/api/video/upload`);
+  xhr.setRequestHeader('X-Admin-Token', token());
+  // 上传进度
+  xhr.upload.onprogress = e => {
+    if (!e.lengthComputable) return;
+    const p = Math.round(e.loaded / e.total * 100);
+    $('upProgress').style.width = p + '%';
+    $('upStatus').textContent = `上传中 ${p}%`;
+  };
+  xhr.onload = () => {
+    $('btnUpload').disabled = false;
+    if (xhr.status !== 200) return uploadDone('上传失败：' + (safeJson(xhr).detail || xhr.status));
+    const vid = safeJson(xhr).data.video_id;
+    $('upStatus').textContent = '上传完成，正在转码...';
+    pollTask(vid);      // 轮询转码进度
+  };
+  xhr.onerror = () => { $('btnUpload').disabled = false; uploadDone('网络错误'); };
+  xhr.send(fd);
+};
+
+function safeJson(xhr) { try { return JSON.parse(xhr.responseText); } catch (e) { return {}; } }
+function uploadDone(msg) { $('upStatus').textContent = msg; setTimeout(() => $('upProgressBox').classList.add('hidden'), 4000); loadList(); }
+
+/* ─── 轮询转码任务进度（1.5s 一次，成功/失败停止） ─── */
+function pollTask(vid) {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    const res = await fetch(`${API_BASE}/api/video/task/${vid}`, { headers: authHeaders() });
+    if (res.status === 401) { clearInterval(pollTimer); return alert('token 无效'); }
+    const d = (await res.json()).data;
+    $('upProgress').style.width = d.progress + '%';
+    $('upStatus').textContent = `正在转码 ${d.progress}%`;
+    if (d.status === 'success') { clearInterval(pollTimer); uploadDone('✅ 转码成功'); }
+    if (d.status === 'failed') { clearInterval(pollTimer); uploadDone('❌ 转码失败：' + (d.error || '')); }
+  }, 1500);
+}
+
+/* ═══════════════ 列表 + 分页 ═══════════════ */
+async function loadList() {
+  const res = await fetch(`${API_BASE}/api/video/list?page=${curPage}&size=${PAGE_SIZE}`);
+  const d = (await res.json()).data;
+  renderList(d.list);
+  renderPager(d.total, d.page);
+}
+
+function renderList(list) {
+  const body = $('listBody');
+  body.innerHTML = list.length ? '' : '<tr><td colspan="6" class="text-center text-gray-600 py-10">暂无视频</td></tr>';
+  list.forEach(v => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-white/5';
+    tr.innerHTML = `
+      <td class="py-2.5 pr-3"><img src="${v.cover_url || ''}" class="w-20 h-12 object-cover rounded bg-black/40" onerror="this.style.visibility='hidden'"/></td>
+      <td class="py-2.5 pr-3 text-gray-200 max-w-[220px] truncate">${v.title}</td>
+      <td class="py-2.5 pr-3 text-gray-500">${fmtDur(v.duration)}</td>
+      <td class="py-2.5 pr-3 text-gray-500">${fmtTime(v.create_time)}</td>
+      <td class="py-2.5 pr-3">${statusBadge(v.status, v.duration)}</td>
+      <td class="py-2.5 space-x-3">
+        <button class="text-cyan-400 hover:text-cyan-300" data-act="preview" data-vid="${v.video_id}">预览</button>
+        <button class="text-red-400 hover:text-red-300" data-act="del" data-vid="${v.video_id}" data-title="${v.title}">删除</button>
+      </td>`;
+    body.appendChild(tr);
+  });
+}
+
+function statusBadge(s, dur) {
+  const map = {
+    success: `<span class="px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-300 border border-emerald-400/25">${dur <= 120 ? '完成·短' : '完成·长'}</span>`,
+    transcoding: '<span class="px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/25">转码中</span>',
+    pending: '<span class="px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-300 border border-sky-400/25">排队中</span>',
+    failed: '<span class="px-2 py-0.5 rounded-full bg-red-400/10 text-red-300 border border-red-400/25">失败</span>',
+  };
+  return map[s] || s;
+}
+
+function renderPager(total, page) {
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const box = $('pager'); box.innerHTML = '';
+  for (let i = 1; i <= pages; i++) {
+    const b = document.createElement('button');
+    b.textContent = i;
+    b.className = `px-3 py-1 rounded-lg border transition ${i === page ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30' : 'border-white/10 text-gray-500 hover:text-gray-300'}`;
+    b.onclick = () => { curPage = i; loadList(); };
+    box.appendChild(b);
+  }
+}
+
+/* ─── 操作：预览 / 删除（二次确认防误删） ─── */
+$('listBody').addEventListener('click', async e => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  const vid = btn.dataset.vid;
+  if (btn.dataset.act === 'preview') {
+    window.open(`/static/player.html?vid=${vid}`, '_blank');
+  } else if (btn.dataset.act === 'del') {
+    if (!confirm(`确定删除「${btn.dataset.title}」？OSS 资源将一并清理，不可恢复。`)) return;
+    const res = await fetch(`${API_BASE}/api/video/${vid}`, { method: 'DELETE', headers: authHeaders() });
+    if (res.status === 401) return alert('token 无效');
+    res.ok ? loadList() : alert('删除失败：' + ((safeJson(res).detail) || res.status));
+  }
+});
+$('btnRefresh').onclick = loadList;
+
+enterAdmin();   // 已登录则直接进管理页
+</script>
+</body>
+</html>

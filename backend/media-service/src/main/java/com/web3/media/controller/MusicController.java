@@ -1,17 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.media.controller;
 
 import com.web3.common.core.ApiResponse;
@@ -22,17 +8,17 @@ import com.web3.common.security.JwtUtil;
 import com.web3.media.entity.Music;
 import com.web3.media.service.MusicService;
 import com.web3.media.vo.MusicVO;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping(value={"/music"})
 /**
  * MusicController —— 音乐接口控制器
  * <p>
@@ -46,6 +32,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>@RequestMapping("/music")：对外接口统一前缀为 /music</li>
  * </ul>
  */
+@RestController
+@RequestMapping(value={"/music"})
 public class MusicController {
     /** 音乐业务服务 */
     private final MusicService musicService;
@@ -86,7 +74,8 @@ public class MusicController {
     }
 
     /**
-     * 创建音乐（前端路由：POST /music，需管理员）
+     * 创建音乐（前端路由：POST /music）
+     * 权限：ADMIN 恒可；普通用户需被授予 upload:music 权限
      *
      * @param music        音乐实体（JSON 请求体）
      * @param authorization 请求头 Authorization 的 JWT 令牌
@@ -94,7 +83,7 @@ public class MusicController {
      */
     @PostMapping
     public ApiResponse<MusicVO> create(@RequestBody Music music, @RequestHeader(value="Authorization") String authorization) {
-        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
+        AuthUtils.requirePerm(authorization, this.jwtUtil, this.jwtProperties, "upload:music", false);
         return ApiResponse.ok(this.musicService.create(music));
     }
 
@@ -106,7 +95,7 @@ public class MusicController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 更新后的音乐视图对象
      */
-    @org.springframework.web.bind.annotation.PutMapping(value={"/{id}"})
+    @PutMapping(value={"/{id}"})
     public ApiResponse<MusicVO> update(@PathVariable Long id, @RequestBody Music music, @RequestHeader(value="Authorization") String authorization) {
         AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
         return ApiResponse.ok(this.musicService.update(id, music));
@@ -119,7 +108,7 @@ public class MusicController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @org.springframework.web.bind.annotation.DeleteMapping(value={"/{id}"})
+    @DeleteMapping(value={"/{id}"})
     public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String authorization) {
         AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
         this.musicService.delete(id);

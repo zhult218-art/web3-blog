@@ -21,8 +21,12 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 /**
  * 类名：UserService
@@ -30,6 +34,7 @@ import org.springframework.stereotype.Service;
  * 职责：用户业务逻辑服务，负责注册、登录、资料查询/更新、管理员建户改户删户、用户分页列表、状态管理、权限查询/设置等业务实现。
  * 关键注解：@Service 注册为 Spring 业务 Bean。
  * 说明：登录/注册成功后签发 JWT 并写入 Redis（键 token:{userId}，有效期取 jwt.expire 分钟），供后续会话校验。
+ *       注册成功后异步调用 forum-service 内部接口，自动把用户加入所有公开群。
  */
 @Service
 public class UserService {
@@ -41,6 +46,7 @@ public class UserService {
     private final CaptchaService captchaService;
     private final OtpService otpService;
     private final GoogleOAuthService googleOAuthService;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     public UserService(UserMapper userMapper, StringRedisTemplate redisTemplate, JwtUtil jwtUtil, JwtProperties jwtProperties, PasswordEncoder passwordEncoder,
                        CaptchaService captchaService, OtpService otpService, GoogleOAuthService googleOAuthService) {
@@ -54,15 +60,53 @@ public class UserService {
         this.googleOAuthService = googleOAuthService;
     }
 
+    private void autoJoinChatRooms(Long userId, String username, String nickname) {
+        autoJoinChatRooms(userId, username, nickname, null);
+    }
+
     /**
-     * 判断用户名是否属于管理员名单（环境变量 ADMIN_USERNAMES，逗号分隔，默认 "admin"）。
+     * 注册后自动加入所有公开群（调用 forum-service 内部接口）。
+     * 失败不影响注册主流程，仅记录日志。
+     */
+    private void autoJoinChatRooms(Long userId, String username, String nickname, String avatar) {
+        try {
+            String forumUrl = System.getenv().getOrDefault("FORUM_SERVICE_URL", "http://127.0.0.1:8083");
+            String internalKey = System.getenv().getOrDefault("INTERNAL_API_KEY", "");
+            if (internalKey.isBlank()) return; // 未配置内部密钥则跳过
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Internal-Key", internalKey);
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("userId", userId);
+            body.put("username", username);
+            body.put("nickname", nickname == null ? username : nickname);
+            if (avatar != null) body.put("avatar", avatar);
+            restTemplate.postForEntity(forumUrl + "/chat/internal/auto-join",
+                    new HttpEntity<>(body, headers), String.class);
+        } catch (Exception ignored) {
+            // forum-service 不可用或内部密钥不匹配时静默失败，不影响注册
+        }
+    }
+
+    /**
+     * 判断用户名是否属于管理员名单（环境变量 ADMIN_USERNAMES，逗号分隔）。
+     *
+     * <p>安全说明：历史上此处默认值为 "admin"，意味着任何人只要注册一个叫 admin 的账号就能拿到 ADMIN
+     * 角色。该默认值已于 2026-09-17 移除，现在 ADMIN 角色只能通过以下途径获得：</p>
+     * <ol>
+     *   <li>管理员在后台通过 createByAdmin/updateByAdmin 显式授权；</li>
+     *   <li>启动时通过环境变量 ADMIN_USERNAMES=xxx,yyy 显式声明允许提权的用户名（仅推荐用于首次种子账号）。</li>
+     * </ol>
      *
      * @param username 用户名
-     * @return true=该用户名注册时自动赋予 ADMIN 角色
+     * @return true=该用户名在白名单中（白名单为空时永远返回 false）
      */
     private boolean isAdminUsername(String username) {
-        String admins = System.getenv().getOrDefault("ADMIN_USERNAMES", "admin");
-        return Arrays.stream(admins.split(",")).map(String::trim).anyMatch(name -> name.equals(username));
+        String admins = System.getenv("ADMIN_USERNAMES");
+        if (admins == null || admins.isBlank()) {
+            return false;
+        }
+        return Arrays.stream(admins.split(",")).map(String::trim).filter(s -> !s.isEmpty()).anyMatch(name -> name.equals(username));
     }
 
     /**
@@ -83,8 +127,9 @@ public class UserService {
         user.setEmail(dto.getEmail());
         user.setRole(isAdminUsername(dto.getUsername()) ? "ADMIN" : "USER");
         this.userMapper.insert(user);
-        String token = this.jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole());
+        String token = this.jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole(), user.getNickname(), user.getPermissions());
         this.redisTemplate.opsForValue().set("token:" + user.getId(), token, this.jwtProperties.getExpire() * 60L, TimeUnit.SECONDS);
+        autoJoinChatRooms(user.getId(), user.getUsername(), user.getNickname());
         JwtVO vo = new JwtVO();
         vo.setToken(token);
         vo.setUser(this.toUserVO(user));
@@ -131,6 +176,7 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString().replace("-", "")));
             user.setRole("USER");
             userMapper.insert(user);
+            autoJoinChatRooms(user.getId(), user.getUsername(), user.getNickname());
         }
         return issueToken(user);
     }
@@ -153,6 +199,7 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString().replace("-", "")));
             user.setRole("USER");
             userMapper.insert(user);
+            autoJoinChatRooms(user.getId(), user.getUsername(), user.getNickname());
         }
         return issueToken(user);
     }
@@ -212,9 +259,10 @@ public class UserService {
         return userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUsername, account));
     }
 
-    /** 签发 JWT 并写入 Redis，返回 JwtVO */
+    /** 签发 JWT 并写入 Redis，返回 JwtVO（perms 声明随签发写入，管理员改权限后重新登录/续期生效） */
     private ApiResponse<JwtVO> issueToken(User user) {
-        String token = this.jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole());
+        Integer verified = user.getVerified() != null ? user.getVerified() : 0;
+        String token = this.jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole(), user.getNickname(), user.getPermissions(), verified);
         this.redisTemplate.opsForValue().set("token:" + user.getId(), token, this.jwtProperties.getExpire() * 60L, TimeUnit.SECONDS);
         JwtVO vo = new JwtVO();
         vo.setToken(token);
@@ -472,6 +520,60 @@ public class UserService {
     }
 
     /**
+     * 提交实名认证申请：保存真实姓名+身份证号，状态置为审核中(1)。
+     * 已认证(2)的用户不允许重复提交。
+     */
+    public ApiResponse<UserVO> submitVerification(Long userId, String realName, String idCard) {
+        User user = this.userMapper.selectById(userId);
+        if (user == null) return ApiResponse.fail(404, "用户不存在");
+        if (user.getVerified() != null && user.getVerified() == 2) {
+            return ApiResponse.fail("您已通过实名认证，无需重复提交");
+        }
+        if (realName == null || realName.trim().length() < 2) {
+            return ApiResponse.fail(400, "请输入真实姓名");
+        }
+        if (idCard == null || !idCard.trim().matches("^\\d{17}[\\dXx]$")) {
+            return ApiResponse.fail(400, "请输入有效的 18 位身份证号");
+        }
+        user.setRealName(realName.trim());
+        user.setIdCard(idCard.trim().toUpperCase());
+        user.setVerified(1);
+        this.userMapper.updateById(user);
+        return ApiResponse.ok(this.toUserVO(user));
+    }
+
+    /**
+     * 管理员审核实名认证：通过(verified=2) 或 拒绝(verified=3)。
+     */
+    public ApiResponse<Object> auditVerification(Long targetUserId, Integer verified) {
+        User user = this.userMapper.selectById(targetUserId);
+        if (user == null) return ApiResponse.fail(404, "用户不存在");
+        if (verified != 2 && verified != 3) return ApiResponse.fail(400, "无效的审核操作");
+        user.setVerified(verified);
+        this.userMapper.updateById(user);
+        return ApiResponse.ok();
+    }
+
+    /**
+     * 内部接口：返回全量用户的轻量目录（群聊成员列表用）。
+     * 仅含 id/username/nickname/avatar，按创建时间升序。
+     */
+    public java.util.List<Map<String, Object>> listAllForChat() {
+        return this.userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .select(User::getId, User::getUsername, User::getNickname, User::getAvatar)
+                        .eq(User::getStatus, 1)
+                        .orderByAsc(User::getCreatedAt))
+                .stream().map(u -> {
+                    Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("id", u.getId());
+                    m.put("username", u.getUsername());
+                    m.put("nickname", u.getNickname() == null || u.getNickname().isBlank() ? u.getUsername() : u.getNickname());
+                    m.put("avatar", u.getAvatar());
+                    return m;
+                }).toList();
+    }
+
+    /**
      * 实体转视图对象：User -> UserVO（权限字符串拆分为列表，过滤空项）。
      *
      * @param user 用户实体
@@ -485,6 +587,7 @@ public class UserService {
         vo.setEmail(user.getEmail());
         vo.setPhone(user.getPhone());
         vo.setUserClass(user.getUserClass());
+        vo.setVerified(user.getVerified() != null ? user.getVerified() : 0);
         vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
         vo.setCreatedAt(user.getCreatedAt());

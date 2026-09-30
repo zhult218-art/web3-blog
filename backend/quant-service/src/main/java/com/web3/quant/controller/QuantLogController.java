@@ -1,15 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.core.conditions.Wrapper
- *  com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper
- *  com.web3.common.core.ApiResponse
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.quant.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -47,7 +35,9 @@ public class QuantLogController {
      */
     @GetMapping(value={"/logs"})
     public ApiResponse<List<QuantLog>> logs(@RequestParam Long strategyId) {
-        List<QuantLog> logs = this.quantLogMapper.selectList(new LambdaQueryWrapper<QuantLog>().eq(QuantLog::getStrategyId, (Object)strategyId).orderByDesc(QuantLog::getCreatedAt));
+        List<QuantLog> logs = this.quantLogMapper.selectList(new LambdaQueryWrapper<QuantLog>()
+                .eq(QuantLog::getStrategyId, strategyId)
+                .orderByDesc(QuantLog::getCreatedAt));
         return ApiResponse.ok(logs);
     }
 }

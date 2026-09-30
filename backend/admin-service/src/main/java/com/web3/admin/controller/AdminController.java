@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  org.springframework.beans.factory.annotation.Autowired
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.admin.controller;
 
 import com.web3.admin.service.AdminService;
@@ -16,8 +5,6 @@ import com.web3.common.core.ApiResponse;
 import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
-import java.util.List;
-import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,14 +14,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 类名：AdminController
  * 所属模块：admin-service（管理后台服务）
- * 职责：管理后台控制器，管理控制台概览统计、操作日志查询、访问记录上报/分页查询/汇总统计等功能（除访问上报外均需管理员权限）。
- * 关键注解：@RestController 声明为 REST 控制器；@RequestMapping("/admin") 对外接口前缀为 /admin。
+ * 职责：管理后台控制器，提供控制台概览统计、操作日志查询、访问记录上报/分页查询/汇总统计等功能
+ *       （除访问上报外均需管理员权限）。
+ * 关键注解：{@code @RestController} 声明为 REST 控制器；{@code @RequestMapping("/admin")} 对外接口前缀为 /admin。
  */
 @RestController
-@RequestMapping(value={"/admin"})
+@RequestMapping("/admin")
 public class AdminController {
     @Autowired
     private AdminService adminService;
@@ -52,10 +43,10 @@ public class AdminController {
      * @param auth Authorization 请求头（Bearer 令牌），非管理员返回 403
      * @return code=200 时 data 为概览统计 Map
      */
-    @GetMapping(value={"/dashboard"})
+    @GetMapping("/dashboard")
     public ApiResponse<Map<String, Object>> getDashboard(@RequestHeader(value = "Authorization", required = false) String auth) {
-        AuthUtils.requireAdmin(auth, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.adminService.getDashboardOverview());
+        AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
+        return ApiResponse.ok(adminService.getDashboardOverview());
     }
 
     /**
@@ -63,14 +54,14 @@ public class AdminController {
      * 职责：查询最近的管理操作日志（最多 100 条）。
      *
      * @param limit 日志条数，默认 50
-     * @param auth  Authorization 请求头（Bearer 令牌），非管理员返回 403
+     * @param auth Authorization 请求头（Bearer 令牌），非管理员返回 403
      * @return code=200 时 data 为 OperationLog 列表
      */
-    @GetMapping(value={"/logs"})
-    public ApiResponse<List<?>> getLogs(@RequestParam(defaultValue="50") Integer limit,
+    @GetMapping("/logs")
+    public ApiResponse<List<?>> getLogs(@RequestParam(defaultValue = "50") Integer limit,
                                         @RequestHeader(value = "Authorization", required = false) String auth) {
-        AuthUtils.requireAdmin(auth, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.adminService.getRecentLogs(limit));
+        AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
+        return ApiResponse.ok(adminService.getRecentLogs(limit));
     }
 
     /**
@@ -80,19 +71,20 @@ public class AdminController {
      * @param body 访问数据（ip/country/region/city/isp/latitude/longitude/userAgent/pagePath）
      * @return code=200 时 data 包含新记录 ID
      */
-    @PostMapping(value={"/visit"})
+    @PostMapping("/visit")
     public ApiResponse<Map<String, Object>> recordVisit(@RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(this.adminService.recordVisit(body));
+        return ApiResponse.ok(adminService.recordVisit(body));
     }
 
     /**
-     * 前端调用路由：GET /admin/visit/online（无需登录，供前台展示在线人数）
+     * 前端调用路由：GET /admin/visit/online（无需登录，供前台展示在线人数）。
      * 职责：统计最近 10 分钟内有访问记录的去重 IP 数，作为真实在线人数。
+     *
      * @return code=200 且 data 包含 onlineCount（Long）
      */
-    @GetMapping(value={"/visit/online"})
+    @GetMapping("/visit/online")
     public ApiResponse<Map<String, Object>> onlineUsers() {
-        return ApiResponse.ok(this.adminService.countOnlineUsers());
+        return ApiResponse.ok(adminService.countOnlineUsers());
     }
 
     /**
@@ -104,12 +96,12 @@ public class AdminController {
      * @param auth Authorization 请求头（Bearer 令牌），非管理员返回 403
      * @return code=200 时 data 包含 total（总条数）与 records（记录列表）
      */
-    @GetMapping(value={"/visit/list"})
-    public ApiResponse<Map<String, Object>> visitList(@RequestParam(defaultValue="1") Integer page,
-                                                      @RequestParam(defaultValue="20") Integer size,
+    @GetMapping("/visit/list")
+    public ApiResponse<Map<String, Object>> visitList(@RequestParam(defaultValue = "1") Integer page,
+                                                      @RequestParam(defaultValue = "20") Integer size,
                                                       @RequestHeader(value = "Authorization", required = false) String auth) {
-        AuthUtils.requireAdmin(auth, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.adminService.listVisits(page, size));
+        AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
+        return ApiResponse.ok(adminService.listVisits(page, size));
     }
 
     /**
@@ -119,9 +111,9 @@ public class AdminController {
      * @param auth Authorization 请求头（Bearer 令牌），非管理员返回 403
      * @return code=200 时 data 为汇总统计 Map
      */
-    @GetMapping(value={"/visit/summary"})
+    @GetMapping("/visit/summary")
     public ApiResponse<Map<String, Object>> visitSummary(@RequestHeader(value = "Authorization", required = false) String auth) {
-        AuthUtils.requireAdmin(auth, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.adminService.visitSummary());
+        AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
+        return ApiResponse.ok(adminService.visitSummary());
     }
 }

@@ -1,4 +1,8 @@
 -- 书籍阅读模块（数据来源 zh.wikisource.org 公有领域/公共版权）
+-- 2026-09-17 修订：补 USE web3_media; 语句，避免表落到默认库 web3_portal；
+-- INSERT 全部改为 INSERT IGNORE，使脚本幂等（重跑不会主键冲突）。
+USE web3_media;
+
 CREATE TABLE IF NOT EXISTS `book` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `title` VARCHAR(200) NOT NULL,
@@ -28,40 +32,40 @@ CREATE TABLE IF NOT EXISTS `book_chapter` (
 -- AUTO-GENERATED from zh.wikisource.org (Public Domain / 公有領域)
 SET NAMES utf8mb4;
 
-INSERT INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('道德經','老子','先秦','道家','王弼本主文','道德經 ，先秦老子所著，公版全文。','81');
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),1,'一章','道可道，非常道，名可名，非常名；
+INSERT IGNORE INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('道德經','老子','先秦','道家','王弼本主文','道德經 ，先秦老子所著，公版全文。','81');
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),1,'一章','道可道，非常道，名可名，非常名；
 無名，天地之始，有名，萬物之母。
 故常無欲，以觀其妙，
 常有欲，以觀其徼；
 此兩者，同出而異名，同謂之玄。玄之又玄，眾妙之門。',80);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),2,'二章','天下皆知美之為美，斯惡已。皆知善之為善，斯不善已。故有無相生，難易相成，長短相較，高下相傾，音聲相和，前後相隨。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),2,'二章','天下皆知美之為美，斯惡已。皆知善之為善，斯不善已。故有無相生，難易相成，長短相較，高下相傾，音聲相和，前後相隨。
 是以聖人處無為之事，
 行不言之教；萬物作焉而不辭，生而不有，為而不恃，
 功成而弗居。
 夫唯弗居，是以不去。',110);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),3,'三章','不尚賢，使民不爭；不貴難得之貨，使民不為盜；不見可欲，使民心不亂。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),3,'三章','不尚賢，使民不爭；不貴難得之貨，使民不為盜；不見可欲，使民心不亂。
 是以聖人之治，虛其心，實其腹，
 弱其志，強其骨。
 常使民無知無欲。
 使夫智者不敢為也。
 為無為，則無不治。',87);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),4,'四章','道沖而用之或不盈，淵兮似萬物之宗；挫其銳，解其紛，和其光，同其塵，湛兮似或存。吾不知誰之子，象帝之先。',51);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),5,'五章','天地不仁，以萬物為芻狗；
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),4,'四章','道沖而用之或不盈，淵兮似萬物之宗；挫其銳，解其紛，和其光，同其塵，湛兮似或存。吾不知誰之子，象帝之先。',51);
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),5,'五章','天地不仁，以萬物為芻狗；
 聖人不仁，以百姓為芻狗。
 天地之間，其猶橐籥乎？虛而不屈，動而愈出。
 多言數窮，不如守中。',58);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),6,'六章','谷神不死，是謂玄牝。玄牝之門，是謂天地根。緜緜若存，用之不勤。',31);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),7,'七章','天長地久。天地所以能長且久者，以其不自生，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),6,'六章','谷神不死，是謂玄牝。玄牝之門，是謂天地根。緜緜若存，用之不勤。',31);
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),7,'七章','天長地久。天地所以能長且久者，以其不自生，
 故能長生。是以聖人後其身而身先；外其身而身存。非以其無私邪，故能成其私。',58);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),8,'八章','上善若水。水善利萬物而不爭，處眾人之所惡，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),8,'八章','上善若水。水善利萬物而不爭，處眾人之所惡，
 故幾於道。
 居善地，心善淵，與善仁，言善信，正善治，事善能，動善時。夫唯不爭，故無尤。',65);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),9,'九章','持而盈之，不如其已；
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),9,'九章','持而盈之，不如其已；
 揣而梲之，不可長保。
 金玉滿堂，莫之能守；
 富貴而驕，自遺其咎。
 功遂身退，天之道。',53);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),10,'十章','載營魄抱一，能無離乎？
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),10,'十章','載營魄抱一，能無離乎？
 專氣致柔，能嬰兒乎？
 滌除玄覽，能無疵乎？
 愛國治民，能無知乎？
@@ -70,29 +74,29 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 生之，
 畜之。
 生而不有，為而不恃，長而不宰，是謂玄德。',95);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),11,'十一章','三十輻共一轂，當其無，有車之用。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),11,'十一章','三十輻共一轂，當其無，有車之用。
 埏埴以為器，當其無，有器之用。鑿戶牖以為室，當其無，有室之用。故有之以為利，無之以為用。',61);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),12,'十二章','五色令人目盲，五音令人耳聾，五味令人口爽，馳騁畋獵令人心發狂，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),12,'十二章','五色令人目盲，五音令人耳聾，五味令人口爽，馳騁畋獵令人心發狂，
 難得之貨令人行妨。
 是以聖人為腹不為目，故去彼取此。',58);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),13,'十三章','寵辱若驚，貴大患若身。何謂寵辱若驚？寵為下，得之若驚，失之若驚，是謂寵辱若驚。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),13,'十三章','寵辱若驚，貴大患若身。何謂寵辱若驚？寵為下，得之若驚，失之若驚，是謂寵辱若驚。
 何謂貴大患若身？
 吾所以有大患者，為吾有身，
 及吾無身，
 吾有何患？故貴以身為天下，若可寄天下；
 愛以身為天下，若可託天下。',102);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),14,'十四章','視之不見名曰夷，聽之不聞名曰希，搏之不得名曰微。此三者，不可致詰，故混而為一。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),14,'十四章','視之不見名曰夷，聽之不聞名曰希，搏之不得名曰微。此三者，不可致詰，故混而為一。
 其上不皦，其下不昧。繩繩不可名，復歸於無物。是謂無狀之狀，無物之象，
 是謂惚恍。
 迎之不見其首，隨之不見其後。執古之道，以御今之有。
 能知古始，是謂道紀。',117);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),15,'十五章','古之善為士者，微妙玄通，深不可識。夫唯不可識，故強為之容。豫焉若冬涉川，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),15,'十五章','古之善為士者，微妙玄通，深不可識。夫唯不可識，故強為之容。豫焉若冬涉川，
 猶兮若畏四鄰，
 儼兮其若容，渙兮若冰之將釋，敦兮其若樸，曠兮其若谷，混兮其若濁。
 孰能濁以靜之徐清？孰能安以久動之徐生？
 保此道者不欲盈，
 夫唯不盈，故能蔽不新成。',119);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),16,'十六章','致虛極，守靜篤。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),16,'十六章','致虛極，守靜篤。
 萬物並作，吾以觀復。
 夫物芸芸，各復歸其根。歸根曰靜，是謂復命。復命曰常，
 知常曰明。不知常，妄作凶。
@@ -103,17 +107,17 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 天乃道，
 道乃久，
 沒身不殆。',96);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),17,'十七章','太上，下知有之，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),17,'十七章','太上，下知有之，
 其次，親而譽之，
 其次，畏之，
 其次，侮之。
 信不足焉，有不信焉。
 悠兮其貴言，功成事遂，百姓皆謂：我自然。',63);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),18,'十八章','大道廢，有仁義；
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),18,'十八章','大道廢，有仁義；
 智慧出，有大偽；
 六親不和，有孝慈；國家昏亂，有忠臣。',36);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),19,'十九章','絕聖棄智，民利百倍；絕仁棄義，民復孝慈；絕巧棄利，盜賊無有。此三者以為文不足，故令有所屬﹕見素抱樸，少私寡欲。',55);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),20,'二十章','絕學無憂，唯之與阿，相去幾何？善之與惡，相去若何？人之所畏，不可不畏。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),19,'十九章','絕聖棄智，民利百倍；絕仁棄義，民復孝慈；絕巧棄利，盜賊無有。此三者以為文不足，故令有所屬﹕見素抱樸，少私寡欲。',55);
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),20,'二十章','絕學無憂，唯之與阿，相去幾何？善之與惡，相去若何？人之所畏，不可不畏。
 荒兮其未央哉﹗
 眾人熙熙，如享太牢，如春登臺。
 我獨泊兮其未兆，如嬰兒之未孩；
@@ -128,7 +132,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 眾人皆有以，
 而我獨頑似鄙。
 我獨異於人，而貴食母。',174);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),21,'二十一章','孔德之容，惟道是從。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),21,'二十一章','孔德之容，惟道是從。
 道之為物，惟恍惟惚。
 惚兮恍兮，其中有象；恍兮惚兮，其中有物。
 窈兮冥兮，其中有精；
@@ -136,24 +140,24 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 自今及古，其名不去，
 以閱眾甫。
 吾何以知眾甫之狀哉？以此。',95);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),22,'二十二章','曲則全，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),22,'二十二章','曲則全，
 枉則直，
 窪則盈，
 敝則新，
 少則得，多則惑。
 是以聖人抱一為天下式。
 不自見故明，不自是故彰，不自伐故有功，不自矜故長。夫唯不爭，故天下莫能與之爭。古之所謂曲則全者，豈虛言哉！誠全而歸之。',100);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),23,'二十三章','希言自然。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),23,'二十三章','希言自然。
 故飄風不終朝，驟雨不終日。孰為此者？天地。天地尚不能久，而況於人乎？
 故從事於道者，道者同於道，
 德者同於德，
 失者同於失。
 同於道者，道亦樂得之；同於德者，德亦樂得之；同於失者，失亦樂得之。
 信不足焉，有不信焉。',113);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),24,'二十四章','企者不立，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),24,'二十四章','企者不立，
 跨者不行，自見者不明，自是者不彰，自伐者無功，自矜者不長。其在道也，曰餘食贅行。
 物或惡之，故有道者不處。',59);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),25,'二十五章','有物混成，先天地生。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),25,'二十五章','有物混成，先天地生。
 寂兮寥兮，獨立而不改，
 周行而不殆，可以為天下母。
 吾不知其名，
@@ -165,11 +169,11 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 域中有四大，
 而王居其一焉。
 人法地，地法天，天法道，道法自然。',119);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),26,'二十六章','重為輕根，靜為躁君。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),26,'二十六章','重為輕根，靜為躁君。
 是以聖人終日行不離輜重。
 雖有榮觀，燕處超然。
 奈何萬乘之主，而以身輕天下？輕則失本，躁則失君。',59);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),27,'二十七章','善行無轍迹，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),27,'二十七章','善行無轍迹，
 善言無瑕讁；
 善數不用籌策；
 善閉無關楗而不可開，善結無繩約而不可解。
@@ -178,57 +182,57 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 不善人者，善人之資。
 不貴其師，不愛其資，雖智大迷，
 是謂要妙。',117);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),28,'二十八章','知其雄，守其雌，為天下谿。為天下谿，常德不離，復歸於嬰兒。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),28,'二十八章','知其雄，守其雌，為天下谿。為天下谿，常德不離，復歸於嬰兒。
 知其白，守其黑，為天下式。
 為天下式，常德不忒，
 復歸於無極。
 知其榮，守其辱，為天下谷，常德乃足，復歸於樸。
 樸散則為器，聖人用之，則為官長，
 故大制不割。',109);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),29,'二十九章','將欲取天下而為之，吾見其不得已。天下神器，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),29,'二十九章','將欲取天下而為之，吾見其不得已。天下神器，
 不可為也，為者敗之，執者失之。
 故物或行或隨，或歔或吹。或強或羸，或挫或隳。是以聖人去甚，去奢，去泰。',73);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),30,'三十章','以道佐人主者，不以兵強天下。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),30,'三十章','以道佐人主者，不以兵強天下。
 其事好還。
 師之所處，荊棘生焉。大軍之後，必有凶年。
 善有果而已，不敢以取強。
 果而勿矜，果而勿伐，果而勿驕。
 果而不得已，果而勿強。
 物壯則老，是謂不道，不道早已。',98);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),31,'三十一章','夫佳兵者，不祥之器，物或惡之，故有道者不處。君子居則貴左，用兵則貴右。兵者不祥之器，非君子之器，不得已而用之，恬淡為上。勝而不美，而美之者，是樂殺人。夫樂殺人者，則不可以得志於天下矣。吉事尚左，凶事尚右。偏將軍居左，上將軍居右，言以喪禮處之。殺人之眾，以哀悲泣之，戰勝，以喪禮處之。',141);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),32,'三十二章','道常無名，樸雖小，天下莫能臣也。侯王若能守之，萬物將自賓。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),31,'三十一章','夫佳兵者，不祥之器，物或惡之，故有道者不處。君子居則貴左，用兵則貴右。兵者不祥之器，非君子之器，不得已而用之，恬淡為上。勝而不美，而美之者，是樂殺人。夫樂殺人者，則不可以得志於天下矣。吉事尚左，凶事尚右。偏將軍居左，上將軍居右，言以喪禮處之。殺人之眾，以哀悲泣之，戰勝，以喪禮處之。',141);
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),32,'三十二章','道常無名，樸雖小，天下莫能臣也。侯王若能守之，萬物將自賓。
 天地相合，以降甘露，民莫之令而自均。
 始制有名，名亦既有，夫亦將知止，知止所以不殆。
 譬道之在天下，猶川谷之於江海。',88);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),33,'三十三章','知人者智，自知者明。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),33,'三十三章','知人者智，自知者明。
 勝人者有力，自勝者強。
 知足者富。
 強行者有志。
 不失其所者久。
 死而不亡者壽。',51);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),34,'三十四章','大道氾兮，其可左右。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),34,'三十四章','大道氾兮，其可左右。
 萬物恃之而生而不辭，功成不名有。衣養萬物而不為主，常無欲，可名於小；
 萬物歸焉而不為主，可名為大。
 以其終不自為大，故能成其大。',75);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),35,'三十五章','執大象，天下往。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),35,'三十五章','執大象，天下往。
 往而不害，安平太。
 樂與餌，過客止。道之出口，淡乎其無味，視之不足見，聽之不足聞，用之不足既。',56);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),36,'三十六章','將欲歙之，必固張之；將欲弱之，必固強之；將欲廢之，必固興之；將欲奪之，必固與之。是謂微明。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),36,'三十六章','將欲歙之，必固張之；將欲弱之，必固強之；將欲廢之，必固興之；將欲奪之，必固與之。是謂微明。
 柔弱勝剛強。魚不可脫於淵，國之利器不可以示人。',69);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),37,'三十七章','道常無為
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),37,'三十七章','道常無為
 而無不為。
 侯王若能守之，萬物將自化。化而欲作，吾將鎮之以無名之樸。
 無名之樸，夫亦將無欲。
 不欲以靜，天下將自定。',63);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),38,'三十八章','上德不德，是以有德；下德不失德，是以無德。上德無為而無以為，下德為之而有以為。上仁為之而無以為，上義為之而有以為。上禮為之而莫之應， 則攘臂而扔之。故失道而後德，失德而後仁，失仁而後義，失義而後禮。夫禮者，忠信之薄，而亂之首。前識者，道之華，而愚之始。是以大丈夫處其厚，不居其薄；處其實，不居其華。故去彼取此。',155);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),39,'三十九章','昔之得一者，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),38,'三十八章','上德不德，是以有德；下德不失德，是以無德。上德無為而無以為，下德為之而有以為。上仁為之而無以為，上義為之而有以為。上禮為之而莫之應， 則攘臂而扔之。故失道而後德，失德而後仁，失仁而後義，失義而後禮。夫禮者，忠信之薄，而亂之首。前識者，道之華，而愚之始。是以大丈夫處其厚，不居其薄；處其實，不居其華。故去彼取此。',155);
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),39,'三十九章','昔之得一者，
 天得一以清，地得一以寧，神得一以靈，谷得一以盈，萬物得一以生，侯王得一以為天下貞。其致之，
 天無以清將恐裂，
 地無以寧將恐發，神無以靈將恐歇，谷無以盈將恐竭，萬物無以生將恐滅，侯王無以貴高將恐蹶。故貴以賤為本，高以下為基。是以侯王自稱孤﹑寡﹑不穀。此非以賤為本邪？非乎？故致數輿無輿，不欲琭琭如玉，珞珞如石。',161);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),40,'四十章','反者道之動，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),40,'四十章','反者道之動，
 弱者道之用。
 天下萬物生於有，有生於無。',27);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),41,'四十一章','上士聞道，勤而行之；
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),41,'四十一章','上士聞道，勤而行之；
 中士聞道，若存若亡；下士聞道，大笑之。不笑不足以為道。故建言有之﹕
 明道若昧，
 進道若退，
@@ -243,51 +247,51 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 大音希聲，
 大象無形，
 道隱無名。夫唯道，善貸且成。',132);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),42,'四十二章','道生一，一生二，二生三，三生萬物。萬物負陰而抱陽，沖氣以為和。人之所惡，唯孤﹑寡﹑不穀，而王公以為稱。故物或損之而益，或益之而損。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),42,'四十二章','道生一，一生二，二生三，三生萬物。萬物負陰而抱陽，沖氣以為和。人之所惡，唯孤﹑寡﹑不穀，而王公以為稱。故物或損之而益，或益之而損。
 人之所教，我亦教之。
 強梁者不得其死，吾將以為教父。',92);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),43,'四十三章','天下之至柔，馳騁天下之至堅。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),43,'四十三章','天下之至柔，馳騁天下之至堅。
 無有入無間，吾是以知無為之有益。
 不言之教，無為之益，天下希及之。',48);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),44,'四十四章','名與身孰親？
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),44,'四十四章','名與身孰親？
 身與貨孰多？
 得與亡孰病？
 是故甚愛必大費，多藏必厚亡，
 知足不辱，知止不殆，可以長久。',51);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),45,'四十五章','大成若缺，其用不弊。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),45,'四十五章','大成若缺，其用不弊。
 大盈若沖，其用不窮。
 大直若屈，其用不居。
 大巧若拙，其用不輟。
 大辯若訥，其用不差。
 躁勝寒，靜勝熱。清靜為天下正。',70);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),46,'四十六章','天下有道，卻走馬以糞。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),46,'四十六章','天下有道，卻走馬以糞。
 天下無道，戎馬生於郊。
 禍莫大於不知足；咎莫大於欲得。故知足之足，常足矣。',49);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),47,'四十七章','不出戶，知天下；不闚牖，見天道。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),47,'四十七章','不出戶，知天下；不闚牖，見天道。
 其出彌遠，其知彌少。
 是以聖人不行而知，不見而名，
 不為而成。',48);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),48,'四十八章','為學日益，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),48,'四十八章','為學日益，
 為道日損。
 損之又損，以至於無為。無為而無不為。
 取天下常以無事，
 及其有事，
 不足以取天下。',53);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),49,'四十九章','聖人無常心，以百姓心為心。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),49,'四十九章','聖人無常心，以百姓心為心。
 善者，吾善之；不善者，吾亦善之，
 德善。
 信者，吾信之；不信者，吾亦信之，德信。聖人在天下歙歙，為天下渾其心，
 百姓皆注其耳目,
 聖人皆孩之。',85);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),50,'五十章','出生入死。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),50,'五十章','出生入死。
 生之徒，十有三；死之徒，十有三；人之生，動之死地，亦十有三。夫何故？以其生生之厚。蓋聞善攝生者，陸行不遇兕虎，入軍不被甲兵；兕無所投其角，虎無所措其爪，兵無所容其刃。夫何故？以其無死地。',99);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),51,'五十一章','道生之，德畜之，物形之，勢成之。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),51,'五十一章','道生之，德畜之，物形之，勢成之。
 是以萬物莫不尊道而貴德。
 道之尊，德之貴，夫莫之命而常自然。
 故道生之，德畜之。長之育之，亭之毒之，蓋之覆之。
 生而不有，為而不恃，
 長而不宰。是謂玄德。',94);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),52,'五十二章','天下有始，以為天下母。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),52,'五十二章','天下有始，以為天下母。
 既得其母，以知其子，既知其子，復守其母，沒身不殆。
 塞其兌，閉其門，
 終身不勤。
@@ -296,19 +300,19 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 用其光，
 復歸其明，
 無遺身殃，是為習常。',99);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),53,'五十三章','使我介然有知，行於大道，唯施是畏。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),53,'五十三章','使我介然有知，行於大道，唯施是畏。
 大道甚夷，而民好徑。
 朝甚除，
 田甚蕪，倉甚虛；
 服文綵，帶利劍，厭飲食，財貨有餘；是為盜夸。非道也哉！',70);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),54,'五十四章','善建者不拔，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),54,'五十四章','善建者不拔，
 善抱者不脫，
 子孫以祭祀不輟。
 修之於身，其德乃真；修之於家，其德乃餘；
 修之於鄉，其德乃長；修之於國，其德乃豐；修之於天下，其德乃普。故以身觀身，以家觀家，以鄉觀鄉，以國觀國，
 以天下觀天下。
 吾何以知天下然哉？以此。',117);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),55,'五十五章','含德之厚，比於赤子。蜂蠆虺蛇不螫，猛獸不據，攫鳥不搏。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),55,'五十五章','含德之厚，比於赤子。蜂蠆虺蛇不螫，猛獸不據，攫鳥不搏。
 骨弱筋柔而握固。
 未知牝牡之合而全作，
 精之至也。終日號而不嗄，
@@ -317,7 +321,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 益生曰祥。
 心使氣曰強。
 物壯則老，謂之不道，不道早已。',106);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),56,'五十六章','知者不言，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),56,'五十六章','知者不言，
 言者不知。
 塞其兌，閉其門，挫其銳，
 解其分，
@@ -327,12 +331,12 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 不可得而利，不可得而害；
 不可得而貴，不可得而賤。
 故為天下貴。',91);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),57,'五十七章','以正治國，以奇用兵，以無事取天下。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),57,'五十七章','以正治國，以奇用兵，以無事取天下。
 吾何以知其然哉？以此。天下多忌諱，而民彌貧；民多利器，國家滋昬；
 人多伎巧，奇物滋起；
 法令滋彰，盜賊多有。
 故聖人云﹕「我無為而民自化，我好靜而民自正，我無事而民自富，我無欲而民自樸。」',112);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),58,'五十八章','其政悶悶，其民淳淳；
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),58,'五十八章','其政悶悶，其民淳淳；
 其政察察，其民缺缺。
 禍兮福之所倚，福兮禍之所伏。孰知其極？其無正。
 正復為奇，
@@ -342,19 +346,19 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 廉而不劌，
 直而不肆，
 光而不燿。',95);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),59,'五十九章','治人事天，莫若嗇。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),59,'五十九章','治人事天，莫若嗇。
 夫唯嗇，是謂早服；
 早服謂之重積德；
 重積德則無不克，無不克則莫知其極；
 莫知其極，可以有國；
 有國之母，可以長久；
 是謂深根固柢，長生久視之道。',83);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),60,'六十章','治大國，若烹小鮮。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),60,'六十章','治大國，若烹小鮮。
 以道莅天下，其鬼不神；
 非其鬼不神，其神不傷人；
 非其神不傷人，聖人亦不傷人。
 夫兩不相傷，故德交歸焉。',62);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),61,'六十一章','大國者下流，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),61,'六十一章','大國者下流，
 天下之交。
 天下之牝，
 牝常以靜勝牡，以靜為下。
@@ -363,7 +367,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 小國以下大國，則取大國。
 故或下以取，或下而取。
 大國不過欲兼畜人，小國不過欲入事人。夫兩者各得其所欲，大者宜為下。',105);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),62,'六十二章','道者萬物之奧。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),62,'六十二章','道者萬物之奧。
 善人之寶，
 不善人之所保。
 美言可以市，尊行可以加人。
@@ -371,11 +375,11 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 故立天子，置三公，
 雖有拱璧以先駟馬，不如坐進此道。
 古之所以貴此道者何？不曰以求得，有罪以免邪？故為天下貴。',102);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),63,'六十三章','為無為，事無事，味無味。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),63,'六十三章','為無為，事無事，味無味。
 大小多少，報怨以德。
 圖難於其易，為大於其細；天下難事必作於易，天下大事必作於細。是以聖人終不為大，故能成其大。夫輕諾必寡信，多易必多難。是以聖人猶難之，
 故終無難矣',96);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),64,'六十四章','其安易持，其未兆易謀。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),64,'六十四章','其安易持，其未兆易謀。
 其脆易泮，其微易散。
 為之於未有，
 治之於未亂。
@@ -384,14 +388,14 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 慎終如始，則無敗事。是以聖人欲不欲，不貴難得之貨；
 學不學，復眾人之所過。
 以輔萬物之自然，而不敢為。',159);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),65,'六十五章','古之善為道者，非以明民，將以愚之。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),65,'六十五章','古之善為道者，非以明民，將以愚之。
 民之難治，以其智多。
 故以智治國，國之賊，
 不以智治國，國之福。知此兩者亦稽式。常知稽式，是謂玄德。玄德深矣，遠矣，
 與物反矣，
 然後乃至大順。',90);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),66,'六十六章','江海所以能為百谷王者，以其善下之，故能為百谷王。是以欲上民，必以言下之。欲先民，必以身後之。是以聖人處上而民不重，處前而民不害。是以天下樂推而不厭，以其不爭，故天下莫能與之爭。',88);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),67,'六十七章','天下皆謂我道大，似不肖。夫唯大，故似不肖。若肖，久矣其細也夫！
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),66,'六十六章','江海所以能為百谷王者，以其善下之，故能為百谷王。是以欲上民，必以言下之。欲先民，必以身後之。是以聖人處上而民不重，處前而民不害。是以天下樂推而不厭，以其不爭，故天下莫能與之爭。',88);
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),67,'六十七章','天下皆謂我道大，似不肖。夫唯大，故似不肖。若肖，久矣其細也夫！
 我有三寶，持而保之。一曰慈，二曰儉，三曰不敢為天下先。
 慈故能勇，
 儉故能廣，
@@ -400,30 +404,30 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 舍儉且廣，舍後且先，死矣！
 夫慈以戰則勝，
 以守則固。天將救之，以慈衛之。',130);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),68,'六十八章','善為士者不武，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),68,'六十八章','善為士者不武，
 善戰者不怒，
 善勝敵者不與，
 善用人者為之下，是謂不爭之德，是謂用人之力，
 是謂配天古之極。',54);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),69,'六十九章','用兵有言﹕「吾不敢為主而為客，不敢進寸而退尺。」是謂行無行，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),69,'六十九章','用兵有言﹕「吾不敢為主而為客，不敢進寸而退尺。」是謂行無行，
 攘無臂，扔無敵，
 執無兵。
 禍莫大於輕敵，輕敵幾喪吾寶。
 故抗兵相加，哀者勝矣。',71);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),70,'七十章','吾言甚易知，甚易行。天下莫能知，莫能行。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),70,'七十章','吾言甚易知，甚易行。天下莫能知，莫能行。
 言有宗，事有君。
 夫唯無知，是以不我知。
 知我者希，則我者貴。
 是以聖人被褐懷玉。',62);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),71,'七十一章','知不知上，不知知病。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),71,'七十一章','知不知上，不知知病。
 夫唯病病，是以不病。聖人不病，以其病病，是以不病。',36);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),72,'七十二章','民不畏威，則大威至。無狎其所居，無厭其所生。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),72,'七十二章','民不畏威，則大威至。無狎其所居，無厭其所生。
 夫唯不厭，
 是以不厭。
 是以聖人自知不自見，
 自愛不自貴；
 故去彼取此。',59);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),73,'七十三章','勇於敢則殺，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),73,'七十三章','勇於敢則殺，
 勇於不敢則活。
 此兩者，或利或害。
 天之所惡，孰知其故？是以聖人猶難之。
@@ -432,35 +436,35 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 不召而自來，
 繟然而善謀。
 天網恢恢，疏而不失。',86);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),74,'七十四章','民不畏死，奈何以死懼之？若使民常畏死，而為奇者，吾得執而殺之，孰敢？
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),74,'七十四章','民不畏死，奈何以死懼之？若使民常畏死，而為奇者，吾得執而殺之，孰敢？
 常有司殺者殺，夫代司殺者殺，是謂代大匠斲。
 夫代大匠斲者，希有不傷其手矣。',72);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),75,'七十五章','民之饑，以其上食稅之多，是以饑。民之難治，以其上之有為，是以難治。民之輕死，以其上求生之厚，是以輕死。夫唯無以生為者，是賢於貴生。',65);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),76,'七十六章','人之生也柔弱，其死也堅強。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),75,'七十五章','民之饑，以其上食稅之多，是以饑。民之難治，以其上之有為，是以難治。民之輕死，以其上求生之厚，是以輕死。夫唯無以生為者，是賢於貴生。',65);
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),76,'七十六章','人之生也柔弱，其死也堅強。
 萬物草木之生也柔脆，其死也枯槁。
 故堅強者死之徒，柔弱者生之徒。
 是以兵強則不勝，
 木強則兵。
 強大處下，
 柔弱處上。',73);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),77,'七十七章','天之道，其猶張弓與？高者抑之，下者舉之；有餘者損之，不足者補之。天之道，損有餘而補不足。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),77,'七十七章','天之道，其猶張弓與？高者抑之，下者舉之；有餘者損之，不足者補之。天之道，損有餘而補不足。
 人之道則不然，
 損不足以奉有餘。
 孰能有餘以奉天下？唯有道者。
 是以聖人為而不恃，功成而不處，其不欲見賢。',98);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),78,'七十八章','天下莫柔弱於水，而攻堅強者，莫之能勝，其無以易之。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),78,'七十八章','天下莫柔弱於水，而攻堅強者，莫之能勝，其無以易之。
 弱之勝強，柔之勝剛，天下莫不知莫能行。是以聖人云﹕「受國之垢，是謂社稷主；受國不祥，是為天下王。」正言若反。',80);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),79,'七十九章','和大怨，必有餘怨，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),79,'七十九章','和大怨，必有餘怨，
 安可以為善？是以聖人執左契，
 而不責於人。有德司契，
 無德司徹。
 天道無親，常與善人。',53);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),80,'八十章','小國寡民，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),80,'八十章','小國寡民，
 使有什伯之器而不用，
 使民重死而不遠徙。
 雖有舟輿，無所乘之；雖有甲兵，無所陳之。
 使人復結繩而用之，甘其食，美其服，安其居，樂其俗。鄰國相望，雞犬之聲相聞，民至老死，不相往來。',95);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),81,'八十一章','信言不美，
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='道德經' ORDER BY id DESC LIMIT 1),81,'八十一章','信言不美，
 美言不信。
 善者不辯，辯者不善。
 知者不博，
@@ -471,8 +475,8 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 天之道，利而不害；
 聖人之道，為而不爭。',79);
 
-INSERT INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('論語','孔子及弟子','先秦','儒家','四書之首','論語 ，先秦孔子及弟子所著，公版全文。','20');
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),1,'學而第一','*註疏
+INSERT IGNORE INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('論語','孔子及弟子','先秦','儒家','四書之首','論語 ，先秦孔子及弟子所著，公版全文。','20');
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),1,'學而第一','*註疏
 
  ''''''一之一''''''
 子曰：「學而時習之，不亦說乎？有朋自遠方來，不亦樂乎？人不知而不慍，不亦君子乎？」
@@ -531,7 +535,7 @@ zh-hant;zh-hans|
 }- Category:有聲文獻
 
 Category:香港中學文憑考試指定文言篇章',1149);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),2,'爲政第二','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),2,'爲政第二','*註疏
 
  ''''''二之一''''''
 子曰：「爲政以德，譬如北辰，居其所，而眾星共之。」
@@ -614,7 +618,7 @@ zh-hant;zh-hans|
 }- Category:有聲文獻
 
 Category:香港中學文憑考試指定文言篇章',1433);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),3,'八佾第三','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),3,'八佾第三','*註疏
 
  ''''''三之一''''''
 孔子謂季氏：「八佾舞於庭。是可忍也，孰不可忍也！」
@@ -701,7 +705,7 @@ zh-hant;zh-hans|
  此錄音来自外部鏈接、內容同2016年7月23日的版本、由 白雲出岫 使用zh-hans:汉语普通话; zh-hant:中華民國國語錄製，不會隨條目修訂而自動改變。
  ''''''更多有聲文獻''''''
 }- Category:有聲文獻',1621);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),4,'里仁第四','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),4,'里仁第四','*註疏
 
  ''''''四之一''''''
 子曰：「里仁爲美。擇不處仁，焉得知？」
@@ -780,7 +784,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''四之二六''''''
 子游曰：「事君數，斯辱矣。朋友數，斯疏矣。」',1067);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),5,'公冶長第五','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),5,'公冶長第五','*註疏
 
  ''''''五之一''''''
 子謂公冶長，「可妻也；雖在縲之中，非其罪也。」以其子妻之。
@@ -873,7 +877,7 @@ zh-hant;zh-hans|
  此錄音来自外部鏈接、內容同2016年7月23日的版本、由 白雲出岫 使用漢語普通話錄製，不會隨條目修訂而自動改變。
  ''''''更多有聲文獻''''''
  Category:有聲文獻',1844);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),6,'雍也第六','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),6,'雍也第六','*註疏
 
  ''''''六之一''''''
 子曰：「雍也，可使南面。」仲弓問子桑伯子。子曰：「可也，簡。」仲弓曰：「居敬而行簡，以臨其民，不亦可乎？居簡而行簡，無乃大簡乎？」子曰：「雍之言然。」
@@ -967,7 +971,7 @@ zh-hant;zh-hans|
  此錄音来自外部鏈接、內容同2017年7月7日的版本、由 白雲出岫 使用漢語普通話錄製，不會隨條目修訂而自動改變。
  ''''''更多有聲文獻''''''
  Category:有聲文獻',1807);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),7,'述而第七','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),7,'述而第七','*註疏
   ''''''七之一''''''
 子曰：「述而不作，信而好古，竊比於我老彭。」
 
@@ -1078,7 +1082,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''七之三七''''''
 子溫而厲，威而不猛，恭而安。',1700);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),8,'泰伯第八','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),8,'泰伯第八','*註疏
   ''''''八之一''''''
 子曰：「泰伯，其可謂至德也已矣！三以天下讓，民無得而稱焉。」
 
@@ -1143,7 +1147,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 子曰：「禹，吾無間然矣！菲飮食，而致孝乎鬼神；惡衣服，而致美乎黻冕；卑宮室，而盡力乎溝洫。禹，吾無間然矣！」
 
 ----',1110);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),9,'子罕第九','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),9,'子罕第九','*註疏
 
   ''''''九之一''''''
 子罕言利與命與仁。
@@ -1237,7 +1241,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''九之三一''''''
 「唐棣之華，偏其反而；豈不爾思？室是遠而」。子曰：「未之思也，夫何遠之有？」',1510);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),10,'鄉黨第十','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),10,'鄉黨第十','*註疏
   ''''''十之一''''''
 孔子於鄉黨，恂恂如也，似不能言者。其在宗廟朝廷，便便言，唯謹爾。
 
@@ -1291,7 +1295,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''十之十八''''''
 色斯擧矣，翔而後集。曰：「山梁雌雉，時哉時哉！」子路共之，三嗅而作。',1078);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),11,'先進第十一','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),11,'先進第十一','*註疏
 
  ''''''十一之一''''''
 子曰：「先進於禮樂，野人也；後進於禮樂，君子也。如用之，則吾從先進。」
@@ -1377,7 +1381,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 「點，爾何如？」鼓瑟希，鏗爾，舍瑟而作；對曰：「異乎三子者之撰。」子曰：「何傷乎？亦各言其志也。」曰：「莫春者，春服既成。冠者五六人，童子六七人。浴乎沂，風乎舞雩，詠而歸。」夫子喟然歎曰：「吾與點也！」
 
 三子者出，曾皙後。曾皙曰：「夫三子者之言何如？」子曰：「亦各言其志也已矣。」曰：「夫子何哂由也？」曰：「爲國以禮，其言不讓，是故哂之。」「唯求則非邦也與？」「安見方六七十，如五六十，而非邦也者？」「唯赤則非邦也與？」「宗廟會同，非諸侯而何？赤也爲之小，孰能爲之大？」',1872);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),12,'顏淵第十二','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),12,'顏淵第十二','*註疏
 
  ''''''十二之一''''''
 顏淵問「仁」。子曰：「克己復禮爲仁。一日克己復禮，天下歸仁焉，爲仁由己，而由人乎哉？」顏淵曰：「請問其目。」子曰：「非禮勿視，非禮勿聽，非禮勿言，非禮勿動。」顏淵曰：「回雖不敏，請事斯語矣！」
@@ -1452,7 +1456,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 曾子曰：「君子以文會友，以友輔仁。」
 
 Category:香港中學文憑考試指定文言篇章',1786);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),13,'子路第十三','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),13,'子路第十三','*註疏
  ''''''十三之一''''''
 子路問政。子曰：「先之，勞之。」請益，曰：「無倦。」
 
@@ -1542,7 +1546,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''十三之三十''''''
 子曰：「以不教民戰，是謂棄之。」',1891);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),14,'憲問第十四','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),14,'憲問第十四','*註疏
 
  ''''''十四之一''''''
 憲問「恥」。子曰：「邦有道，穀；邦無道，穀，恥也。」
@@ -1686,7 +1690,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 闕黨童子將命。或問之曰：「益者與？」子曰：「吾見其居於位也，見其與先生並行也，非求益者也，欲速成者也。」
 
 Category:香港中學文憑考試指定文言篇章',2563);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),15,'衞靈公第十五','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),15,'衞靈公第十五','*註疏
 
  ''''''十五之一''''''
 衞靈公問陳於孔子。孔子對曰：「俎豆之事，則嘗聞之矣；軍旅之事，未之學也。」明日遂行。在陳絕糧。從者病，莫能興。子路慍見曰：「君子亦有窮乎？」子曰：「君子固窮，小人窮斯濫矣。」
@@ -1820,7 +1824,7 @@ zh-hant;zh-hans|
  Category:有聲文獻
 
 Category:香港中學文憑考試指定文言篇章',2125);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),16,'季氏第十六','''''''十六之一''''''
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),16,'季氏第十六','''''''十六之一''''''
 季氏將伐顓臾。冉有季路見於孔子曰：「季氏將有事於顓臾。」孔子曰：「求！無乃爾是過與？夫顓臾，昔者先王以爲東蒙主，且在邦域之中矣，是社稷之臣也。何以伐爲？」冉有曰：「夫子欲之，吾二臣者，皆不欲也。」孔子曰：「求！周任有言曰：『陳力就列，不能者止。』危而不持，顚而不扶，則將焉用彼相矣？且爾言過矣！虎兕出於柙，龜玉毀於櫝中，是誰之過與？」冉有曰：「今夫顓臾，固而近於費；今不取，後世必爲子孫憂。」孔子曰：「求！君子疾夫舍曰欲之，而必爲之辭。丘也，聞有國有家者，不患寡而患不均，不患貧而患不安。蓋均無貧，和無寡，安無傾。夫如是，故遠人不服，則修文德以來之。既來之，則安之。今由與求也，相夫子，遠人不服而不能來也；邦分崩離析而不能守也，而謀動干戈於邦內。吾恐季孫之憂，不在顓臾，而在蕭牆之內也！」
 
  ''''''十六之二''''''
@@ -1861,7 +1865,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''十六之十四''''''
 邦君之妻，君稱之曰「夫人」，夫人自稱曰「小童」；邦人稱之曰「君夫人」，稱諸異邦曰「寡小君」；異邦人稱之，亦曰「君夫人」。',1346);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),17,'陽貨第十七','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),17,'陽貨第十七','*註疏
 
  ''''''十七之一''''''
 陽貨欲見孔子，孔子不見，歸孔子豚。孔子時其亡也，而往拜之，遇諸塗。謂孔子曰：「來，予與爾言。」曰：「懷其寶而迷其邦，可謂仁乎？」曰：「不可。」「好從事而亟失時，可謂知乎？」曰：「不可。」「日月逝矣，歲不我與。」孔子曰：「諾，吾將仕矣。」
@@ -1940,7 +1944,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''十七之二六''''''
 子曰：「年四十而見惡焉，其終也已。」',1757);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),18,'微子第十八','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),18,'微子第十八','*註疏
 
  ''''''十八之一''''''
 微子去之，箕子爲之奴，比干諫而死。孔子曰：「殷有三仁焉。」
@@ -1974,7 +1978,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''十八之十一''''''
 周有八士：伯達、伯适、仲突、仲忽、叔夜、叔夏、季隨、季騧。',985);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),19,'子張第十九','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),19,'子張第十九','*註疏
 
  ''''''十九之一''''''
 子張曰：「士見危致命，見得思義，祭思敬，喪思哀，其可已矣。」
@@ -2050,7 +2054,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
  ''''''十九之二五''''''
 陳子禽謂子貢曰：「子爲恭也，仲尼豈賢於子乎？」子貢曰：「君子一言以爲知，一言以爲不知，言不可不愼也！夫子之不可及也，猶天之不可階而升也。夫子之得邦家者，所謂『立之斯立，道之斯行，綏之斯來，動之斯和。其生也榮，其死也哀』。如之何其可及也？」',1461);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),20,'堯曰第二十','*註疏
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='論語' ORDER BY id DESC LIMIT 1),20,'堯曰第二十','*註疏
 
  ''''''二十之一''''''
 堯曰：「咨！爾舜！天之曆數在爾躬，允執其中！四海困窮，天祿永終。」舜亦以命禹。曰：「予小子履，敢用玄牡，敢昭吿于皇皇后帝：有罪不敢赦。帝臣不蔽，簡在帝心！朕躬有罪，無以萬方；萬方有罪，罪在朕躬。」「周有大賚，善人是富。」「雖有周親，不如仁人；百姓有過，在予一人。」謹權量，審法度，脩廢官，四方之政行焉。興滅國，繼絕世，擧逸民，天下之民歸心焉。所重：民、食、喪、祭。寬則得眾，信則民任焉，敏則有功，公則說。
@@ -2061,15 +2065,15 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
  ''''''二十之三''''''
 子曰：「不知命，無以爲君子也；不知禮，無以立也；不知言，無以知人也。」',528);
 
-INSERT INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('孫子兵法','孫武','春秋','兵家','武經七書','孫子兵法 ，春秋孫武所著，公版全文。','13');
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),1,'始計第一','孫子曰：兵者，國之大事，死生之地，存亡之道，不可不察也。故經之以五事，校之以七計，而索其情：一曰道，二曰天，三曰地，四曰將，五曰法。
+INSERT IGNORE INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('孫子兵法','孫武','春秋','兵家','武經七書','孫子兵法 ，春秋孫武所著，公版全文。','13');
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),1,'始計第一','孫子曰：兵者，國之大事，死生之地，存亡之道，不可不察也。故經之以五事，校之以七計，而索其情：一曰道，二曰天，三曰地，四曰將，五曰法。
 
 道者，令民與上同意，可與之死，可與之生，而不畏危也。天者，陰陽、寒暑、時制也。地者，高下、遠近、險易、廣狹、死生也。將者，智、信、仁、勇、嚴也。法者，曲制、官道、主用也。凡此五者，將莫不聞，知之者勝，不知者不勝。故校之以七計而索其情，曰：主孰有道？將孰有能？天地孰得？法令孰行？兵眾孰強？士卒孰練？賞罰孰明？吾以此知勝負矣。
 
 將聽吾計，用之必勝，留之；將不聽吾計，用之必敗，去之。計利以聽，乃為之勢，以佐其外。勢者，因利而制權也。兵者，詭道也。故能而示之不能，用而示之不用，近而示之遠，遠而示之近。利而誘之，亂而取之，實而備之，強而避之，怒而撓之，卑而驕之，佚而勞之，親而離之。攻其無備，出其不意。此兵家之勝，不可先傳也。
 
 夫未戰而廟算勝者，得算多也；未戰而廟算不勝者，得算少也。多算勝，少算不勝，而況於無算乎？吾以此觀之，勝負見矣。',437);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),2,'作戰第二','孫子曰：凡用兵之法，馳車千駟，革車千乘，帶甲十萬，千里饋糧，則內外之費，賓客之用，膠漆之材，車甲之奉，日費千金，然後十萬之師舉矣。其用戰也，貴勝，久則鈍兵挫銳，攻城則力屈，久暴師則國用不足。夫鈍兵挫銳，屈力殫貨，則諸侯乘其弊而起，雖有智者，不能善其後矣。故兵聞拙速，未睹巧之久也。夫兵久而國利者，未之有也。故不盡知用兵之害者，則不能盡知用兵之利也。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),2,'作戰第二','孫子曰：凡用兵之法，馳車千駟，革車千乘，帶甲十萬，千里饋糧，則內外之費，賓客之用，膠漆之材，車甲之奉，日費千金，然後十萬之師舉矣。其用戰也，貴勝，久則鈍兵挫銳，攻城則力屈，久暴師則國用不足。夫鈍兵挫銳，屈力殫貨，則諸侯乘其弊而起，雖有智者，不能善其後矣。故兵聞拙速，未睹巧之久也。夫兵久而國利者，未之有也。故不盡知用兵之害者，則不能盡知用兵之利也。
 
 善用兵者，役不再籍，糧不三載；取用於國，因糧於敵，故軍食可足也。
 
@@ -2080,7 +2084,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 故殺敵者，怒也；取敵之利者，貨也。故車戰，得車十乘以上，賞其先得者，而更其旌旗。車雜而乘之，卒善而養之，是謂勝敵而益強。
 
 故兵貴勝，不貴久。故知兵之將，民之司命，國家安危之主也。',424);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),3,'謀攻第三','孫子曰：凡用兵之法，全國為上，破國次之；全軍為上，破軍次之；全旅為上，破旅次之；全卒為上，破卒次之；全伍為上，破伍次之。是故百戰百勝，非善之善者也；不戰而屈人之兵，善之善者也。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),3,'謀攻第三','孫子曰：凡用兵之法，全國為上，破國次之；全軍為上，破軍次之；全旅為上，破旅次之；全卒為上，破卒次之；全伍為上，破伍次之。是故百戰百勝，非善之善者也；不戰而屈人之兵，善之善者也。
 
 故上兵伐謀，其次伐交，其次伐兵，其下攻城。攻城之法，為不得已。修櫓轒轀，具器械，三月而後成；距闉，又三月而後已。將不勝其忿，而蟻附之，殺士三分之一，而城不拔者，此攻之災也。
 
@@ -2095,7 +2099,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 故知勝有五：知可以戰與不可以戰者勝，識衆寡之用者勝，上下同欲者勝，以虞待不虞者勝，將能而君不御者勝。此五者，知勝之道也。
 
 故曰：知彼知己，百戰不殆；不知彼而知己，一勝一負；不知彼不知己，每戰必殆。',521);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),4,'軍形第四','孫子曰：昔之善戰者，先為不可勝，以待敵之可勝。不可勝在己，可勝在敵。故善戰者，能為不可勝，不能使敵之必可勝。故曰：勝可知，而不可為。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),4,'軍形第四','孫子曰：昔之善戰者，先為不可勝，以待敵之可勝。不可勝在己，可勝在敵。故善戰者，能為不可勝，不能使敵之必可勝。故曰：勝可知，而不可為。
 
 不可勝者，守也；可勝者，攻也。守則不足，攻則有餘。善守者，藏於九地之下；善攻者，動於九天之上，故能自保而全勝也。
 
@@ -2104,7 +2108,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 古之所謂善戰者，勝於易勝者也。故善戰者之勝也，無智名，無勇功。故其戰勝不忒。不忒者，其所措必勝，勝已敗者也。故善戰者，立於不敗之地，而不失敵之敗也。是故勝兵先勝而後求戰，敗兵先戰而後求勝。善用兵者，修道而保法，故能為勝敗之政。
 
 兵法：一曰度，二曰量，三曰數，四曰稱，五曰勝。地生度，度生量，量生數，數生稱，稱生勝。故勝兵若以鎰稱銖，敗兵若以銖稱鎰。勝者之戰民也，若決積水於千仞之溪者，形也。',381);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),5,'兵勢第五','孫子曰：凡治衆如治寡，分數是也；鬥衆如鬥寡，形名是也；三軍之衆，可使必受敵而無敗者，奇正是也；兵之所加，如以碫投卵者，虛實是也。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),5,'兵勢第五','孫子曰：凡治衆如治寡，分數是也；鬥衆如鬥寡，形名是也；三軍之衆，可使必受敵而無敗者，奇正是也；兵之所加，如以碫投卵者，虛實是也。
 
 凡戰者，以正合，以奇勝。故善出奇者，無窮如天地，不竭如江海。終而復始，日月是也。死而復生，四時是也。聲不過五，五聲之變，不可勝聽也；色不過五，五色之變，不可勝觀也；味不過五，五味之變，不可勝嘗也；戰勢不過奇正，奇正之變，不可勝窮也。奇正相生，如循環之無端，孰能窮之哉？
 
@@ -2115,7 +2119,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 故善動敵者，形之，敵必從之；予之，敵必取之。以利動之，以卒待之。
 
 故善戰者，求之於勢，不責於人，故能擇人而任勢。任勢者，其戰人也，如轉木石。木石之性，安則靜，危則動，方則止，圓則行。故善戰人之勢，如轉圓石於千仞之山者，勢也。',429);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),6,'虛實第六','孫子曰：凡先處戰地而待敵者佚，後處戰地而趨戰者勞。故善戰者，致人而不致於人。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),6,'虛實第六','孫子曰：凡先處戰地而待敵者佚，後處戰地而趨戰者勞。故善戰者，致人而不致於人。
 
 能使敵自至者，利之也；能使敵不得至者，害之也。故敵佚能勞之，飽能饑之，安能動之。出其所不趨，趨其所不意。
 
@@ -2130,7 +2134,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 故策之而知得失之計，作之而知動靜之理，形之而知死生之地，角之而知有餘不足之處。故形兵之極，至於無形。無形，則深間不能窺，智者不能謀。因形而措勝於衆，衆不能知。人皆知我所以勝之形，而莫知吾所以制勝之形。故其戰勝不復，而應形於無窮。
 
 夫兵形象水，水之行，避高而趨下；兵之勝，避實而擊虛。水因地而制行，兵因敵而制勝。故兵無成勢，無恒形，能因敵變化而取勝者，謂之神。故五行無常勝，四時無常位，日有短長，月有死生。',732);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),7,'軍爭第七','孫子曰：凡用兵之法，將受命於君，合軍聚衆，交和而舍，莫難於軍爭。軍爭之難者，以迂為直，以患為利。故迂其途，而誘之以利，後人發，先人至，此知迂直之計者也。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),7,'軍爭第七','孫子曰：凡用兵之法，將受命於君，合軍聚衆，交和而舍，莫難於軍爭。軍爭之難者，以迂為直，以患為利。故迂其途，而誘之以利，後人發，先人至，此知迂直之計者也。
 
 故軍爭為利，軍爭為危。舉軍而爭利，則不及；委軍而爭利，則輜重捐。是故卷甲而趨，日夜不處，倍道兼行，百里而爭利，則擒三軍將，勁者先，疲者後，其法十一而至；五十里而爭利，則蹶上軍將，其法半至；三十里而爭利，則三分之二至。是故軍無輜重則亡，無糧食則亡，無委積則亡。故不知諸侯之謀者，不能豫交；不知山林、險阻、沮澤之形者，不能行軍；不用鄉導者，不能得地利。
 
@@ -2141,14 +2145,14 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 三軍可奪氣，將軍可奪心。是故朝氣銳，晝氣惰，暮氣歸。故善用兵者，避其銳氣，擊其惰歸，此治氣者也；以治待亂，以靜待嘩，此治心者也；以近待遠，以佚待勞，以飽待饑，此治力者也；無邀正正之旗，無擊堂堂之陣，此治變者也。
 
 故用兵之法，高陵勿向，背丘勿逆，佯北勿從，銳卒勿攻，餌兵勿食，歸師勿遏，圍師必闕，窮寇勿迫，此用兵之法也。',591);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),8,'九變第八','孫子曰：凡用兵之法，將受命於君，合軍聚眾。圮地無舍，衢地合交，絕地無留，圍地則謀，死地則戰。途有所不由，軍有所不擊，城有所不攻，地有所不爭，君命有所不受。故將通於九變之利者，知用兵矣；將不通於九變之利，雖知地形，不能得地之利矣；治兵不知九變之術，雖知地利，不能得人之用矣。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),8,'九變第八','孫子曰：凡用兵之法，將受命於君，合軍聚眾。圮地無舍，衢地合交，絕地無留，圍地則謀，死地則戰。途有所不由，軍有所不擊，城有所不攻，地有所不爭，君命有所不受。故將通於九變之利者，知用兵矣；將不通於九變之利，雖知地形，不能得地之利矣；治兵不知九變之術，雖知地利，不能得人之用矣。
 
 是故智者之慮，必雜於利害，雜於利而務可信也，雜於害而患可解也。是故屈諸侯者以害，役諸侯者以業，趨諸侯者以利。
 
 故用兵之法，無恃其不來，恃吾有以待之；無恃其不攻，恃吾有所不可攻也。
 
 故將有五危︰必死，可殺也﹔必生，可虜也﹔忿速，可侮也﹔廉潔，可辱也﹔愛民，可煩也。凡此五者，將之過也，用兵之災也。覆軍殺將，必以五危，不可不察也。',303);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),9,'行軍第九','孫子曰：凡處軍相敵，絕山依谷，視生處高，戰隆無登，此處山之軍也。絕水必遠水，客絕水而來，勿迎之于水內，令半濟而擊之，利；欲戰者，無附于水而迎客，視生處高，無迎水流，此處水上之軍也。絕斥澤，惟亟去無留，若交軍於斥澤之中，必依水草，而背衆樹，此處斥澤之軍也。平陸處易，而右背高，前死後生，此處平陸之軍也。凡此四軍之利，黃帝之所以勝四帝也。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),9,'行軍第九','孫子曰：凡處軍相敵，絕山依谷，視生處高，戰隆無登，此處山之軍也。絕水必遠水，客絕水而來，勿迎之于水內，令半濟而擊之，利；欲戰者，無附于水而迎客，視生處高，無迎水流，此處水上之軍也。絕斥澤，惟亟去無留，若交軍於斥澤之中，必依水草，而背衆樹，此處斥澤之軍也。平陸處易，而右背高，前死後生，此處平陸之軍也。凡此四軍之利，黃帝之所以勝四帝也。
 
 凡軍好高而惡下，貴陽而賤陰，養生而處實，軍無百疾，是謂必勝。丘陵堤防，必處其陽，而右背之，此兵之利，地之助也。上雨，水沫至，欲涉者，待其定也。
 
@@ -2159,7 +2163,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 故兵非貴，惟無武進，足以併力、料敵、取人而已。夫惟無慮而易敵者，必擒於人。
 
 卒未親附而罰之，則不服，不服則難用也。卒已親附而罰不行，則不可用也。故令之以文，齊之以武，是謂必取。令素行以教其民，則民服；令素不行以教其民，則民不服。令素行者，與衆相得也。',777);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),10,'地形第十','孫子曰：凡地形有通者、有掛者、有支者、有隘者、有險者、有遠者。我可以往，彼可以來，曰通。通形者，先居高陽，利糧道，以戰則利。可以往，難以返，曰掛。掛形者，敵無備，出而勝之；敵若有備，出而不勝，難以返，不利。我出而不利，彼出而不利，曰支。支形者，敵雖利我，我無出也，引而去之，令敵半出而擊之，利。隘形者，我先居之，必盈之以待敵。若敵先居之，盈而勿從，不盈而從之。險形者，我先居之，必居高陽以待敵；若敵先居之，引而去之，勿從也。遠形者，勢均，難以挑戰，戰而不利。凡此六者，地之道也，將之至任，不可不察也。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),10,'地形第十','孫子曰：凡地形有通者、有掛者、有支者、有隘者、有險者、有遠者。我可以往，彼可以來，曰通。通形者，先居高陽，利糧道，以戰則利。可以往，難以返，曰掛。掛形者，敵無備，出而勝之；敵若有備，出而不勝，難以返，不利。我出而不利，彼出而不利，曰支。支形者，敵雖利我，我無出也，引而去之，令敵半出而擊之，利。隘形者，我先居之，必盈之以待敵。若敵先居之，盈而勿從，不盈而從之。險形者，我先居之，必居高陽以待敵；若敵先居之，引而去之，勿從也。遠形者，勢均，難以挑戰，戰而不利。凡此六者，地之道也，將之至任，不可不察也。
 
 故兵有走者、有弛者、有陷者、有崩者、有亂者、有北者。凡此六者，非天之災，將之過也。夫勢均，以一擊十，曰走；卒强吏弱，曰弛；吏强卒弱，曰陷；大吏怒而不服，遇敵懟而自戰，將不知其能，曰崩；將弱不嚴，教道不明，吏卒無常，陳兵縱橫，曰亂；將不能料敵，以少合衆，以弱擊強，兵無選鋒，曰北。凡此六者，敗之道也，將之至任，不可不察也。
 
@@ -2168,7 +2172,7 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 視卒如嬰兒，故可以與之赴深溪；視卒如愛子，故可與之俱死。厚而不能使，愛而不能令，亂而不能治，譬若驕子，不可用也。
 
 知吾卒之可以擊，而不知敵之不可擊，勝之半也；知敵之可擊，而不知吾卒之不可以擊，勝之半也；知敵之可擊，知吾卒之可以擊，而不知地形之不可以戰，勝之半也。故知兵者，動而不迷，舉而不窮。故曰：知彼知己，勝乃不殆；知天知地，勝乃可全。',691);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),11,'九地第十一','孫子曰：凡用兵之法，有散地，有輕地，有爭地，有交地，有衢地，有重地，有圮地，有圍地，有死地。諸侯自戰其地者，為散地；入人之地而不深者，為輕地；我得則利，彼得亦利者，為爭地；我可以往，彼可以來者，為交地；諸侯之地三屬，先至而得天下之衆者，為衢地；入人之地深，背城邑多者，為重地；山林、險阻、沮澤，凡難行之道者，為圮地；所由入者隘，所從歸者迂，彼寡可以擊吾之衆者，為圍地；疾戰則存，不疾戰則亡者，為死地。是故散地則無戰，輕地則無止，爭地則無攻，交地則無絕，衢地則合交，重地則掠，圮地則行，圍地則謀，死地則戰。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),11,'九地第十一','孫子曰：凡用兵之法，有散地，有輕地，有爭地，有交地，有衢地，有重地，有圮地，有圍地，有死地。諸侯自戰其地者，為散地；入人之地而不深者，為輕地；我得則利，彼得亦利者，為爭地；我可以往，彼可以來者，為交地；諸侯之地三屬，先至而得天下之衆者，為衢地；入人之地深，背城邑多者，為重地；山林、險阻、沮澤，凡難行之道者，為圮地；所由入者隘，所從歸者迂，彼寡可以擊吾之衆者，為圍地；疾戰則存，不疾戰則亡者，為死地。是故散地則無戰，輕地則無止，爭地則無攻，交地則無絕，衢地則合交，重地則掠，圮地則行，圍地則謀，死地則戰。
 
 所謂古之善用兵者，能使敵人前後不相及，衆寡不相恃，貴賤不相救，上下不相收，卒離而不集，兵合而不齊。合於利而動，不合於利而止。敢問︰「敵衆整而將來，待之若何？」曰：「先奪其所愛，則聽矣。」故兵之情主速，乘人之不及，由不虞之道，攻其所不戒也。
 
@@ -2183,12 +2187,12 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 是故不知諸侯之謀者，不能豫交；不知山林、險阻、沮澤之形者，不能行軍；不用鄉導者，不能得地利。四五者，不知一，非霸王之兵也。夫霸王之兵，伐大國，則其衆不得聚；威加於敵，則其交不得合。是故不爭天下之交，不養天下之權，信己之私，威加於敵，則其城可拔，其國可隳。施無法之賞，懸無政之令。犯三軍之衆，若使一人。犯之以事，勿告以言；犯之以利，勿告以害。投之亡地然後存，陷之死地然後生。夫衆陷於害，然後能為勝敗。故為兵之事，在於佯順敵之意，併敵一向，千里殺將，是謂巧能成事者也。
 
 是故政舉之日，夷關折符，無通其使；厲於廊廟之上，以誅其事。敵人開闔，必亟入之，先其所愛，微與之期，踐墨隨敵，以決戰事。是故始如處女，敵人開戶；後如脫兔，敵不及拒。',1341);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),12,'火攻第十二','孫子曰：凡火攻有五：一曰火人，二曰火積，三曰火輜，四曰火庫，五曰火隊。行火必有因，烟火必素具。發火有時，起火有日。時者，天之燥也。日者，月在箕、壁、翼、軫也。凡此四宿者，風起之日也。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),12,'火攻第十二','孫子曰：凡火攻有五：一曰火人，二曰火積，三曰火輜，四曰火庫，五曰火隊。行火必有因，烟火必素具。發火有時，起火有日。時者，天之燥也。日者，月在箕、壁、翼、軫也。凡此四宿者，風起之日也。
 
 凡火攻，必因五火之變而應之：火發於內，則早應之於外；火發而其兵靜者，待而勿攻，極其火力，可從而從之，不可從則止；火可發於外，無待於內，以時發之；火發上風，無攻下風；晝風久，夜風止。凡軍必知有五火之變，以數守之。故以火佐攻者明，以水佐攻者強。水可以絕，不可以奪。
 
 夫戰勝攻取，而不修其功者凶，命曰「費留」。故曰：明主慮之，良將修之，非利不動，非得不用，非危不戰。主不可以怒而興師，將不可以慍而致戰。合於利而動，不合於利而止。怒可以復喜，慍可以復悅，亡國不可以復存，死者不可以復生。故明主慎之，良將警之，此安國全軍之道也。',353);
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),13,'用間第十三','孫子曰：凡興師十萬，出征千里，百姓之費，公家之奉，日費千金，內外騷動，怠于道路，不得操事者，七十萬家。相守數年，以爭一日之勝，而愛爵祿百金，不知敵之情者，不仁之至也，非人之將也，非主之佐也，非勝之主也。故明君賢將，所以動而勝人，成功出於眾者，先知也。先知者，不可取於鬼神，不可象於事，不可驗於度，必取於人，知敵之情者也。
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='孫子兵法' ORDER BY id DESC LIMIT 1),13,'用間第十三','孫子曰：凡興師十萬，出征千里，百姓之費，公家之奉，日費千金，內外騷動，怠于道路，不得操事者，七十萬家。相守數年，以爭一日之勝，而愛爵祿百金，不知敵之情者，不仁之至也，非人之將也，非主之佐也，非勝之主也。故明君賢將，所以動而勝人，成功出於眾者，先知也。先知者，不可取於鬼神，不可象於事，不可驗於度，必取於人，知敵之情者也。
 
 故用間有五：有鄉間，有內間，有反間，有死間，有生間。五間俱起，莫知其道，是謂「神紀」，人君之寶也。鄉間者，因其鄉人而用之；內間者，因其官人而用之；反間者，因其敵間而用之；死間者，為誑事於外，令吾間知之，而傳於敵間也；生間者，反報也。
 
@@ -2198,8 +2202,8 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
 昔殷之興也，伊摯在夏；周之興也，呂牙在殷。故明君賢將，能以上智為間者，必成大功。此兵之要，三軍之所恃而動也。',573);
 
-INSERT INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('千字文','周興嗣','南朝梁','蒙學','開蒙要篇','千字文 ，南朝梁周興嗣所著，公版全文。','1');
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='千字文' ORDER BY id DESC LIMIT 1),1,'全文','天地黃　宇宙洪荒
+INSERT IGNORE INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('千字文','周興嗣','南朝梁','蒙學','開蒙要篇','千字文 ，南朝梁周興嗣所著，公版全文。','1');
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='千字文' ORDER BY id DESC LIMIT 1),1,'全文','天地黃　宇宙洪荒
 日月盈昃　辰宿列張
 寒來暑往　秋收冬藏
 閏餘成歲　律調陽
@@ -2327,8 +2331,8 @@ INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) V
 
 Category:啟蒙書籍',1178);
 
-INSERT INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('三字經','王應麟','宋','蒙學','開蒙要篇','三字經 ，宋王應麟所著，公版全文。','1');
-INSERT INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='三字經' ORDER BY id DESC LIMIT 1),1,'全文','人之初，性本善，性相近，習相遠；
+INSERT IGNORE INTO book (title,author,dynasty,category,category_sub,description,chapter_count) VALUES ('三字經','王應麟','宋','蒙學','開蒙要篇','三字經 ，宋王應麟所著，公版全文。','1');
+INSERT IGNORE INTO book_chapter (book_id,chapter_no,chapter_title,content,word_count) VALUES ((SELECT id FROM book WHERE title='三字經' ORDER BY id DESC LIMIT 1),1,'全文','人之初，性本善，性相近，習相遠；
 苟不教，性乃遷，教之道，貴以專。
 昔孟母，擇隣處，子不學，斷機杼；
 竇燕山，有義方，教五子，名俱揚。

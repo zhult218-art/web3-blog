@@ -1,13 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.mybatis.spring.annotation.MapperScan
- *  org.springframework.boot.SpringApplication
- *  org.springframework.boot.autoconfigure.SpringBootApplication
- *  org.springframework.cloud.client.discovery.EnableDiscoveryClient
- *  org.springframework.scheduling.annotation.EnableScheduling
- */
 package com.web3.jarvis;
 
 import org.mybatis.spring.annotation.MapperScan;
@@ -28,9 +18,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  *   <li>{@code @EnableScheduling}:启用 Spring 定时任务能力。</li>
  * </ul>
  */
-@SpringBootApplication(scanBasePackages={"com.web3.jarvis", "com.web3.common"})
+@SpringBootApplication(scanBasePackages = {"com.web3.jarvis", "com.web3.common"})
 @EnableDiscoveryClient
-@MapperScan(value={"com.web3.jarvis.mapper"})
+@MapperScan(value = "com.web3.jarvis.mapper")
 @EnableScheduling
 public class JarvisServiceApplication {
     /**
@@ -39,6 +29,6 @@ public class JarvisServiceApplication {
      * @param args 启动参数
      */
     public static void main(String[] args) {
-        SpringApplication.run(JarvisServiceApplication.class, (String[])args);
+        SpringApplication.run(JarvisServiceApplication.class, args);
     }
 }

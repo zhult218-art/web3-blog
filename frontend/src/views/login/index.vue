@@ -17,8 +17,8 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
             </svg>
           </div>
-          <h1 class="text-2xl font-bold tracking-tight text-white">Aurora-朱</h1>
-          <p class="mt-1.5 text-sm text-slate-400">极光之境 &middot; 数字星球</p>
+          <h1 class="text-2xl font-bold tracking-tight text-white">{{ brandName }}</h1>
+          <p class="mt-1.5 text-sm text-slate-400">{{ brandSubtitle }}</p>
           <div class="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent"></div>
         </div>
 
@@ -158,7 +158,7 @@
               </span>
             </button>
 
-            <p v-if="mainTab === 'password'" class="text-center text-xs text-slate-500">没有账号？切换「注册」自动创建</p>
+            <p v-if="mainTab === 'password' && registrationOn" class="text-center text-xs text-slate-500">没有账号？切换「注册」自动创建</p>
           </form>
 
           <!-- ─── 分割线 + 社交登录 ─── -->
@@ -191,7 +191,9 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/modules/auth'
+import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
 import { useToastStore } from '@/stores/modules/toast'
+import { prompt as dlgPrompt } from '@/composables/useDialog'
 import { getCaptcha, sendEmailCode, sendPhoneCode, getGoogleUrl, googleDevLogin } from '@/api/user'
 import { animate, stagger } from 'animejs'
 import { useSupabase } from '@/composables/useSupabase'
@@ -199,8 +201,14 @@ import { useSupabase } from '@/composables/useSupabase'
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const site = useSiteSettingsStore()
 const toast = useToastStore()
 const { signInWithMagicLink } = useSupabase()
+
+// 品牌信息来自系统设置；注册入口受功能开关控制
+const brandName = computed(() => site.brandName)
+const brandSubtitle = computed(() => site.site.slogan || '极光之境 · 数字星球')
+const registrationOn = computed(() => site.featureOn('registration'))
 
 // ─── Refs ───
 const matrixCanvas = ref(null)
@@ -217,13 +225,14 @@ const submitBtn = ref(null)
 const googleBtn = ref(null)
 const footer = ref(null)
 
-// ─── 主 Tab ───
-const mainTabs = [
+// ─── 主 Tab（注册入口可由系统设置关闭）───
+const allTabs = [
   { key: 'password', label: '密码登录' },
   { key: 'magic', label: '免密登录' },
   { key: 'otp', label: '验证码登录' },
   { key: 'register', label: '注册' }
 ]
+const mainTabs = computed(() => registrationOn.value ? allTabs : allTabs.filter(t => t.key !== 'register'))
 const mainTab = ref('password')
 
 // ─── 密码登录 ───
@@ -418,9 +427,14 @@ async function handleGoogleLogin() {
       window.location.href = data.url
       return
     }
-    // 未配置真实 OAuth → 走 dev mock：弹输入框让用户输入邮箱，后端自动注册/登录
+    // 未配置真实 OAuth → 走 dev mock：弹网站主题输入框让用户输入邮箱，后端自动注册/登录
     // 生产部署设置 GOOGLE_OAUTH_ENABLED=true 后，后端 /user/oauth/google/dev-login 会返回 403 拒绝
-    const email = window.prompt('Google 登录未配置真实 client_id，当前为 dev mock 模式。\n请输入任意邮箱（将以此邮箱自动注册/登录）：', '')
+    const email = await dlgPrompt('Google 登录未配置真实 client_id，当前为 dev mock 模式。\n请输入任意邮箱（将以此邮箱自动注册/登录）：', {
+      title: 'Google 开发模式登录',
+      placeholder: 'name@example.com',
+      okText: '登录',
+    })
+    if (email === null) return
     if (!email || !email.includes('@')) {
       toast.warning('请输入合法邮箱')
       return
@@ -481,7 +495,12 @@ async function handleMagicReturn() {
 
 // ─── 矩阵雨（anime.js 增强：渐显入场） ───
 let raf = 0
-onMounted(() => {
+onMounted(async () => {
+  // 拉取站点配置：品牌名 / 注册开关（直开登录页时路由守卫也会加载，此处幂等）
+  try {
+    await site.load()
+  } catch {}
+  if (!registrationOn.value && mainTab.value === 'register') mainTab.value = 'password'
   handleOAuthCallback()
   handleMagicReturn()
   refreshCaptcha()

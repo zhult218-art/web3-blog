@@ -1,12 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.mybatis.spring.annotation.MapperScan
- *  org.springframework.boot.SpringApplication
- *  org.springframework.boot.autoconfigure.SpringBootApplication
- *  org.springframework.cloud.client.discovery.EnableDiscoveryClient
- */
 package com.web3.forum;
 
 import org.mybatis.spring.annotation.MapperScan;
@@ -14,9 +5,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
-@SpringBootApplication(scanBasePackages={"com.web3.forum", "com.web3.common", "com.web3.user"})
-@EnableDiscoveryClient
-@MapperScan(value={"com.web3.forum.mapper"})
 /**
  * ForumServiceApplication —— 论坛服务启动类
  * <p>
@@ -31,9 +19,12 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  *   <li>@MapperScan("com.web3.forum.mapper")：扫描本模块 MyBatis-Plus Mapper 接口</li>
  * </ul>
  */
+@SpringBootApplication(scanBasePackages = {"com.web3.forum", "com.web3.common", "com.web3.user"})
+@EnableDiscoveryClient
+@MapperScan(value = "com.web3.forum.mapper")
 public class ForumServiceApplication {
     /** 应用启动入口 */
     public static void main(String[] args) {
-        SpringApplication.run(ForumServiceApplication.class, (String[])args);
+        SpringApplication.run(ForumServiceApplication.class, args);
     }
 }

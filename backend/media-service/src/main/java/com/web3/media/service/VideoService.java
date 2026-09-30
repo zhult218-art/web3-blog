@@ -9,13 +9,19 @@ import com.web3.media.entity.Video;
 import com.web3.media.mapper.VideoMapper;
 import com.web3.media.security.FileSecurityChecker;
 import com.web3.media.vo.VideoVO;
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileAttribute;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -123,6 +129,108 @@ extends ServiceImpl<VideoMapper, Video> {
         video.setTags(tags);
         video.setCover(cover);
         video.setDuration(0);
+        this.baseMapper.insert(video);
+        return this.toVO(video);
+    }
+
+    /**
+     * 通过 yt-dlp 从 URL 下载视频（YouTube/B站/抖音等 1800+ 平台）
+     * 下载到上传目录后建 Video 记录，直接出现在视频列表中
+     *
+     * @param url       视频 URL
+     * @param quality   清晰度 best/1080p/720p/480p
+     * @param subtitle  是否下载字幕
+     * @param tags      标签
+     * @return 视频视图对象
+     */
+    public VideoVO downloadFromUrl(String url, String quality, boolean subtitle, String tags) throws IOException, InterruptedException {
+        String ext = "mp4";
+        String filename = UUID.randomUUID().toString() + "." + ext;
+        Path dir = Paths.get(this.uploadProperties.getDir(), new String[0]).toAbsolutePath().normalize();
+        if (!Files.exists(dir, new LinkOption[0])) {
+            Files.createDirectories(dir, new FileAttribute[0]);
+        }
+        Path target = dir.resolve(filename).normalize();
+
+        // 构造 yt-dlp 命令
+        String fmt = switch (quality == null ? "best" : quality) {
+            case "1080p" -> "bestvideo[height<=1080]+bestaudio/best[height<=1080]";
+            case "720p" -> "bestvideo[height<=720]+bestaudio/best[height<=720]";
+            case "480p" -> "bestvideo[height<=480]+bestaudio/best[height<=480]";
+            default -> "bestvideo*+bestaudio/best";
+        };
+        List<String> cmd = new ArrayList<>();
+        cmd.add("yt-dlp");
+        cmd.add("-f"); cmd.add(fmt);
+        cmd.add("--merge-output-format"); cmd.add("mp4");
+        cmd.add("-o"); cmd.add(target.toString());
+        cmd.add("--no-playlist");
+        cmd.add("--sponsorblock-remove"); cmd.add("all");
+        if (subtitle) {
+            cmd.add("--write-subs");
+            cmd.add("--write-auto-subs");
+            cmd.add("--sub-langs"); cmd.add("zh-CN,en");
+            cmd.add("--sub-format"); cmd.add("srt/best");
+            cmd.add("--convert-subs"); cmd.add("srt");
+        }
+        cmd.add(url);
+
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(true);
+        Process proc = pb.start();
+        String title = "网络视频";
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                // yt-dlp 会输出 [Metadata] 标题行，尝试提取
+                if (line.contains("Merging formats") || line.contains("Destination")) {
+                    // 忽略
+                }
+            }
+        }
+        boolean finished = proc.waitFor(30, TimeUnit.MINUTES);
+        if (!finished) {
+            proc.destroyForcibly();
+            throw new IOException("yt-dlp 下载超时（>30min）");
+        }
+        if (proc.exitValue() != 0) {
+            throw new IOException("yt-dlp 下载失败 (exit " + proc.exitValue() + ")");
+        }
+        if (!Files.exists(target, new LinkOption[0])) {
+            throw new IOException("下载完成但文件未生成");
+        }
+
+        // 用 ffprobe 探测时长（可选，失败则 0）
+        int duration = 0;
+        try {
+            ProcessBuilder fb = new ProcessBuilder("ffprobe", "-v", "error", "-show_entries",
+                    "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target.toString());
+            Process fp = fb.start();
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(fp.getInputStream()))) {
+                String d = br.readLine();
+                if (d != null) duration = (int) Double.parseDouble(d.trim());
+            }
+            fp.waitFor(10, TimeUnit.SECONDS);
+        } catch (Exception ignored) {}
+
+        // 尝试从 yt-dlp 获取标题（重新探测仅取标题）
+        try {
+            ProcessBuilder tb = new ProcessBuilder("yt-dlp", "--print", "%(title)s", "--skip-download", url);
+            Process tp = tb.start();
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(tp.getInputStream()))) {
+                String t = br.readLine();
+                if (t != null && !t.isEmpty()) title = t.trim();
+            }
+            tp.waitFor(30, TimeUnit.SECONDS);
+        } catch (Exception ignored) {}
+
+        Video video = new Video();
+        video.setTitle(title);
+        video.setUrl("/video/file/" + filename);
+        video.setDescription("来源: " + url);
+        video.setTags(tags != null ? tags : "网络下载");
+        video.setCover(null);
+        video.setDuration(duration);
         this.baseMapper.insert(video);
         return this.toVO(video);
     }

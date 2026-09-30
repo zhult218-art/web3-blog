@@ -18,12 +18,13 @@
       <!-- Tab Navigation -->
       <div class="scroll-tabs flex gap-1 mb-6 overflow-x-auto scrollbar-hide border-b border-amber-800/30">
         <button v-for="tab in tabs" :key="tab.key"
-          @click="activeTab = tab.key"
+          @click="onTabClick(tab)"
           :class="['px-4 py-2 text-xs font-medium transition-all border-b-2 whitespace-nowrap flex-shrink-0 font-serif',
             activeTab === tab.key
               ? 'text-amber-300 border-amber-400 bg-amber-500/5'
               : 'text-amber-700 border-transparent hover:text-amber-400 hover:bg-[#1a1208]']">
           {{ tab.label }}
+          <span v-if="tab.badge" class="ml-1 text-[9px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 align-middle">新</span>
         </button>
         <div class="hidden md:block border-b border-amber-800/20 flex-1"></div>
       </div>
@@ -482,13 +483,23 @@
           </div>
         </div>
         <div v-if="!strategyList.length" class="py-10"><Loading /></div>
-        <div class="mt-6" v-if="strategyTotal > 0">
+        <div class="mt-6 flex items-center gap-4" v-if="strategyTotal > 0">
           <Pagination v-model:page="strategyPage" :page-size="strategySize" :total="strategyTotal" @update:page="fetchStrategies" />
+          <div class="flex items-center gap-2 text-xs text-amber-600/60">
+            <span>每页</span>
+            <select v-model="strategySize" class="bg-[#2a1810] border border-amber-500/20 rounded-lg px-2 py-1 text-amber-200 text-xs outline-none cursor-pointer" @change="onStrategySizeChange">
+              <option :value="9">9</option>
+              <option :value="15">15</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+            <span>条</span>
+          </div>
         </div>
       </div>
 
       <!-- ========== 策略选股弹窗（抽出到子组件 StrategyScreenModal.vue，v-model 控制显示，v-model:lastResult 同步上次筛选） ========== -->
-      <StrategyScreenModal v-model:open="screenOpen" v-model:lastResult="screenLastResult" />
+      <StrategyScreenModal v-model:open="screenOpen" v-model:lastResult="screenLastResult" @saved="loadStrategyPortfolio" />
 
       <!-- ========== TAB: 回测分析 ========== -->
       <div v-if="activeTab === 'backtest'">
@@ -543,6 +554,24 @@
 
         <div class="scroll-card p-6">
           <h3 class="text-sm font-bold text-amber-100 mb-4">{{ btResult?.strategy_name || '北证50 小市值策略' }} - 回测报告</h3>
+
+          <!-- 回测标的信息：名称/现价/涨跌 -->
+          <div v-if="btStocksInfo.length" class="flex flex-wrap gap-3 mb-5">
+            <div v-for="s in btStocksInfo" :key="s.symbol"
+              class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#1a1208] border border-amber-800/15">
+              <div>
+                <div class="text-xs font-medium text-amber-100">{{ s.name }}
+                  <span class="text-[10px] text-amber-600/50 font-mono ml-1">{{ s.symbol }}</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs font-mono font-bold text-amber-200">{{ s.price != null ? s.price.toFixed(2) : '--' }}</div>
+                <div class="text-[9px] font-mono" :class="(s.change_percent || 0) >= 0 ? 'text-red-400' : 'text-green-400'">
+                  {{ s.change_percent != null ? ((s.change_percent > 0 ? '+' : '') + s.change_percent.toFixed(2) + '%') : '--' }}
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- Performance Metrics：全量绩效指标（收益/风险/交易三类） -->
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-6">
@@ -777,29 +806,163 @@
 
       <!-- ========== TAB: 组合管理 ========== -->
       <div v-if="activeTab === 'portfolio'">
+        <!-- 组合策略：多策略选股合并 -->
         <div class="scroll-card p-6 mb-6">
-          <h3 class="text-sm font-bold text-amber-100 mb-4">持仓概览</h3>
-          <div v-if="portfolioData.holdings?.length" class="space-y-3">
-            <div v-for="h in portfolioData.holdings" :key="h.code" class="flex items-center justify-between p-4 rounded-xl bg-[#1a1208] border border-amber-800/15">
-              <div>
-                <p class="text-sm font-medium text-amber-100">{{ h.name }} <span class="text-amber-600/60 font-mono">{{ h.code }}</span></p>
-                <p class="text-[11px] text-amber-600/60 mt-0.5">持仓 {{ h.shares }} 股 · 成本 ¥{{ h.costPrice }}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-bold" :class="(h.profitPct || 0) >= 0 ? 'text-green-400' : 'text-red-400'">
-                  {{ (h.profitPct || 0) >= 0 ? '+' : '' }}{{ h.profitPct }}%
-                </p>
-                <p class="text-[11px] text-amber-600/60">市值 ¥{{ h.marketValue }}</p>
-              </div>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-amber-100 flex items-center gap-2"><span>🎯</span> 组合策略</h3>
+            <div class="flex items-center gap-3">
+              <span class="text-[10px] text-amber-600/50">{{ strategyPortfolio.length }} 个策略 · 选中 {{ selectedStrategyIds.length }} · 合并 {{ combinedStocks.length }} 只</span>
+              <button v-if="strategyPortfolio.length" class="text-[10px] px-2 py-1 rounded-lg border border-red-500/20 text-red-400/70 hover:text-red-300 transition" @click="clearStrategyPortfolio">清空</button>
             </div>
           </div>
-          <div v-else-if="loadingPortfolio" class="flex items-center justify-center gap-2 py-8">
+
+          <div v-if="strategyPortfolio.length" class="space-y-2 mb-4">
+            <label v-for="sp in strategyPortfolio" :key="sp.id"
+              class="flex items-center gap-3 p-3 rounded-xl bg-[#1a1208] border border-amber-800/15 cursor-pointer hover:border-amber-500/30 transition">
+              <input type="checkbox" :value="sp.id" v-model="selectedStrategyIds"
+                class="w-4 h-4 accent-cyan-400 cursor-pointer" />
+              <div class="flex-1">
+                <span class="text-xs font-medium text-amber-100">{{ sp.strategy_name }}</span>
+                <span class="text-[10px] text-amber-600/50 ml-2">{{ sp.items.length }} 只 · 存于 {{ sp.saved_at }}</span>
+              </div>
+              <button class="text-[10px] text-red-500/50 hover:text-red-400 transition" @click.stop="removeStrategyFromPortfolio(sp.id)">删除</button>
+            </label>
+          </div>
+          <div v-else class="py-6 text-center">
+            <p class="text-xs text-amber-700/50 mb-2">暂无组合策略</p>
+            <p class="text-[10px] text-amber-700/40">在「策略管理」中执行策略选股后，点击「📥 存入组合策略」即可在此查看</p>
+          </div>
+
+          <!-- 合并后的股票列表 -->
+          <div v-if="combinedStocks.length" class="rounded-xl bg-[#0b1422] border border-cyan-500/15 overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-cyan-500/10 flex items-center gap-2">
+              <span class="text-xs font-bold text-cyan-300">合并选股结果</span>
+              <span class="text-[10px] text-cyan-500/50">{{ combinedStocks.length }} 只标的 · 来自 {{ selectedStrategyIds.length }} 个策略</span>
+            </div>
+            <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+              <table class="w-full text-xs">
+                <thead class="sticky top-0 bg-[#0b1422]">
+                  <tr class="text-left text-[10px] text-cyan-500/60 border-b border-cyan-500/10">
+                    <th class="px-3 py-2 font-medium">代码</th>
+                    <th class="px-3 py-2 font-medium">名称</th>
+                    <th class="px-3 py-2 font-medium text-right">现价</th>
+                    <th class="px-3 py-2 font-medium text-right">涨跌%</th>
+                    <th class="px-3 py-2 font-medium">入选策略</th>
+                    <th class="px-3 py-2 font-medium">评分</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="s in combinedStocks" :key="s.code"
+                    class="border-b border-cyan-900/10 last:border-b-0 hover:bg-cyan-500/5 transition">
+                    <td class="px-3 py-2 font-mono">{{ s.code }}</td>
+                    <td class="px-3 py-2 text-amber-100/90">{{ s.name }}</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ s.price != null ? Number(s.price).toFixed(2) : '--' }}</td>
+                    <td class="px-3 py-2 text-right font-mono" :class="Number(s.pct) >= 0 ? 'text-red-400' : 'text-green-400'">
+                      {{ s.pct != null ? (Number(s.pct) > 0 ? '+' : '') + Number(s.pct).toFixed(2) + '%' : '--' }}
+                    </td>
+                    <td class="px-3 py-2">
+                      <div class="flex flex-wrap gap-1">
+                        <span v-for="sn in s.strategy_names" :key="sn"
+                          class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-400/15 whitespace-nowrap">{{ sn }}</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-2 text-right font-mono">
+                      <span v-if="s.score" class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-400/25">{{ s.score }}</span>
+                      <span v-else class="text-amber-700/30">--</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 持仓概览 -->
+        <div class="scroll-card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-amber-100 flex items-center gap-2"><span>📊</span> 我的持仓</h3>
+            <div class="flex items-center gap-3">
+              <span v-if="holdingsIsAdmin" class="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400/70 border border-red-500/20">管理员视角 · 可见全部用户</span>
+              <button class="web3-btn text-xs !px-3 !py-1.5" @click="showHoldingForm = !showHoldingForm">
+                {{ showHoldingForm ? '收起' : '+ 添加持仓' }}
+              </button>
+              <button class="text-[10px] px-2 py-1 rounded-lg border border-amber-800/20 text-amber-500/70 hover:text-amber-100 transition" @click="loadMyHoldings">刷新</button>
+            </div>
+          </div>
+
+          <!-- 添加/编辑持仓表单 -->
+          <div v-if="showHoldingForm" class="mb-4 p-4 rounded-xl bg-[#1a1208] border border-amber-800/15">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label class="text-[10px] text-amber-600/60 mb-1 block">股票代码 *</label>
+                <input v-model="holdingForm.stock_code" class="web3-input text-xs font-mono" placeholder="如 600519" />
+              </div>
+              <div>
+                <label class="text-[10px] text-amber-600/60 mb-1 block">股票名称</label>
+                <input v-model="holdingForm.stock_name" class="web3-input text-xs" placeholder="如 贵州茅台" />
+              </div>
+              <div>
+                <label class="text-[10px] text-amber-600/60 mb-1 block">持仓股数</label>
+                <input v-model.number="holdingForm.shares" type="number" min="0" class="web3-input text-xs font-mono" placeholder="100" />
+              </div>
+              <div>
+                <label class="text-[10px] text-amber-600/60 mb-1 block">成本价</label>
+                <input v-model.number="holdingForm.cost_price" type="number" step="0.001" min="0" class="web3-input text-xs font-mono" placeholder="1688.00" />
+              </div>
+              <div>
+                <label class="text-[10px] text-amber-600/60 mb-1 block">买入日期</label>
+                <input v-model="holdingForm.buy_date" type="date" class="web3-input text-xs font-mono" />
+              </div>
+              <div class="col-span-2">
+                <label class="text-[10px] text-amber-600/60 mb-1 block">备注</label>
+                <input v-model="holdingForm.notes" class="web3-input text-xs" placeholder="可选" />
+              </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button class="web3-btn text-xs !px-4 !py-2" @click="submitHolding">保存</button>
+              <button class="text-xs px-3 py-2 rounded-lg border border-amber-800/20 text-amber-500/70 hover:text-amber-100 transition" @click="showHoldingForm = false">取消</button>
+            </div>
+          </div>
+
+          <!-- 持仓列表 -->
+          <div v-if="loadingHoldings" class="flex items-center justify-center gap-2 py-6">
             <span class="h-4 w-4 rounded-full border-2 border-amber-800/25 border-t-web3-accent animate-spin"></span>
-            <span class="text-xs text-amber-700/50">加载持仓数据...</span>
+            <span class="text-xs text-amber-700/50">加载持仓...</span>
+          </div>
+          <div v-else-if="myHoldings.length" class="overflow-x-auto rounded-xl bg-[#1a1208] border border-amber-800/15">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-left text-[10px] text-amber-600/60 border-b border-amber-800/15">
+                  <th v-if="holdingsIsAdmin" class="px-3 py-2.5 font-medium">用户</th>
+                  <th class="px-3 py-2.5 font-medium">代码</th>
+                  <th class="px-3 py-2.5 font-medium">名称</th>
+                  <th class="px-3 py-2.5 font-medium text-right">股数</th>
+                  <th class="px-3 py-2.5 font-medium text-right">成本</th>
+                  <th class="px-3 py-2.5 font-medium">买入日期</th>
+                  <th class="px-3 py-2.5 font-medium">备注</th>
+                  <th class="px-3 py-2.5 font-medium text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="h in myHoldings" :key="h.id" class="border-b border-amber-900/10 last:border-b-0 hover:bg-amber-500/5 transition">
+                  <td v-if="holdingsIsAdmin" class="px-3 py-2 text-amber-500/70">{{ h.username || h.user_id }}</td>
+                  <td class="px-3 py-2 font-mono">{{ h.stock_code }}</td>
+                  <td class="px-3 py-2 text-amber-100/90">{{ h.stock_name || '--' }}</td>
+                  <td class="px-3 py-2 text-right font-mono">{{ h.shares }}</td>
+                  <td class="px-3 py-2 text-right font-mono">{{ Number(h.cost_price).toFixed(3) }}</td>
+                  <td class="px-3 py-2 font-mono text-amber-200/60">{{ h.buy_date || '--' }}</td>
+                  <td class="px-3 py-2 text-amber-200/70 max-w-[160px] truncate">{{ h.notes || '--' }}</td>
+                  <td class="px-3 py-2 text-center">
+                    <button class="text-[10px] text-amber-500/70 hover:text-amber-300 transition mr-2" @click="editHolding(h)">编辑</button>
+                    <button class="text-[10px] text-red-500/60 hover:text-red-400 transition" @click="removeHolding(h.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           <div v-else class="py-8 text-center">
-            <p class="text-xs text-amber-700/50 mb-3">暂无持仓数据</p>
-            <button class="web3-btn text-xs" @click="loadPortfolio">加载示例组合</button>
+            <p class="text-xs text-amber-700/50 mb-2">暂无持仓数据</p>
+            <p class="text-[10px] text-amber-700/40">点击「添加持仓」录入你的股票持仓</p>
           </div>
         </div>
       </div>
@@ -1630,13 +1793,19 @@
 // 行情与回测对接 pyquant(9006) 与 Vibe 服务(8900)
 // ====================================================
 import { ref, reactive, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue'
-import { getQuantList, getStockKlineVR, getIndices, getMarketEmotion, getConceptHot, getIndustryList, getRadarData, getGlobalIndices, getPortfolioData, createStrategy, runStrategy, runPyBacktest, getPyBacktestStatus, getPyBacktestResult, getPyQuotes, getPyQuote, getPyKline, getPySearch, getPyStockInfo, getPySectors, getPySparklines, getPyAiAnalyze, getPyLlmProviders, getPyModels, getPyNews, getPyDashboard, getPyPortfolio, getPyLimitPools, getPyBoardProgress, getPySectorTrends, getPyFundFlow, getPyReportsLatest, getPyReports, getPyRecommend, getPyRecommendStrategies, getPyScreenStrategy, getPyScreenCustom, getPyLlmStatus, getPyStrategies, startPyBackfill, getPyBackfillStatus } from '@/api/quant'
+import { getQuantList, getStockKlineVR, getIndices, getMarketEmotion, getConceptHot, getIndustryList, getRadarData, getGlobalIndices, getPortfolioData, createStrategy, runStrategy, runPyBacktest, getPyBacktestStatus, getPyBacktestResult, getPyQuotes, getPyQuote, getPyKline, getPySearch, getPyStockInfo, getPySectors, getPySparklines, getPyAiAnalyze, getPyLlmProviders, getPyModels, getPyNews, getPyDashboard, getPyPortfolio, getPyLimitPools, getPyBoardProgress, getPySectorTrends, getPyFundFlow, getPyReportsLatest, getPyReports, getPyRecommend, getPyRecommendStrategies, getPyScreenStrategy, getPyScreenCustom, getPyLlmStatus, getPyStrategies, startPyBackfill, getPyBackfillStatus, getMyHoldings, saveHolding, deleteHolding } from '@/api/quant'
+
+// 显式命名以供外层 <keep-alive :include="['QuantIndex']"> 精确缓存本组件，
+// 避免从 /quant/cockpit 返回时重新挂载 214KB 懒加载 chunk + 重跑 onMounted 数据请求，
+// 进而避免 mode="out-in" 过渡期间出现的瞬时空白。
+defineOptions({ name: 'QuantIndex' })
 import { getIndexQuotes } from '@/api/akshare'
 import Pagination from '@/components/common/Pagination.vue'
 import Modal from '@/components/common/Modal.vue'
 import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/modules/toast'
+import { confirm as dlgConfirm } from '@/composables/useDialog'
 import FundFlowChart from './components/FundFlowChart.vue'
 import DragonTigerTable from './components/DragonTigerTable.vue'
 import ReportsTable from './components/ReportsTable.vue'
@@ -1671,8 +1840,16 @@ const tabs = [
   { key: 'ai', label: 'AI分析' },
   { key: 'deepai', label: 'AI深度投研' },
   { key: 'projects', label: '开源量化' },
+  // 市场研究驾驶舱（marketingdashboard 全功能聚合大屏，独立路由全屏嵌入）
+  { key: 'cockpit', label: '市场驾驶舱', to: '/quant/cockpit', badge: true },
 ]
 const activeTab = ref('dashboard')
+
+// 带 to 的 tab 跳转独立路由，否则切换当前页 tab
+function onTabClick(tab) {
+  if (tab.to) { router.push(tab.to); return }
+  activeTab.value = tab.key
+}
 
 const indexCards = ref([
   { name: '上证指数', price: '--', change: 0 },
@@ -1922,6 +2099,107 @@ const newsIndustryReports = ref([])      // 行业研报（新闻雷达）
 // Portfolio
 const portfolioData = ref({ holdings: [], summary: {} })
 const loadingPortfolio = ref(false)
+
+// 用户持仓管理（MySQL user_holdings 表，JWT 鉴权）
+const myHoldings = ref([])
+const loadingHoldings = ref(false)
+const holdingsIsAdmin = ref(false)
+const showHoldingForm = ref(false)
+const holdingForm = ref({ stock_code: '', stock_name: '', shares: 0, cost_price: 0, buy_date: '', notes: '' })
+
+async function loadMyHoldings() {
+  loadingHoldings.value = true
+  try {
+    const res = await getMyHoldings()
+    const d = res.data || res || {}
+    myHoldings.value = d.holdings || []
+    holdingsIsAdmin.value = d.is_admin || false
+  } catch {
+    myHoldings.value = []
+  } finally { loadingHoldings.value = false }
+}
+
+function editHolding(h) {
+  holdingForm.value = { stock_code: h.stock_code, stock_name: h.stock_name || '', shares: h.shares, cost_price: h.cost_price, buy_date: h.buy_date || '', notes: h.notes || '' }
+  showHoldingForm.value = true
+}
+
+async function submitHolding() {
+  if (!holdingForm.value.stock_code.trim()) return
+  try {
+    await saveHolding(holdingForm.value)
+    showHoldingForm.value = false
+    holdingForm.value = { stock_code: '', stock_name: '', shares: 0, cost_price: 0, buy_date: '', notes: '' }
+    await loadMyHoldings()
+  } catch { /* toast handled by interceptor */ }
+}
+
+async function removeHolding(id) {
+  const ok = await dlgConfirm('确认删除此持仓？删除后不可恢复。', {
+    title: '删除持仓', okText: '删除', tone: 'danger'
+  })
+  if (!ok) return
+  try {
+    await deleteHolding(id)
+    await loadMyHoldings()
+  } catch { /* toast handled by interceptor */ }
+}
+
+// ===== 组合策略：多策略选股合并（localStorage 持久化） =====
+const strategyPortfolio = ref([])       // 已存的策略选股结果列表
+const selectedStrategyIds = ref([])     // 用户勾选的策略 ID
+
+// 合并选中策略的股票：同股票合并，标注来自哪些策略
+const combinedStocks = computed(() => {
+  const map = new Map()
+  for (const sp of strategyPortfolio.value) {
+    if (!selectedStrategyIds.value.includes(sp.id)) continue
+    for (const it of (sp.items || [])) {
+      const key = it.code
+      if (map.has(key)) {
+        const ex = map.get(key)
+        ex.strategy_names.push(sp.strategy_name)
+        // 取最高分
+        if ((it.score || 0) > (ex.score || 0)) ex.score = it.score
+      } else {
+        map.set(key, {
+          ...it,
+          strategy_names: [sp.strategy_name],
+        })
+      }
+    }
+  }
+  // 按入选策略数降序，再按评分降序
+  return [...map.values()].sort((a, b) => {
+    if (b.strategy_names.length !== a.strategy_names.length)
+      return b.strategy_names.length - a.strategy_names.length
+    return (b.score || 0) - (a.score || 0)
+  })
+})
+
+// 从 localStorage 加载策略组合
+function loadStrategyPortfolio() {
+  try {
+    const list = JSON.parse(localStorage.getItem('quant_strategy_portfolio') || '[]')
+    strategyPortfolio.value = list
+    // 默认全选
+    selectedStrategyIds.value = list.map(s => s.id)
+  } catch { strategyPortfolio.value = []; selectedStrategyIds.value = [] }
+}
+
+// 删除单个策略
+function removeStrategyFromPortfolio(id) {
+  strategyPortfolio.value = strategyPortfolio.value.filter(s => s.id !== id)
+  selectedStrategyIds.value = selectedStrategyIds.value.filter(sid => sid !== id)
+  localStorage.setItem('quant_strategy_portfolio', JSON.stringify(strategyPortfolio.value))
+}
+
+// 清空全部
+function clearStrategyPortfolio() {
+  strategyPortfolio.value = []
+  selectedStrategyIds.value = []
+  localStorage.removeItem('quant_strategy_portfolio')
+}
 
 // AI Chat 配置：aiConfig / showAiConfig ref 留在父组件（子组件 AiConfigPanel 与 ChatPanel 通过 v-model:config 读写）；
 // chatMessages / chatInput / chatLoading / sendChat 已全部移入子组件 ChatPanel.vue。
@@ -2461,6 +2739,22 @@ async function loadDashboardExtras() {
   dashRecommendLoading.value = false
   dashFundLoading.value = false
   dashReportsLoading.value = false
+  // 冷启动补偿：9006 资金流在服务冷启动/东财限流时可能首返空结构，SWR 负缓存后不会主动重试，
+  // 面板会一直空。东财风控多为间歇性，故最多重试 3 次（间隔 20/40/60s），拿到板块数据即停。
+  if (!(dashFundFlow.value?.sectors_in?.length)) {
+    const retryFundFlow = (attempt, delayMs) => setTimeout(async () => {
+      try {
+        const res = await getPyFundFlow()
+        const d = res?.data || res
+        if (d && Array.isArray(d.sectors_in) && d.sectors_in.length) {
+          dashFundFlow.value = d
+          return
+        }
+      } catch (e) { /* 静默：下一次补偿或手动刷新恢复 */ }
+      if (attempt < 3) retryFundFlow(attempt + 1, 20000 * (attempt + 1))
+    }, delayMs)
+    retryFundFlow(1, 20000)
+  }
   loadSectorTrends()
 }
 
@@ -2835,10 +3129,15 @@ async function loadSectors() {
 async function prefetchSparklines(list) {
   const syms = list.map(s => (s.symbol || (s.code ? `sh${s.code}` : ''))).filter(Boolean)
   if (!syms.length) return
+  // 仅预取首屏可见的前 150 只（3 批）：全市场 5400+ 只串行 100+ 批会长达数十分钟，
+  // 挤占浏览器同源 6 连接槽，饿死 fund-flow/limit-pools 等关键看板请求（公网隧道下尤甚）。
+  // 后续分页股票不显示迷你走势小图，不影响行情数据本身。
+  const PREFETCH_LIMIT = 150
+  const limited = syms.slice(0, PREFETCH_LIMIT)
   // 分批请求，每批最多 50 个代码，避免 URL 过长导致请求被中止
   const batchSize = 50
-  for (let i = 0; i < syms.length; i += batchSize) {
-    const batch = syms.slice(i, i + batchSize)
+  for (let i = 0; i < limited.length; i += batchSize) {
+    const batch = limited.slice(i, i + batchSize)
     try {
       const res = await getPySparklines(batch)
       const d = res.data || {}
@@ -3088,6 +3387,12 @@ async function fetchStrategies() {
   }
 }
 
+// 用户切换每页条数：回到第一页重新拉取
+function onStrategySizeChange() {
+  strategyPage.value = 1
+  fetchStrategies()
+}
+
 // 打开策略详情弹窗
 function showStrategyDetail(item) {
   strategyDetail.value = item
@@ -3178,6 +3483,8 @@ const btRunning = ref(false)
 const btStatus = ref('')
 const btError = ref(false)
 const btResult = ref(null)
+// 回测标的信息：输入代码后运行回测时拉取名称/现价并展示
+const btStocksInfo = ref([])
 const btTransactions = computed(() => btResult.value?.transactions || [])
 const btTransactionsShow = ref(true)
 
@@ -3230,6 +3537,24 @@ async function runBacktest() {
   btError.value = false
   try {
     const symbols = btSymbols.value.split(',').map(s => s.trim()).filter(Boolean)
+
+    // 并行拉取每只标的的名称/现价（失败不阻断回测，显示 --）
+    btStocksInfo.value = []
+    await Promise.allSettled(symbols.map(async (sy) => {
+      try {
+        const qres = await getPyQuote(sy)
+        const q = qres.data || {}
+        btStocksInfo.value.push({
+          symbol: sy,
+          name: q.name || '--',
+          price: q.price != null ? Number(q.price) : null,
+          change_percent: q.change_percent != null ? Number(q.change_percent) : null,
+        })
+      } catch {
+        btStocksInfo.value.push({ symbol: sy, name: '--', price: null, change_percent: null })
+      }
+    }))
+
     const payload = { ...btForm, symbols }
     // 选中策略管理自定义策略 → 内联其代码与名称（代码仅在策略管理内可增改，回测只读取使用）
     const selUser = allStrategies.value.find(s => String(s.id) === String(btForm.strategy_id))
@@ -3530,8 +3855,9 @@ watch(activeTab, async (tab) => {
   if (tab === 'news' && !newsItems.value.length) {
     loadNews()
   }
-  if (tab === 'portfolio' && !portfolioData.value.holdings?.length) {
-    loadPortfolio()
+  if (tab === 'portfolio') {
+    if (!strategyPortfolio.value.length) loadStrategyPortfolio()
+    if (!myHoldings.value.length) loadMyHoldings()
   }
 })
 

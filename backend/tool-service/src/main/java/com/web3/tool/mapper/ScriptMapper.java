@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.core.mapper.BaseMapper
- *  org.apache.ibatis.annotations.Mapper
- */
 package com.web3.tool.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -19,6 +12,5 @@ import org.apache.ibatis.annotations.Mapper;
  * script 表的基础 CRUD 能力。</p>
  */
 @Mapper
-public interface ScriptMapper
-extends BaseMapper<Script> {
+public interface ScriptMapper extends BaseMapper<Script> {
 }

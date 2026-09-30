@@ -16,5 +16,7 @@ export const uploadPhoto = (file, config) => {
 }
 // 点赞照片（返回最新点赞数）
 export const likePhoto = id => request.put(`/photo/${id}/like`)
+// 更新照片标题/描述（管理员）
+export const updatePhoto = (id, data) => request.put(`/photo/${id}`, data)
 // 删除照片（管理员）
 export const deletePhoto = id => request.delete(`/photo/${id}`)

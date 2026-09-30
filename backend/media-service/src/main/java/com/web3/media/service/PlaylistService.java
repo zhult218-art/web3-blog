@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.extension.service.impl.ServiceImpl
- *  org.springframework.stereotype.Service
- */
 package com.web3.media.service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -27,6 +20,5 @@ import org.springframework.stereotype.Service;
  * </ul>
  */
 @Service
-public class PlaylistService
-extends ServiceImpl<PlaylistMapper, Playlist> {
+public class PlaylistService extends ServiceImpl<PlaylistMapper, Playlist> {
 }

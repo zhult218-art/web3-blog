@@ -1,10 +1,23 @@
 -- ============================================================
 -- 公会系统迁移：user 表加 user_class + guild 表 + guild_member 表
+-- 兼容性说明（2026-09-17 修订）：原文件使用了 MariaDB 专属语法
+-- ADD COLUMN IF NOT EXISTS，MySQL 8 直接报语法错误，导致本文件执行失败，
+-- 后续 05-13 号 SQL 因 MySQL 容器 init 失败后不会重跑而全部缺失。
+-- 现改为 MySQL 8 兼容的 information_schema 判断 + 动态 PREPARE/EXECUTE，
+-- 同时兼容 MariaDB（MariaDB 也支持此写法）。
 -- ============================================================
 
--- 用户职业字段
-ALTER TABLE `user`
-  ADD COLUMN IF NOT EXISTS `user_class` VARCHAR(32) DEFAULT NULL COMMENT '异世界职业（WARRIOR/MAGE/HEALER/ASSASSIN/RANGER/PALADIN/NECROMANCER/BERSERKER）' AFTER `google_id`;
+-- 用户职业字段（幂等：列已存在则跳过）
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
+                   WHERE TABLE_SCHEMA = DATABASE()
+                     AND TABLE_NAME = 'user'
+                     AND COLUMN_NAME = 'user_class');
+SET @sql = IF(@col_exists = 0,
+              'ALTER TABLE `user` ADD COLUMN `user_class` VARCHAR(32) DEFAULT NULL COMMENT ''异世界职业（WARRIOR/MAGE/HEALER/ASSASSIN/RANGER/PALADIN/NECROMANCER/BERSERKER）'' AFTER `google_id`',
+              'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 公会表
 CREATE TABLE IF NOT EXISTS `guild` (

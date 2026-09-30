@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>视频播放</title>
+<!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- ArtPlayer + hls.js -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/artplayer@5.2.1/dist/artplayer.css" />
+<script src="https://cdn.jsdelivr.net/npm/artplayer@5.2.1/dist/artplayer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<style>
+  body { background: #0b0d12; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #2a3242; border-radius: 3px; }
+</style>
+</head>
+<body class="text-gray-200 min-h-screen">
+
+<!-- ═══ 顶部极简导航 ═══ -->
+<nav class="border-b border-white/5">
+  <div class="max-w-[1200px] mx-auto px-4 h-12 flex items-center justify-between">
+    <a href="/" class="text-sm font-bold tracking-widest text-cyan-400">▶ VIDEO</a>
+    <a href="/static/admin.html" class="text-xs text-gray-500 hover:text-cyan-300 transition">后台管理</a>
+  </div>
+</nav>
+
+<!-- ═══ 主体 ═══ -->
+<main class="max-w-[1200px] mx-auto px-4 py-6">
+  <div id="playerBox" class="w-full bg-black rounded-lg overflow-hidden aspect-video max-h-[72vh]"></div>
+
+  <!-- 加载中 -->
+  <div id="loading" class="text-center py-16 text-gray-500 text-sm">加载中...</div>
+  <!-- 失败提示 -->
+  <div id="error" class="hidden text-center py-16 text-red-400 text-sm"></div>
+
+  <!-- 视频信息 -->
+  <section id="info" class="hidden mt-5">
+    <h1 id="vTitle" class="text-lg font-bold text-white"></h1>
+    <p id="vMeta" class="text-xs text-gray-500 mt-1.5"></p>
+    <p id="vDesc" class="text-sm text-gray-400 mt-3 leading-relaxed"></p>
+  </section>
+</main>
+
+<script>
+/* ═══════════════ 全局配置：后端接口地址（换域名只改这里） ═══════════════ */
+const API_BASE = 'http://127.0.0.1:8300';
+
+/* ─── 状态 ─── */
+let art = null, hls = null, detail = null;
+let stallCount = 0, stallTimer = null, switchedToHls = false;
+
+/* ─── 工具：解析 ?vid=xxx ─── */
+const vid = new URLSearchParams(location.search).get('vid');
+const $ = id => document.getElementById(id);
+const fmtDur = s => { s = Math.round(s || 0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+const fmtTime = ts => new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false });
+
+/* ─── 入口：取视频信息 → 按规则选流 ─── */
+async function boot() {
+  if (!vid) return showError('缺少视频参数 ?vid=xxx');
+  try {
+    const res = await fetch(`${API_BASE}/api/video/${vid}`);
+    const json = await res.json();
+    if (json.code !== 0) throw new Error(json.detail || json.message || '接口错误');
+    detail = json.data;
+    if (detail.status !== 'success') {
+      return showError(detail.status === 'failed' ? ('转码失败：' + (detail.error || '未知错误'))
+        : `转码中 ${detail.progress || 0}%，请稍后刷新`);
+    }
+    renderInfo();
+    initPlayer();          // 核心选流逻辑在 initPlayer 内
+  } catch (e) { showError('加载失败：' + e.message); }
+}
+
+function showError(msg) {
+  $('loading').classList.add('hidden');
+  const box = $('error'); box.textContent = msg; box.classList.remove('hidden');
+}
+
+function renderInfo() {
+  $('loading').classList.add('hidden');
+  $('info').classList.remove('hidden');
+  $('vTitle').textContent = detail.title;
+  $('vMeta').textContent = `时长 ${fmtDur(detail.duration)} · 上传于 ${fmtTime(detail.create_time)}`;
+  $('vDesc').textContent = detail.desc || '';
+}
+
+/* ═══════════════
+   播放器初始化（核心选流逻辑）：
+   1) 短视频(≤120s) 且有 mp4 → 先用 mp4（拖动快）；持续缓冲卡顿自动切 m3u8
+   2) 长视频(>120s) → 直接 m3u8（HLS 自适应清晰度）
+   ═══════════════ */
+function initPlayer() {
+  const isShort = detail.duration <= 120 && !!detail.mp4_url;
+  const startUrl = isShort ? detail.mp4_url : detail.m3u8_url;
+
+  art = new Artplayer({
+    container: $('playerBox'),
+    url: startUrl,
+    type: isShort ? 'mp4' : 'm3u8',                 // ArtPlayer 通过 type 分发自定义播放器
+    customType: { m3u8: playHls, mp4: playMp4 },
+    autoplay: false, muted: false,
+    setting: true, playbackRate: true, aspectRatio: true, flip: true, fullscreen: true,
+    fullscreenWeb: true, miniProgressBar: true, mutex: true, backdrop: true,
+    moreVideoAttr: { crossOrigin: 'anonymous', preload: 'metadata' },
+    icons: { loading: '<i style="color:#22d3ee">◐</i>' },
+    lang: 'zh-cn',
+  });
+
+  // 禁止右键复制视频链接（基础防护）
+  $('playerBox').addEventListener('contextmenu', e => e.preventDefault());
+
+  // mp4 持续卡顿监测：12 秒内 waiting≥3 次即切 HLS（仅短视频、仅一次）
+  if (isShort) {
+    art.on('video:waiting', () => {
+      stallCount++;
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => stallCount = 0, 12000);
+      if (stallCount >= 3 && !switchedToHls) switchToHls();
+    });
+  }
+}
+
+/* mp4 直连播放（默认 video 标签能力） */
+function playMp4(video, url) { video.src = url; }
+
+/* HLS 播放：hls.js（含预缓冲 3~5 片 = 12~20s，减少长视频卡顿）；Safari 走原生 */
+function playHls(video, url) {
+  if (hls) { hls.destroy(); hls = null; }
+  if (window.Hls && Hls.isSupported()) {
+    hls = new Hls({
+      maxBufferLength: 18,          // 预缓冲约 4~5 个 4s 分片
+      maxMaxBufferLength: 30,
+      maxBufferSize: 60 * 1000 * 1000,
+      enableWorker: true,
+      lowLatencyMode: false,
+    });
+    hls.loadSource(url);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => buildQualityControl());  // 读取多清晰度
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) showError('HLS 播放失败：' + data.details);
+    });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = url;               // iOS Safari 原生支持 HLS
+  } else {
+    showError('当前浏览器不支持 HLS 播放');
+  }
+}
+
+/* mp4 卡顿 → 无缝切 m3u8（保留进度） */
+function switchToHls() {
+  switchedToHls = true;
+  const t = art.currentTime;
+  art.switchUrl(detail.m3u8_url, 'm3u8');
+  art.once('video:loadedmetadata', () => { art.currentTime = t; art.play(); });
+  buildQualityControl();
+}
+
+/* 清晰度切换控件：读取 master.m3u8 的多档 levels 动态生成 */
+function buildQualityControl() {
+  if (!hls || !art || !hls.levels || hls.levels.length < 2) return;
+  const items = [{ html: '自动', level: -1, default: true }]
+    .concat(hls.levels.map((l, i) => ({ html: (l.height || i) + 'p', level: i })));
+  art.controls.add({
+    name: 'quality', position: 'right', index: 10,
+    html: '清晰度',
+    selector: items,
+    onSelect(item) {
+      hls.currentLevel = item.level;          // 平滑切换，不重载视频
+      return item.html;
+    },
+  });
+}
+
+boot();
+</script>
+</body>
+</html>

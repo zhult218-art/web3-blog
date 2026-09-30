@@ -50,6 +50,10 @@ spring:
           uri: http://${FORUM_SERVICE_HOST:localhost}:8083
           predicates:
             - Path=/comment/**
+        - id: forum-chat
+          uri: http://${FORUM_SERVICE_HOST:localhost}:8083
+          predicates:
+            - Path=/chat/**
         - id: shop-product
           uri: http://${SHOP_SERVICE_HOST:localhost}:8084
           predicates:
@@ -78,6 +82,14 @@ spring:
           uri: http://${MEDIA_SERVICE_HOST:localhost}:8085
           predicates:
             - Path=/playlist/**
+        - id: media-photo
+          uri: http://${MEDIA_SERVICE_HOST:localhost}:8085
+          predicates:
+            - Path=/photo/**
+        - id: media-nail
+          uri: http://${MEDIA_SERVICE_HOST:localhost}:8085
+          predicates:
+            - Path=/nail/**
         - id: quant-strategy
           uri: http://${QUANT_SERVICE_HOST:localhost}:8086
           predicates:
@@ -133,20 +145,24 @@ spring:
           predicates:
             - Path=/admin/**
         # ============ 第三方 API 代理（工具中心） ============
+        # 注意：第三方 app_key 必须通过环境变量注入，禁止硬编码到 git。
+        #   - J8Y_APP_KEY：j8y 接口 app_key（ak_xxx 形式）
+        #   - SHOWAPI_APP_KEY：showapi 接口 appKey
         - id: api-j8y
           uri: https://api.j8y.cn
           predicates:
             - Path=/j8y/**
           filters:
             - StripPrefix=1
-            - AddRequestParameter=app_key, ak_6086d3c8d256b083dff13942e3a15efb
+            # 缺省占位符非空：NameValueConfig.value 有 @NotEmpty 校验，空串会导致网关启动失败
+            - AddRequestParameter=app_key, ${J8Y_APP_KEY:not-configured}
         - id: api-showapi
           uri: https://route.showapi.com
           predicates:
             - Path=/showapi/**
           filters:
             - StripPrefix=1
-            - AddRequestParameter=appKey, __SET_SHOWAPI_APP_KEY__
+            - AddRequestParameter=appKey, ${SHOWAPI_APP_KEY:not-configured}
         - id: api-shanhe
           uri: https://api.shanhe.kim
           predicates:

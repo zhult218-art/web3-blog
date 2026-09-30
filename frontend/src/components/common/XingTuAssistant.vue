@@ -133,7 +133,6 @@
     @click="onOrbClick"
   >
     <div class="orb-ring"></div>
-    <div class="orb-ring-2"></div>
     <div class="orb-core"></div>
     <div v-if="isSpeaking" class="orb-waves">
       <span></span><span></span><span></span><span></span>
@@ -174,6 +173,7 @@ import { speakEdge, stopEdgeSpeech, EDGE_VOICES, isEdgeTtsSupported } from '@/ap
 import { startWhisperRecord, whisperTranscribe } from '@/composables/useWhisperStt'
 import { agentChatStream, consumeAgentStream } from '@/api/agent'
 import { createEntry, getOwnerUser } from '@/api/knowledge'
+import { alert as dlgAlert } from '@/composables/useDialog'
 import { KB_TAXONOMY } from '@/data/knowledgeTaxonomy'
 import Modal from '@/components/common/Modal.vue'
 
@@ -191,7 +191,6 @@ let synth = null
 let wakeWordDetected = false
 let manualStop = false
 let disposed = false
-let lastFinalIndex = 0
 let wakeTimer = 0
 let wakeWordTimer = 0
 let sessionId = null
@@ -472,12 +471,12 @@ async function saveToKB() {
       published: true,
     })
     showKbModal.value = false
-    // 简单的成功提示（不依赖 toast store，用浏览器通知兜底）
+    // 优先 toast，失败时兜底为网站主题弹窗（不使用浏览器原生 alert）
     try {
       const { useToastStore } = await import('@/stores/modules/toast')
       useToastStore().success('已存入知识库 🌱')
     } catch {
-      alert('已存入知识库')
+      dlgAlert('已存入知识库 🌱', { title: '保存成功' })
     }
   } catch (e) {
     if (String(e.message || '').includes('permission') || String(e.message || '').includes('policy')) {
@@ -492,19 +491,64 @@ async function saveToKB() {
 
 // ---- TTS: 说话（Edge 神经网络音色优先，浏览器语音兜底）----
 // Edge 音色质量高但走公网；失败/超时自动回退本地 speechSynthesis，保证必能发声
+//
+// 2026-09-23 修订：
+//   1. 本地兜底优先选 Microsoft Huihui/Yunxi/Yaoyao 等 neural 音色（Windows 内置）；
+//   2. 监听 voiceschanged 异步加载音色列表；
+//   3. 长文本按句拆分排队播报，节奏更自然；
+//   4. rate=1.0/pitch=1.0 默认（接近自然），不再用 0.95/1.1 偏移。
+let localVoices = []
+let preferredVoice = null
+function refreshLocalVoices() {
+  if (!synth) return
+  localVoices = synth.getVoices() || []
+  const zh = localVoices.filter(v => (v.lang || '').startsWith('zh-CN') || (v.lang || '').startsWith('cmn'))
+  // 优先 Microsoft neural 系列（Windows 自带，质量最好）
+  const prefer = ['Microsoft Huihui', 'Microsoft Yunxi', 'Microsoft Yaoyao', 'Microsoft Kangkang', 'Microsoft Hanhan', 'Microsoft Tracy', 'Microsoft Yaoyao']
+  preferredVoice = zh.find(v => prefer.some(p => (v.name || '').includes(p))) || zh[0] || null
+}
+function setupVoicesWatcher() {
+  if (!synth) return
+  refreshLocalVoices()
+  if (synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = () => refreshLocalVoices()
+  }
+}
+
+// 本地按句拆分播报（speechSynthesis 队列）
 function localSpeech(text) {
   return new Promise(resolve => {
     if (!synth) { resolve(false); return }
     synth.cancel()
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = 'zh-CN'
-    utter.rate = 0.95
-    utter.pitch = 1.1
-    utter.onstart = () => { isSpeaking.value = true }
-    utter.onboundary = () => { pulseOrbCore() }
-    utter.onend = () => { isSpeaking.value = false; resolve(true) }
-    utter.onerror = () => { isSpeaking.value = false; resolve(false) }
-    synth.speak(utter)
+    const sentences = String(text || '').split(/(?<=[。！？!?…])\s*/).map(s => s.trim()).filter(Boolean)
+    if (!sentences.length) { resolve(false); return }
+    let idx = 0
+    let anyOk = false
+    const speakNext = () => {
+      if (disposed) { resolve(anyOk); return }
+      if (idx >= sentences.length) { resolve(anyOk); return }
+      const utter = new SpeechSynthesisUtterance(sentences[idx])
+      utter.lang = 'zh-CN'
+      if (preferredVoice) utter.voice = preferredVoice
+      utter.rate = 1.0
+      utter.pitch = 1.0
+      utter.volume = 1.0
+      utter.onstart = () => { isSpeaking.value = true; pulseOrbCore() }
+      utter.onboundary = () => { pulseOrbCore() }
+      utter.onend = () => {
+        anyOk = true
+        idx++
+        // 句间微停顿 80ms，模拟自然节奏
+        setTimeout(speakNext, 80)
+      }
+      utter.onerror = () => {
+        // 单句失败继续下一句
+        idx++
+        setTimeout(speakNext, 80)
+      }
+      synth.speak(utter)
+    }
+    speakNext()
   })
 }
 
@@ -852,7 +896,7 @@ function toggleListening() {
 function startListening() {
   if (isListening.value) return
   manualStop = false
-  lastFinalIndex = 0
+  // 用 event.resultIndex 自动去重，无需 lastFinalIndex
   // 优先使用 Web Speech（Chrome/Edge 内置，最可靠）
   if (initRecognition()) {
     startWebListening()
@@ -922,53 +966,117 @@ function stopListening() {
   }
 }
 
+// ===== 重启退避策略 =====
+// no-speech/aborted：100ms 快重连（人耳不可察的空窗期）
+// network/audio-capture：500→1000→2000→4000 指数退避，并提示用户
+// 连续 no-speech 后会进入静默态，状态点不再闪烁，避免"一下获取一下获取不上"的视觉感受
+let restartBackoff = 100
+let backoffResetTimer = 0
+function scheduleRestart(delay) {
+  if (manualStop || disposed) return
+  clearTimeout(restartTimer)
+  restartTimer = setTimeout(silentRestart, delay)
+}
+function resetBackoff() {
+  restartBackoff = 100
+  if (backoffResetTimer) { clearTimeout(backoffResetTimer); backoffResetTimer = 0 }
+}
+function bumpBackoff() {
+  // network/audio-capture 类错误用指数退避，最大 4s
+  restartBackoff = Math.min(restartBackoff * 2, 4000)
+  if (backoffResetTimer) clearTimeout(backoffResetTimer)
+  // 30s 无错误后回到 100ms 基线
+  backoffResetTimer = setTimeout(() => { restartBackoff = 100 }, 30000)
+}
+let restartTimer = 0
+// 标记本次 onend 是因为 onerror 已主动安排重启，避免重复 setTimeout
+let ignoreOnend = false
+// 安卓 Chrome 经常返回 confidence=0 的伪 final 结果，必须过滤，否则会插入垃圾文本
+const isAndroid = /android/i.test(navigator.userAgent || '')
+
 function initRecognition() {
   if (recognition) return true
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SR) { console.warn('[xingtu] SpeechRecognition not supported'); return false }
   recognition = new SR()
-  recognition.continuous = true
+  // 安卓上 continuous=true 反而更易掉线，桌面端用 continuous 保持长会话
+  recognition.continuous = !isAndroid
   recognition.interimResults = true
   recognition.lang = 'zh-CN'
 
   recognition.onresult = (e) => {
-    const total = e.results.length
+    // 用 event.resultIndex 自动去重，无需手动维护 lastFinalIndex
     let interim = ''
-    for (let i = lastFinalIndex; i < total; i++) {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i]
       if (r.isFinal) {
-        lastFinalIndex = i + 1
-        processTranscript(r[0].transcript)
+        const alt = r[0]
+        // 安卓 confidence=0 的伪 final 直接丢弃
+        if (alt && (isAndroid ? alt.confidence > 0 : true)) {
+          processTranscript(alt.transcript)
+        }
       } else {
         interim += r[0].transcript
       }
     }
-    if (lastFinalIndex > total) lastFinalIndex = Math.max(0, total)
     statusText.value = interim ? '识别中...' : '监听中...'
   }
   recognition.onerror = (e) => {
     if (disposed) return
     console.warn('[xingtu] recognition error:', e.error)
-    if (e.error === 'not-allowed') {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       statusText.value = '麦克风权限被拒绝'
       isListening.value = false
-    } else if (e.error === 'no-speech') {
+      manualStop = true   // 不再自动重启，等用户重新授权
+      speak('麦克风权限被拒绝，请在浏览器地址栏左侧点击权限设置，允许使用麦克风')
+      return
+    }
+    if (e.error === 'no-speech') {
+      // 静默超时：标记本次 onend 由 error 触发，100ms 快重连
+      ignoreOnend = true
       statusText.value = '监听中...'
-    } else if (e.error === 'aborted' || e.error === 'network') {
-      isListening.value = false
-      statusText.value = '就绪'
-    } else {
-      isListening.value = false
-      statusText.value = '识别错误: ' + e.error
+      scheduleRestart(100)
+      return
     }
-    if (!isListening.value && !manualStop && !disposed && e.error !== 'not-allowed') {
-      setTimeout(silentRestart, 800)
+    if (e.error === 'aborted') {
+      // 主动 abort，不要重启
+      ignoreOnend = true
+      return
     }
+    if (e.error === 'audio-capture') {
+      statusText.value = '麦克风硬件不可用'
+      isListening.value = false
+      manualStop = true
+      return
+    }
+    if (e.error === 'network') {
+      statusText.value = '网络中断，重连中...'
+      isListening.value = false
+      ignoreOnend = true
+      bumpBackoff()
+      scheduleRestart(restartBackoff)
+      return
+    }
+    // 其他未知错误：温和退避
+    isListening.value = false
+    ignoreOnend = true
+    bumpBackoff()
+    scheduleRestart(restartBackoff)
   }
   recognition.onend = () => {
     isListening.value = false
-    statusText.value = '就绪'
-    if (!manualStop && !disposed) setTimeout(silentRestart, 800)
+    // ignoreOnend 表示 onerror 已安排重启，这里不再重复 setTimeout
+    if (ignoreOnend) {
+      ignoreOnend = false
+      return
+    }
+    if (!manualStop && !disposed) {
+      // 正常 onend（无 error）：100ms 快重连，并重置退避
+      resetBackoff()
+      scheduleRestart(100)
+    } else {
+      statusText.value = '就绪'
+    }
   }
   return true
 }
@@ -979,12 +1087,13 @@ function silentRestart() {
   if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
   // 优先 Web Speech
   if (initRecognition()) {
-    lastFinalIndex = 0
     try {
       recognition.start()
       isListening.value = true
       statusText.value = '监听中...'
+      resetBackoff()
     } catch (e) {
+      // "already started" 或瞬时占用的处理
       try { recognition.stop() } catch {}
       setTimeout(() => {
         try {
@@ -994,7 +1103,7 @@ function silentRestart() {
             statusText.value = '监听中...'
           }
         } catch {}
-      }, 400)
+      }, 200)
     }
     return
   }
@@ -1054,6 +1163,8 @@ onMounted(() => {
     voiceURI.value = EDGE_VOICES[0].uri
     selectedVoiceURI = EDGE_VOICES[0].uri
   }
+  // 加载本地音色列表并监听 voiceschanged（异步事件）
+  setupVoicesWatcher()
 
   // 识别结果回接（vosk 引擎）
   voskCb.onFinal = (t) => { if (!disposed && t) processTranscript(t) }
@@ -1205,8 +1316,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 20px rgba(34, 211, 238, 0.8), 0 0 40px rgba(168, 85, 247, 0.5);
   animation: coreGuidePulse 1.2s ease-in-out infinite alternate;
 }
-.xingtu-orb.orb-guide-active .orb-ring,
-.xingtu-orb.orb-guide-active .orb-ring-2 {
+.xingtu-orb.orb-guide-active .orb-ring {
   border-color: rgba(34, 211, 238, 0.5);
   animation-duration: 1.4s;
 }
@@ -1294,20 +1404,13 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   animation: orbPulse 2s ease-in-out infinite;
 }
-.orb-ring-2 {
-  position: absolute; inset: -12px;
-  border: 1px solid rgba(118, 75, 162, 0.15);
-  border-radius: 50%;
-  animation: orbPulse 2s ease-in-out 1s infinite;
-}
 
 /* Speaking animation */
 .xingtu-orb.orb-speaking {
   border-color: rgba(102, 126, 234, 0.95);
   box-shadow: 0 0 18px rgba(102, 126, 234, 0.8), 0 0 42px rgba(118, 75, 162, 0.55);
 }
-.xingtu-orb.orb-speaking .orb-ring,
-.xingtu-orb.orb-speaking .orb-ring-2 {
+.xingtu-orb.orb-speaking .orb-ring {
   animation-duration: 1.2s;
   border-color: rgba(102, 126, 234, 0.8);
 }

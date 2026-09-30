@@ -1,12 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.mybatis.spring.annotation.MapperScan
- *  org.springframework.boot.SpringApplication
- *  org.springframework.boot.autoconfigure.SpringBootApplication
- *  org.springframework.cloud.client.discovery.EnableDiscoveryClient
- */
 package com.web3.media;
 
 import org.mybatis.spring.annotation.MapperScan;
@@ -14,9 +5,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
-@SpringBootApplication(scanBasePackages={"com.web3.media", "com.web3.common"})
-@EnableDiscoveryClient
-@MapperScan(value={"com.web3.media.mapper"})
 /**
  * MediaServiceApplication —— 媒体服务启动类
  * <p>
@@ -31,9 +19,12 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  *   <li>@MapperScan("com.web3.media.mapper")：扫描本模块 MyBatis-Plus Mapper 接口</li>
  * </ul>
  */
+@SpringBootApplication(scanBasePackages={"com.web3.media", "com.web3.common"})
+@EnableDiscoveryClient
+@MapperScan(value={"com.web3.media.mapper"})
 public class MediaServiceApplication {
     /** 应用启动入口 */
     public static void main(String[] args) {
-        SpringApplication.run(MediaServiceApplication.class, (String[])args);
+        SpringApplication.run(MediaServiceApplication.class, args);
     }
 }

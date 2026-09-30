@@ -1,23 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.extension.plugins.pagination.Page
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  com.web3.common.security.JwtUtil
- *  io.jsonwebtoken.Claims
- *  org.springframework.web.bind.annotation.DeleteMapping
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.PutMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestHeader
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.blog.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -30,7 +10,6 @@ import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import io.jsonwebtoken.Claims;
-import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,8 +21,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping(value={"/article"})
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * ArticleController —— 文章接口控制器
  * <p>
@@ -58,6 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>@RequestMapping("/article")：对外接口统一前缀为 /article，由网关转发给本服务</li>
  * </ul>
  */
+@RestController
+@RequestMapping(value = "/article")
 public class ArticleController {
     /** 文章业务服务 */
     private final ArticleService articleService;
@@ -86,8 +69,7 @@ public class ArticleController {
             }
             Claims claims = this.jwtUtil.parseClaims(token);
             return "ROLE_ADMIN".equals(claims.get("authorities", String.class));
-        }
-        catch (RuntimeException e) {
+        } catch (RuntimeException e) {
             return false;
         }
     }
@@ -103,8 +85,12 @@ public class ArticleController {
      * @param tag      标签，可为空
      * @return 分页的文章视图对象列表
      */
-    @GetMapping(value={"/list"})
-    public ApiResponse<PageResult<ArticleVO>> list(@RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="20") int size, @RequestParam(defaultValue="") String keyword, @RequestParam(defaultValue="") String category, @RequestParam(defaultValue="") String tag) {
+    @GetMapping(value = "/list")
+    public ApiResponse<PageResult<ArticleVO>> list(@RequestParam(defaultValue = "1") int page,
+                                                   @RequestParam(defaultValue = "20") int size,
+                                                   @RequestParam(defaultValue = "") String keyword,
+                                                   @RequestParam(defaultValue = "") String category,
+                                                   @RequestParam(defaultValue = "") String tag) {
         Page<ArticleVO> result = this.articleService.page(page, size, keyword, category, tag);
         return ApiResponse.ok(PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), result.getRecords()));
     }
@@ -117,8 +103,8 @@ public class ArticleController {
      * @param limit 返回条数，默认 5
      * @return 推荐文章视图对象列表
      */
-    @GetMapping(value={"/{id}/related"})
-    public ApiResponse<List<ArticleVO>> related(@PathVariable Long id, @RequestParam(defaultValue="5") int limit) {
+    @GetMapping(value = "/{id}/related")
+    public ApiResponse<List<ArticleVO>> related(@PathVariable Long id, @RequestParam(defaultValue = "5") int limit) {
         return ApiResponse.ok(this.articleService.related(id, limit));
     }
 
@@ -128,7 +114,7 @@ public class ArticleController {
      *
      * @return 随机文章视图对象
      */
-    @GetMapping(value={"/random"})
+    @GetMapping(value = "/random")
     public ApiResponse<ArticleVO> random() {
         return ApiResponse.ok(this.articleService.random());
     }
@@ -139,8 +125,8 @@ public class ArticleController {
      *
      * @return 归档列表
      */
-    @GetMapping(value={"/archives"})
-    public ApiResponse<List<java.util.Map<String, Object>>> archives() {
+    @GetMapping(value = "/archives")
+    public ApiResponse<List<Map<String, Object>>> archives() {
         return ApiResponse.ok(this.articleService.archives());
     }
 
@@ -150,8 +136,8 @@ public class ArticleController {
      *
      * @return 分类列表
      */
-    @GetMapping(value={"/categories"})
-    public ApiResponse<List<java.util.Map<String, Object>>> categories() {
+    @GetMapping(value = "/categories")
+    public ApiResponse<List<Map<String, Object>>> categories() {
         return ApiResponse.ok(this.articleService.categories());
     }
 
@@ -161,8 +147,8 @@ public class ArticleController {
      *
      * @return 标签列表
      */
-    @GetMapping(value={"/tags"})
-    public ApiResponse<List<java.util.Map<String, Object>>> tags() {
+    @GetMapping(value = "/tags")
+    public ApiResponse<List<Map<String, Object>>> tags() {
         return ApiResponse.ok(this.articleService.tags());
     }
 
@@ -172,8 +158,8 @@ public class ArticleController {
      *
      * @return 统计信息
      */
-    @GetMapping(value={"/stats"})
-    public ApiResponse<java.util.Map<String, Object>> stats() {
+    @GetMapping(value = "/stats")
+    public ApiResponse<Map<String, Object>> stats() {
         return ApiResponse.ok(this.articleService.stats());
     }
 
@@ -184,8 +170,8 @@ public class ArticleController {
      * @param limit 返回条数，默认 5
      * @return 最近文章视图对象列表
      */
-    @GetMapping(value={"/recent"})
-    public ApiResponse<List<ArticleVO>> recent(@RequestParam(defaultValue="5") int limit) {
+    @GetMapping(value = "/recent")
+    public ApiResponse<List<ArticleVO>> recent(@RequestParam(defaultValue = "5") int limit) {
         return ApiResponse.ok(this.articleService.recent(limit));
     }
 
@@ -196,8 +182,8 @@ public class ArticleController {
      * @param limit 返回条数，默认 5
      * @return 热门文章视图对象列表
      */
-    @GetMapping(value={"/hot"})
-    public ApiResponse<List<ArticleVO>> hot(@RequestParam(defaultValue="5") int limit) {
+    @GetMapping(value = "/hot")
+    public ApiResponse<List<ArticleVO>> hot(@RequestParam(defaultValue = "5") int limit) {
         return ApiResponse.ok(this.articleService.hotArticles(limit));
     }
 
@@ -208,11 +194,11 @@ public class ArticleController {
      * @param id 文章 ID
      * @return 详情映射（含上一篇/下一篇），不存在则返回 404 错误
      */
-    @GetMapping(value={"/{id}"})
-    public ApiResponse<java.util.Map<String, Object>> detail(@PathVariable Long id) {
-        java.util.Map<String, Object> result = this.articleService.getDetailWithNav(id);
+    @GetMapping(value = "/{id}")
+    public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
+        Map<String, Object> result = this.articleService.getDetailWithNav(id);
         if (result == null) {
-            return ApiResponse.fail((int)404, (String)"Article not found");
+            return ApiResponse.fail(404, "Article not found");
         }
         return ApiResponse.ok(result);
     }
@@ -226,7 +212,7 @@ public class ArticleController {
      * @return 创建成功后的文章视图对象
      */
     @PostMapping
-    public ApiResponse<ArticleVO> create(@RequestBody ArticleCreateDTO dto, @RequestHeader(value="Authorization") String token) {
+    public ApiResponse<ArticleVO> create(@RequestBody ArticleCreateDTO dto, @RequestHeader(value = "Authorization") String token) {
         Long authorId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         return ApiResponse.ok(this.articleService.create(dto, authorId));
     }
@@ -240,12 +226,12 @@ public class ArticleController {
      * @param token 请求头 Authorization 的 JWT 令牌
      * @return 更新后的文章视图对象，文章不存在时返回 404
      */
-    @PutMapping(value={"/{id}"})
-    public ApiResponse<ArticleVO> update(@PathVariable Long id, @RequestBody ArticleCreateDTO dto, @RequestHeader(value="Authorization") String token) {
+    @PutMapping(value = "/{id}")
+    public ApiResponse<ArticleVO> update(@PathVariable Long id, @RequestBody ArticleCreateDTO dto, @RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         ArticleVO vo = this.articleService.update(id, dto, userId, this.isAdmin(token));
         if (vo == null) {
-            return ApiResponse.fail((int)404, (String)"Article not found");
+            return ApiResponse.fail(404, "Article not found");
         }
         return ApiResponse.ok(vo);
     }
@@ -258,8 +244,8 @@ public class ArticleController {
      * @param token 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @DeleteMapping(value={"/{id}"})
-    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String token) {
+    @DeleteMapping(value = "/{id}")
+    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         this.articleService.delete(id, userId, this.isAdmin(token));
         return ApiResponse.ok();
@@ -273,8 +259,8 @@ public class ArticleController {
      * @param token 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @PostMapping(value={"/{id}/like"})
-    public ApiResponse<Object> like(@PathVariable Long id, @RequestHeader(value="Authorization") String token) {
+    @PostMapping(value = "/{id}/like")
+    public ApiResponse<Object> like(@PathVariable Long id, @RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         this.articleService.like(id, userId);
         return ApiResponse.ok();
@@ -283,8 +269,8 @@ public class ArticleController {
     /**
      * 收藏/取消收藏文章（切换式操作）
      */
-    @PostMapping(value={"/{id}/favorite"})
-    public ApiResponse<Object> favorite(@PathVariable Long id, @RequestHeader(value="Authorization") String token) {
+    @PostMapping(value = "/{id}/favorite")
+    public ApiResponse<Object> favorite(@PathVariable Long id, @RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         this.articleService.favorite(id, userId);
         return ApiResponse.ok();
@@ -293,9 +279,9 @@ public class ArticleController {
     /**
      * 检查当前用户是否已收藏该文章
      */
-    @GetMapping(value={"/{id}/favorite/check"})
-    public ApiResponse<java.util.Map<String, Object>> checkFavorite(@PathVariable Long id, @RequestHeader(value="Authorization", required=false) String token) {
-        java.util.Map<String, Object> result = new java.util.HashMap<>();
+    @GetMapping(value = "/{id}/favorite/check")
+    public ApiResponse<Map<String, Object>> checkFavorite(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) {
+        Map<String, Object> result = new HashMap<>();
         if (token == null || token.isEmpty()) {
             result.put("favorited", false);
             return ApiResponse.ok(result);
@@ -312,9 +298,9 @@ public class ArticleController {
     /**
      * 检查当前用户是否已点赞该文章
      */
-    @GetMapping(value={"/{id}/like/check"})
-    public ApiResponse<java.util.Map<String, Object>> checkLike(@PathVariable Long id, @RequestHeader(value="Authorization", required=false) String token) {
-        java.util.Map<String, Object> result = new java.util.HashMap<>();
+    @GetMapping(value = "/{id}/like/check")
+    public ApiResponse<Map<String, Object>> checkLike(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) {
+        Map<String, Object> result = new HashMap<>();
         if (token == null || token.isEmpty()) {
             result.put("liked", false);
             return ApiResponse.ok(result);
@@ -331,8 +317,8 @@ public class ArticleController {
     /**
      * 获取当前用户收藏的文章列表
      */
-    @GetMapping(value={"/user/favorites"})
-    public ApiResponse<List<ArticleVO>> userFavorites(@RequestHeader(value="Authorization") String token) {
+    @GetMapping(value = "/user/favorites")
+    public ApiResponse<List<ArticleVO>> userFavorites(@RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         return ApiResponse.ok(this.articleService.getUserFavorites(userId));
     }
@@ -340,8 +326,8 @@ public class ArticleController {
     /**
      * 获取当前用户点赞的文章列表
      */
-    @GetMapping(value={"/user/likes"})
-    public ApiResponse<List<ArticleVO>> userLikes(@RequestHeader(value="Authorization") String token) {
+    @GetMapping(value = "/user/likes")
+    public ApiResponse<List<ArticleVO>> userLikes(@RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         return ApiResponse.ok(this.articleService.getUserLikes(userId));
     }

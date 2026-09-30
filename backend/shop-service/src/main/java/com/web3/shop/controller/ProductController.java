@@ -1,20 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  io.swagger.v3.oas.annotations.tags.Tag
- *  org.springframework.web.bind.annotation.DeleteMapping
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestHeader
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.shop.controller;
 
 import com.web3.common.core.ApiResponse;
@@ -30,15 +13,13 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping(value={"/product"})
-@Tag(name="\u5546\u54c1\u7ba1\u7406", description="\u5546\u57ce\u5546\u54c1\u7684\u589e\u5220\u6539\u67e5")
 /**
  * ProductController —— 商品接口控制器
  * <p>
@@ -49,11 +30,14 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>
  * 关键注解作用：
  * <ul>
- *   <li>@RestController：声明为 REST 控制器，返回值自动序列化为 JSON</li>
- *   <li>@RequestMapping("/product")：对外接口统一前缀为 /product</li>
- *   <li>@Tag：OpenAPI/Swagger 文档分组标签（商品管理）</li>
+ *   <li>{@code @RestController}：声明为 REST 控制器，返回值自动序列化为 JSON</li>
+ *   <li>{@code @RequestMapping("/product")}：对外接口统一前缀为 /product</li>
+ *   <li>{@code @Tag}：OpenAPI/Swagger 文档分组标签（商品管理）</li>
  * </ul>
  */
+@RestController
+@RequestMapping("/product")
+@Tag(name = "商品管理", description = "商城商品的增删改查")
 public class ProductController {
     /** 商品业务服务 */
     private final ProductService productService;
@@ -78,9 +62,9 @@ public class ProductController {
      * @param category 分类，可为空
      * @return 分页的商品视图对象列表
      */
-    @GetMapping(value={"/list"})
-    public ApiResponse<PageResult<ProductVO>> list(@RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="20") int size, @RequestParam(defaultValue="") String keyword, @RequestParam(defaultValue="") String category) {
-        return ApiResponse.ok(this.productService.page(page, size, keyword, category));
+    @GetMapping("/list")
+    public ApiResponse<PageResult<ProductVO>> list(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size, @RequestParam(defaultValue = "") String keyword, @RequestParam(defaultValue = "") String category) {
+        return ApiResponse.ok(productService.page(page, size, keyword, category));
     }
 
     /**
@@ -89,9 +73,9 @@ public class ProductController {
      * @param id 商品 ID
      * @return 商品视图对象
      */
-    @GetMapping(value={"/{id}"})
+    @GetMapping("/{id}")
     public ApiResponse<ProductVO> getDetail(@PathVariable Long id) {
-        return ApiResponse.ok(this.productService.getDetail(id));
+        return ApiResponse.ok(productService.getDetail(id));
     }
 
     /**
@@ -102,9 +86,9 @@ public class ProductController {
      * @return 创建成功后的商品视图对象
      */
     @PostMapping
-    public ApiResponse<ProductVO> create(@RequestBody ProductCreateDTO dto, @RequestHeader(value="Authorization") String authorization) {
-        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.productService.create(dto));
+    public ApiResponse<ProductVO> create(@RequestBody ProductCreateDTO dto, @RequestHeader(value = "Authorization") String authorization) {
+        AuthUtils.requireAdmin(authorization, jwtUtil, jwtProperties);
+        return ApiResponse.ok(productService.create(dto));
     }
 
     /**
@@ -114,10 +98,10 @@ public class ProductController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @DeleteMapping(value={"/{id}"})
-    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String authorization) {
-        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
-        this.productService.delete(id);
+    @DeleteMapping("/{id}")
+    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value = "Authorization") String authorization) {
+        AuthUtils.requireAdmin(authorization, jwtUtil, jwtProperties);
+        productService.delete(id);
         return ApiResponse.ok();
     }
 
@@ -130,9 +114,9 @@ public class ProductController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 更新后的商品视图对象
      */
-    @org.springframework.web.bind.annotation.PutMapping(value={"/{id}"})
-    public ApiResponse<ProductVO> update(@PathVariable Long id, @RequestBody ProductCreateDTO dto, @RequestHeader(value="Authorization") String authorization) {
-        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.productService.update(id, dto));
+    @PutMapping("/{id}")
+    public ApiResponse<ProductVO> update(@PathVariable Long id, @RequestBody ProductCreateDTO dto, @RequestHeader(value = "Authorization") String authorization) {
+        AuthUtils.requireAdmin(authorization, jwtUtil, jwtProperties);
+        return ApiResponse.ok(productService.update(id, dto));
     }
 }

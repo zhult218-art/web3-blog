@@ -59,6 +59,8 @@ extends ServiceImpl<PostMapper, Post> {
      */
     public Page<PostVO> page(int page, int size, String keyword, String sort) {
         LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>();
+        // 公开列表仅展示审核通过的帖子（pending/rejected 对普通用户不可见）
+        wrapper.eq(Post::getStatus, (Object) "published");
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(Post::getTitle, (Object)keyword).or().like(Post::getContent, (Object)keyword));
         }
@@ -82,7 +84,7 @@ extends ServiceImpl<PostMapper, Post> {
      */
     public PostVO getDetail(Long id) {
         Post post = (Post)this.baseMapper.selectById(id);
-        if (post == null) {
+        if (post == null || !"published".equals(post.getStatus())) {
             return null;
         }
         this.baseMapper.incrViewCount(id);
@@ -91,13 +93,15 @@ extends ServiceImpl<PostMapper, Post> {
     }
 
     /**
-     * 创建帖子，初始化点赞数/回复数/浏览量为 0、非置顶、状态为 published
+     * 创建帖子，初始化点赞数/回复数/浏览量为 0、非置顶。
+     * 管理员发帖直接 published；普通用户发帖进入 pending 待审核
      *
      * @param dto      帖子创建参数
      * @param authorId 作者用户 ID（取自登录令牌）
+     * @param admin    作者是否为管理员
      * @return 创建成功后的帖子视图对象
      */
-    public PostVO create(PostCreateDTO dto, Long authorId) {
+    public PostVO create(PostCreateDTO dto, Long authorId, boolean admin) {
         Post post = new Post();
         post.setTitle(dto.getTitle());
         post.setContent(dto.getContent());
@@ -110,7 +114,7 @@ extends ServiceImpl<PostMapper, Post> {
         post.setReplyCount(0);
         post.setViewCount(0L);
         post.setIsPinned(0);
-        post.setStatus("published");
+        post.setStatus(admin ? "published" : "pending");
         this.baseMapper.insert(post);
         return this.toVO(post);
     }
@@ -218,6 +222,105 @@ extends ServiceImpl<PostMapper, Post> {
         }
         this.baseMapper.updateById(post);
         return this.toVO(post);
+    }
+
+    /**
+     * 管理端分页查询：可按审核状态筛选，默认按创建时间倒序，包含 pending/rejected 全部状态
+     *
+     * @param page    页码（从 1 开始）
+     * @param size    每页条数
+     * @param status  审核状态：pending/published/rejected，空或 all 表示全部
+     * @param keyword 标题/正文关键字，可为空
+     * @return 帖子视图对象分页结果
+     */
+    public Page<PostVO> adminPage(int page, int size, String status, String keyword) {
+        LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>();
+        if (status != null && !status.isBlank() && !"all".equalsIgnoreCase(status)) {
+            wrapper.eq(Post::getStatus, (Object) status);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w.like(Post::getTitle, (Object) keyword).or().like(Post::getContent, (Object) keyword));
+        }
+        wrapper.orderByDesc(Post::getCreatedAt);
+        Page<Post> postPage = new Page<Post>((long) page, (long) size);
+        Page<Post> result = this.baseMapper.selectPage(postPage, wrapper);
+        Page<PostVO> voPage = new Page<PostVO>((long) page, (long) size, result.getTotal());
+        voPage.setRecords(result.getRecords().stream().map(this::toVO).toList());
+        return voPage;
+    }
+
+    /**
+     * 管理端审核：更新帖子状态（published=通过 / rejected=驳回）
+     *
+     * @param id     帖子 ID
+     * @param status 目标状态
+     */
+    public void moderate(Long id, String status) {
+        Post post = (Post) this.baseMapper.selectById(id);
+        if (post == null) {
+            throw new RuntimeException("Post not found");
+        }
+        post.setStatus(status);
+        this.baseMapper.updateById(post);
+    }
+
+    /**
+     * 管理端删除帖子（逻辑删除），不受作者限制
+     *
+     * @param id 帖子 ID
+     */
+    public void adminDelete(Long id) {
+        Post post = (Post) this.baseMapper.selectById(id);
+        if (post == null) {
+            throw new RuntimeException("Post not found");
+        }
+        this.baseMapper.deleteById(id);
+    }
+
+    /**
+     * 管理端批量审核：逐条更新帖子状态，跳过不存在的记录
+     *
+     * @param ids    帖子 ID 列表
+     * @param status 目标状态（published / rejected）
+     * @return 实际处理条数
+     */
+    @Transactional
+    public int batchModerate(java.util.List<Long> ids, String status) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (Long id : ids) {
+            Post post = (Post) this.baseMapper.selectById(id);
+            if (post == null || status.equals(post.getStatus())) {
+                continue;
+            }
+            post.setStatus(status);
+            this.baseMapper.updateById(post);
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * 管理端批量删除帖子（逻辑删除）
+     *
+     * @param ids 帖子 ID 列表
+     * @return 实际处理条数
+     */
+    @Transactional
+    public int batchDelete(java.util.List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (Long id : ids) {
+            if (this.baseMapper.selectById(id) != null) {
+                this.baseMapper.deleteById(id);
+                count++;
+            }
+        }
+        return count;
     }
 
     /**

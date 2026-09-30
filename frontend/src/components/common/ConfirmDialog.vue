@@ -2,9 +2,10 @@
   <Teleport to="body">
     <Transition name="dlg">
       <div v-if="d.state.visible" class="dlg-overlay" @click.self="d.handleCancel">
-        <div class="dlg-card" @keydown.esc="d.handleCancel">
+        <div class="dlg-card" :class="{ 'dlg-card-danger': d.state.tone === 'danger' }" @keydown.esc="d.handleCancel">
           <div class="dlg-header">
-            <div class="dlg-icon" v-if="d.state.type === 'confirm'">?</div>
+            <div class="dlg-icon dlg-icon-danger" v-if="d.state.tone === 'danger'">!</div>
+            <div class="dlg-icon" v-else-if="d.state.type === 'confirm'">?</div>
             <div class="dlg-icon dlg-icon-warn" v-else-if="d.state.type === 'prompt'">✎</div>
             <div class="dlg-icon dlg-icon-info" v-else>i</div>
             <h3 class="dlg-title">{{ d.state.title }}</h3>
@@ -19,9 +20,11 @@
             @keydown.enter="d.handleOk"
           />
           <div class="dlg-actions">
-            <button v-if="d.state.type !== 'alert'" class="dlg-btn dlg-btn-cancel" @click="d.handleCancel">取消</button>
-            <button class="dlg-btn dlg-btn-ok" @click="d.handleOk" ref="okBtnRef">
-              {{ d.state.type === 'alert' ? '知道了' : '确认' }}
+            <button v-if="d.state.type !== 'alert'" class="dlg-btn dlg-btn-cancel" @click="d.handleCancel">
+              {{ d.state.cancelText || '取消' }}
+            </button>
+            <button class="dlg-btn dlg-btn-ok" :class="{ 'dlg-btn-danger': d.state.tone === 'danger' }" @click="d.handleOk" ref="okBtnRef">
+              {{ d.state.okText || (d.state.type === 'alert' ? '知道了' : '确认') }}
             </button>
           </div>
         </div>
@@ -84,12 +87,21 @@ watch(() => d.state.visible, async (v) => {
   border-color: rgba(59, 130, 246, 0.25);
   color: #60a5fa;
 }
+.dlg-icon-danger {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+.dlg-card-danger {
+  border-color: rgba(239, 68, 68, 0.28);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(239, 68, 68, 0.1);
+}
 .dlg-title {
   margin: 0; font-size: 1rem; font-weight: 600; color: #e2e8f0;
 }
 .dlg-message {
   margin: 0 0 20px; font-size: 0.85rem; color: rgba(255, 255, 255, 0.55);
-  line-height: 1.6;
+  line-height: 1.6; white-space: pre-line; word-break: break-word;
 }
 .dlg-input {
   width: 100%; padding: 10px 14px; margin-bottom: 20px;
@@ -128,6 +140,12 @@ watch(() => d.state.visible, async (v) => {
 .dlg-btn-ok:hover {
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
   transform: translateY(-1px);
+}
+.dlg-btn-danger {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+.dlg-btn-danger:hover {
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
 }
 
 .dlg-enter-active { transition: opacity 0.2s ease; }

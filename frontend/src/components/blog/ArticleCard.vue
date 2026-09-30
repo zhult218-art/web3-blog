@@ -72,8 +72,10 @@ const read = computed(() => isRead(props.article.id))
 const tagList = computed(() => (props.article.tags || '').split(',').map(t => t.trim()).filter(Boolean))
 
 const readingMin = computed(() => {
-  const words = props.article.content?.replace(/[#>*`_\-\[\]()!|]/g, '').length || 0
-  return Math.max(1, Math.round(words / 300))
+  const words = props.article.content?.replace(/[#>*`_\-\[\]()!|]/g, '').length
+  // 列表接口为提速不返回正文：按摘要长度粗估（正文通常为摘要 8 倍左右）
+  const est = words || Math.round((String(props.article.summary || '').length || 150) * 8)
+  return Math.max(1, Math.round(est / 300))
 })
 
 // 日期格式化（统一走 utils/date）

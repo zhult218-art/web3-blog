@@ -35,6 +35,7 @@ mybatis-plus:
       logic-not-delete-value: 0
 resource:
   upload-dir: runtime/uploads
+  max-upload-size: 209715200  # 200MB，与 spring.servlet.multipart.max-file-size 保持一致
 logging:
   level:
     com.web3.resource: debug

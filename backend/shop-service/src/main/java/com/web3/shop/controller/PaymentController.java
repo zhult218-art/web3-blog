@@ -1,27 +1,12 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  io.swagger.v3.oas.annotations.tags.Tag
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.shop.controller;
 
 import com.web3.common.core.ApiResponse;
-import com.web3.common.core.UnauthorizedException;
 import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import com.web3.shop.service.OrderService;
 import com.web3.shop.vo.OrderVO;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.HashMap;
-import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -29,9 +14,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping(value={"/pay"})
-@Tag(name="\u652f\u4ed8\u7ba1\u7406", description="\u8ba2\u5355\u652f\u4ed8\u72b6\u6001\u67e5\u8be2\u4e0e\u6a21\u62df\u652f\u4ed8")
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * PaymentController —— 支付接口控制器
  * <p>
@@ -42,11 +27,14 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>
  * 关键注解作用：
  * <ul>
- *   <li>@RestController：声明为 REST 控制器，返回值自动序列化为 JSON</li>
- *   <li>@RequestMapping("/pay")：对外接口统一前缀为 /pay</li>
- *   <li>@Tag：OpenAPI/Swagger 文档分组标签（支付管理）</li>
+ *   <li>{@code @RestController}：声明为 REST 控制器，返回值自动序列化为 JSON</li>
+ *   <li>{@code @RequestMapping("/pay")}：对外接口统一前缀为 /pay</li>
+ *   <li>{@code @Tag}：OpenAPI/Swagger 文档分组标签（支付管理）</li>
  * </ul>
  */
+@RestController
+@RequestMapping("/pay")
+@Tag(name = "支付管理", description = "订单支付状态查询与模拟支付")
 public class PaymentController {
     /** 订单业务服务 */
     private final OrderService orderService;
@@ -70,8 +58,8 @@ public class PaymentController {
      * @return 当前用户自己的订单视图对象
      */
     private OrderVO requireOwnedOrder(Long orderId, String auth) {
-        Long userId = AuthUtils.requireUserId(auth, this.jwtUtil, this.jwtProperties);
-        return this.orderService.getDetailOwned(orderId, userId);
+        Long userId = AuthUtils.requireUserId(auth, jwtUtil, jwtProperties);
+        return orderService.getDetailOwned(orderId, userId);
     }
 
     /**
@@ -82,19 +70,19 @@ public class PaymentController {
      * @param auth    请求头 Authorization 的 JWT 令牌
      * @return 订单支付状态数据
      */
-    @GetMapping(value={"/status"})
-    public ApiResponse<Map<String, Object>> status(@RequestParam Long orderId, @RequestHeader(value="Authorization") String auth) {
-        OrderVO order = this.requireOwnedOrder(orderId, auth);
-        HashMap<String, Object> data = new HashMap<String, Object>();
+    @GetMapping("/status")
+    public ApiResponse<Map<String, Object>> status(@RequestParam Long orderId, @RequestHeader(value = "Authorization") String auth) {
+        OrderVO order = requireOwnedOrder(orderId, auth);
+        Map<String, Object> data = new HashMap<>();
         data.put("orderId", orderId);
         data.put("status", order.getStatus());
         data.put("paidAt", order.getPaidAt());
         return ApiResponse.ok(data);
     }
 
-    @PostMapping(value={"/alipay"})
-    public ApiResponse<Map<String, Object>> alipay(@RequestParam Long orderId, @RequestHeader(value="Authorization") String auth) {
-        return this.pay(orderId, "alipay", auth);
+    @PostMapping("/alipay")
+    public ApiResponse<Map<String, Object>> alipay(@RequestParam Long orderId, @RequestHeader(value = "Authorization") String auth) {
+        return pay(orderId, "alipay", auth);
     }
 
     /**
@@ -104,9 +92,9 @@ public class PaymentController {
      * @param auth    请求头 Authorization 的 JWT 令牌
      * @return 支付结果数据（订单 ID、渠道、状态、支付时间）
      */
-    @PostMapping(value={"/wechat"})
-    public ApiResponse<Map<String, Object>> wechat(@RequestParam Long orderId, @RequestHeader(value="Authorization") String auth) {
-        return this.pay(orderId, "wechat", auth);
+    @PostMapping("/wechat")
+    public ApiResponse<Map<String, Object>> wechat(@RequestParam Long orderId, @RequestHeader(value = "Authorization") String auth) {
+        return pay(orderId, "wechat", auth);
     }
 
     /**
@@ -120,8 +108,8 @@ public class PaymentController {
      * @return 支付结果数据
      */
     private ApiResponse<Map<String, Object>> pay(Long orderId, String channel, String auth) {
-        OrderVO paid = this.orderService.payOrder(orderId, AuthUtils.requireUserId(auth, this.jwtUtil, this.jwtProperties), channel);
-        HashMap<String, Object> data = new HashMap<String, Object>();
+        OrderVO paid = orderService.payOrder(orderId, AuthUtils.requireUserId(auth, jwtUtil, jwtProperties), channel);
+        Map<String, Object> data = new HashMap<>();
         data.put("orderId", orderId);
         data.put("channel", channel);
         data.put("status", paid.getStatus());

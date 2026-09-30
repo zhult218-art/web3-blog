@@ -1,0 +1,54 @@
+# Web3 Portal CI — 最简 lint + build
+# 2026-09-17 新增。触发：push / pull_request 到 main/master。
+# 不跑后端单元测试（仓库当前零测试），只跑：
+#   1. frontend lint（ESLint）
+#   2. frontend build（vite build，验证无 import 错误）
+#   3. backend maven compile（验证 Java 编译通过，不跑测试）
+# 失败时阻断 PR 合入。
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  frontend:
+    name: Frontend Lint + Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true # 历史代码大量 warn，先不阻断
+      - name: Build
+        run: npm run build
+
+  backend:
+    name: Backend Compile
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+      - name: Maven compile (no tests)
+        run: mvn -B -q -DskipTests -Dmaven.test.skip=true compile

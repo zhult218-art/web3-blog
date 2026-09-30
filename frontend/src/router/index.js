@@ -8,54 +8,62 @@ import Web3Layout from '@/layouts/Web3Layout.vue'
 import BlogLayout from '@/layouts/BlogLayout.vue'
 import LoginView from '@/views/login/index.vue'
 import { useAuthStore } from '@/stores/modules/auth'
+import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
 import { hasPerm } from '@/utils/permissions'
 
 // ── Web3Layout 子路由（共享同一份 ThreeBackground / ParticleBackground / Web3Nav）
 const web3Routes = [
   // 首页
-  { path: '', name: 'Home', component: () => import('@/views/home/GhibliHome.vue'), meta: { requiresAuth: false, perm: 'home' } },
+  { path: '', name: 'Home', component: () => import('@/views/home/GhibliHome.vue'), meta: { requiresAuth: false, perm: 'home', hideSiteFooter: true } },
   // 论坛 / 社区
   { path: 'forum', redirect: '/community' },
   { path: 'forum/:path*', redirect: '/community' },
-  { path: 'community', name: 'Community', component: () => import('@/views/community/index.vue'), meta: { requiresAuth: false, perm: 'community' } },
-  { path: 'community/chat', name: 'CommunityChat', component: () => import('@/views/community/ChatRoom.vue'), meta: { requiresAuth: false, perm: 'community' } },
-  { path: 'community/create', name: 'CommunityCreate', component: () => import('@/views/community/create.vue'), meta: { requiresAuth: true, perm: 'community' } },
-  { path: 'community/:type/:id', name: 'CommunityDetail', component: () => import('@/views/community/detail.vue'), meta: { requiresAuth: false, perm: 'community' } },
+  { path: 'community', name: 'Community', component: () => import('@/views/community/index.vue'), meta: { requiresAuth: false, perm: 'community', feature: 'forum' } },
+  { path: 'community/chat', name: 'CommunityChat', component: () => import('@/views/community/ChatRoom.vue'), meta: { requiresAuth: false, perm: 'community', feature: 'forum' } },
+  { path: 'community/create', name: 'CommunityCreate', component: () => import('@/views/community/create.vue'), meta: { requiresAuth: true, perm: 'community', feature: 'forum' } },
+  { path: 'community/:type/:id', name: 'CommunityDetail', component: () => import('@/views/community/detail.vue'), meta: { requiresAuth: false, perm: 'community', feature: 'forum' } },
   // 商城
-  { path: 'shop', name: 'Shop', component: () => import('@/views/shop/index.vue'), meta: { requiresAuth: false, perm: 'shop' } },
-  { path: 'shop/cart', name: 'Cart', component: () => import('@/views/shop/cart.vue'), meta: { requiresAuth: false, perm: 'shop' } },
-  { path: 'shop/:id', name: 'ShopDetail', component: () => import('@/views/shop/detail.vue'), meta: { requiresAuth: false, perm: 'shop' } },
+  { path: 'shop', name: 'Shop', component: () => import('@/views/shop/index.vue'), meta: { requiresAuth: false, perm: 'shop', feature: 'shop' } },
+  { path: 'shop/cart', name: 'Cart', component: () => import('@/views/shop/cart.vue'), meta: { requiresAuth: false, perm: 'shop', feature: 'shop' } },
+  { path: 'shop/:id', name: 'ShopDetail', component: () => import('@/views/shop/detail.vue'), meta: { requiresAuth: false, perm: 'shop', feature: 'shop' } },
   // AI
   { path: 'ai', name: 'AIPage', component: () => import('@/views/ai/index.vue'), meta: { requiresAuth: false } },
   { path: 'ai-station', name: 'AiStation', component: () => import('@/views/ai-station/index.vue'), meta: { requiresAuth: false } },
   // Agent 聊天（规则路由 + 多专用 Agent + Workflow）
   { path: 'agent', name: 'AgentChat', component: () => import('@/views/agent/index.vue'), meta: { requiresAuth: false } },
   // 媒体 / 书影音
-  { path: 'media', name: 'Media', component: () => import('@/views/media/index.vue'), meta: { requiresAuth: false, perm: 'media' } },
-  { path: 'media/book/:id', name: 'MediaBook', component: () => import('@/views/media/book.vue'), meta: { requiresAuth: false, perm: 'media' } },
+  { path: 'media', name: 'Media', component: () => import('@/views/media/index.vue'), meta: { requiresAuth: false, perm: 'media', feature: 'media' } },
+  { path: 'media/book/:id', name: 'MediaBook', component: () => import('@/views/media/book.vue'), meta: { requiresAuth: false, perm: 'media', feature: 'media' } },
   { path: 'album', name: 'Album', component: () => import('@/views/album/index.vue'), meta: { requiresAuth: false, perm: 'album' } },
   // 音乐（已并入媒体页的音乐馆模块；/music 兼容跳转到媒体）
   { path: 'music', name: 'Music', redirect: '/media' },
-  { path: 'music/player/:id', name: 'MusicPlayerPage', component: () => import('@/views/music/player.vue'), meta: { requiresAuth: false, perm: 'music' } },
+  { path: 'music/player/:id', name: 'MusicPlayerPage', component: () => import('@/views/music/player.vue'), meta: { requiresAuth: false, perm: 'music', feature: 'media' } },
   // 工具 / 软件 / 资源
   { path: 'tools', name: 'Tools', component: () => import('@/views/tools/index.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/api', name: 'ToolsApi', component: () => import('@/views/tools/ApiTools.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/api-plaza', name: 'ToolsApiPlaza', component: () => import('@/views/tools/ApiPlaza.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/sites', name: 'ToolsSites', component: () => import('@/views/tools/sites.vue'), meta: { requiresAuth: false, perm: 'tools' } },
+  { path: 'tools/video-vip', name: 'ToolsVideoVip', component: () => import('@/views/tools/VideoVip.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/:tool', name: 'ToolPage', component: () => import('@/views/tools/ToolPage.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'software', name: 'Software', component: () => import('@/views/software/index.vue'), meta: { requiresAuth: false, perm: 'software' } },
   { path: 'resources', name: 'Resources', component: () => import('@/views/resources/index.vue'), meta: { requiresAuth: false, perm: 'resources' } },
   { path: 'upload', name: 'Upload', component: () => import('@/views/upload/index.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
   // 展示 / 可视化
-  { path: 'nails', name: 'Nails', component: () => import('@/views/nails/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
-  { path: 'three', name: 'ThreePage', component: () => import('@/views/three/index.vue'), meta: { requiresAuth: false } },
+  { path: 'nails', name: 'Nails', component: () => import('@/views/nails/index.vue'), meta: { requiresAuth: false, perm: 'home', feature: 'media' } },
+  { path: 'three', name: 'ThreePage', component: () => import('@/views/three/index.vue'), meta: { requiresAuth: false, feature: 'metaverse' } },
   { path: 'architecture', name: 'ArchPage', component: () => import('@/views/architecture/index.vue'), meta: { requiresAuth: false } },
   { path: 'twin', name: 'DigitalTwin', component: () => import('@/views/twin/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
   { path: 'project', name: 'Project', component: () => import('@/views/project/index.vue'), meta: { requiresAuth: false } },
   // 量化
-  { path: 'quant', name: 'Quant', component: () => import('@/views/quant/index.vue'), meta: { requiresAuth: false, perm: 'quant' } },
-  { path: 'quant/dashboard', name: 'QuantDashboard', component: () => import('@/views/quant/Dashboard.vue'), meta: { requiresAuth: false, perm: 'quant' } },
-  { path: 'stock/:code', name: 'StockDetail', component: () => import('@/views/quant/StockDetail.vue'), meta: { requiresAuth: false, perm: 'quant' } },
+  { path: 'quant', name: 'Quant', component: () => import('@/views/quant/index.vue'), meta: { requiresAuth: false, perm: 'quant', feature: 'quant' } },
+  { path: 'quant/dashboard', name: 'QuantDashboard', component: () => import('@/views/quant/Dashboard.vue'), meta: { requiresAuth: false, perm: 'quant', feature: 'quant' } },
+  // 市场研究驾驶舱（marketingdashboard React 应用同源 iframe 嵌入，全功能聚合行情大屏）
+  // perm: 'home' 公开访问（市场行情数据无用户敏感性；直链访问需免登录可达，
+  // 否则路由守卫对游客 hasPerm(null,'quant')=false 重定向至首页，造成"直链无内容"）
+  { path: 'quant/cockpit', name: 'MarketCockpit', component: () => import('@/views/quant/MarketCockpit.vue'), meta: { requiresAuth: false, perm: 'home', feature: 'quant', hideSiteFooter: true } },
+  { path: 'stock/:code', name: 'StockDetail', component: () => import('@/views/quant/StockDetail.vue'), meta: { requiresAuth: false, perm: 'quant', feature: 'quant' } },
+  // 时光回溯 · QQ 空间说说备份（qzone-service 9012，经 /qzone 代理）
+  { path: 'qzone', name: 'QzoneBackup', component: () => import('@/views/qzone/index.vue'), meta: { requiresAuth: false, perm: 'qzone' } },
   // 用户 / 支付
   { path: 'profile', name: 'Profile', component: () => import('@/views/profile/index.vue'), meta: { requiresAuth: true } },
   { path: 'profile/orders', name: 'ProfileOrders', component: () => import('@/views/profile/orders.vue'), meta: { requiresAuth: true } },
@@ -95,6 +103,7 @@ const routes = [
     { path: 'quant', name: 'AdminQuant', component: () => import('@/views/admin/quant.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'traffic', name: 'AdminTraffic', component: () => import('@/views/admin/traffic.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'chat', name: 'AdminChat', component: () => import('@/views/admin/chatApproval.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: 'community', name: 'AdminCommunity', component: () => import('@/views/admin/community.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'settings', name: 'AdminSettings', component: () => import('@/views/admin/settings.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'blog-links', name: 'AdminBlogLinks', component: () => import('@/views/admin/blog-links.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'blog-notice', name: 'AdminBlogNotice', component: () => import('@/views/admin/blog-notice.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
@@ -127,12 +136,17 @@ const router = createRouter({
 let sessionProbeDone = false
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  const site = useSiteSettingsStore()
   // 会话恢复：首次导航时若内存无令牌，尝试经 HttpOnly Cookie 静默续期
   if (!sessionProbeDone) {
     sessionProbeDone = true
     if (!auth.token) {
       try { await auth.tryRefresh() } catch {}
     }
+    // 首次导航同步拉取站点配置（标题/SEO/功能开关），store 内有缓存
+    try { await site.load() } catch {}
+  } else if (!site.loaded) {
+    try { await site.load() } catch {}
   }
   // 需要登录的页面：未登录跳转登录页并记录回跳地址
   if (to.meta?.requiresAuth && !auth.isLoggedIn) {
@@ -146,6 +160,16 @@ router.beforeEach(async (to) => {
     }
     // 首页永远可达：即便权限数据异常也不重定向到自身（防止无限重定向）
     if (permMeta.meta.perm !== 'home' && !hasPerm(auth.user, permMeta.meta.perm)) {
+      return { path: '/' }
+    }
+  }
+  // 功能开关校验：后台关闭的模块对普通用户不可达（管理员放行，便于预览与排查）
+  const featureRecord = to.matched.find(r => r.meta.feature)
+  if (featureRecord && featureRecord.meta.feature) {
+    if (!auth.user && auth.isLoggedIn) {
+      try { await auth.fetchProfile() } catch {}
+    }
+    if (auth.user?.role !== 'ADMIN' && !site.featureOn(featureRecord.meta.feature) && to.path !== '/') {
       return { path: '/' }
     }
   }

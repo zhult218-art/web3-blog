@@ -5,16 +5,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.web3.aiproxy.config.AiProxyProperties;
+import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
  * AgentWorkflowService
@@ -38,6 +43,7 @@ public class AgentWorkflowService {
 
     private final ProxyEngineService engineService;
     private final AiProxyProperties props;
+    private final UpstreamForwarder forwarder;
     private final HttpClient httpClient;
 
     // 规则关键词（中文）
@@ -51,9 +57,11 @@ public class AgentWorkflowService {
             Pattern.compile("(数据|统计|查询|查一下|数据库|supabase|记录|table|报告|多少)"),
             Pattern.compile("(demo|music_tracks|blog_articles|service|健康|服务|启动)"));
 
-    public AgentWorkflowService(ProxyEngineService engineService, AiProxyProperties props) {
+    public AgentWorkflowService(ProxyEngineService engineService, AiProxyProperties props,
+                                UpstreamForwarder forwarder) {
         this.engineService = engineService;
         this.props = props;
+        this.forwarder = forwarder;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(4000))
                 .build();
@@ -64,17 +72,18 @@ public class AgentWorkflowService {
      *
      * @param messages 型如 [{"role":"user"|"assistant","content":"..."}]
      * @param clientIp 客户端 IP（透传给中转引擎用于限额/IP白名单）
-     * @return ProxyEngineService 的流式/非流式 ResponseEntity
+     * @return 流式 ResponseEntity（SSE 格式）
      */
-    public Object chat(String messagesJson, String clientIp) {
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<StreamingResponseBody> chat(String messagesJson, String clientIp) {
         JsonNode rawMessages;
         try {
             rawMessages = MAPPER.readTree(messagesJson);
         } catch (Exception e) {
-            return engineService.chatCompletions("{\"error\":\"bad request\"}", null, clientIp);
+            return fallbackSse("消息格式似乎有问题，请换一种说法再试。");
         }
         if (!rawMessages.isArray() || rawMessages.isEmpty()) {
-            return engineService.chatCompletions(emptyBody(), null, clientIp);
+            return fallbackSse("你好，我是 Web3 门户助手。请问有什么可以帮你？");
         }
 
         // 最近一条 user 输入用于路由
@@ -85,7 +94,6 @@ public class AgentWorkflowService {
 
         // 组装带 system 的完整消息
         ObjectNode body = MAPPER.createObjectNode();
-        body.put("model", defaultModel());
         body.put("stream", true);
         body.put("temperature", 0.7);
         ArrayNode finalMessages = body.putArray("messages");
@@ -96,16 +104,107 @@ public class AgentWorkflowService {
         finalMessages.add(system);
         finalMessages.addAll((ArrayNode) rawMessages);
 
-        String jsonBody;
-        try {
-            jsonBody = MAPPER.writeValueAsString(body);
-        } catch (Exception e) {
-            jsonBody = emptyBody();
+        // 优先使用 sk- 系统令牌走渠道引擎（支持计费/限额/降级）
+        String token = props.getAgentSystemToken();
+        if (token != null && !token.isBlank()) {
+            body.put("model", defaultModel());
+            String jsonBody;
+            try {
+                jsonBody = MAPPER.writeValueAsString(body);
+            } catch (Exception e) {
+                jsonBody = emptyBody();
+            }
+            String auth = "Bearer " + token.trim();
+            Object resp = engineService.chatCompletions(jsonBody, auth, clientIp);
+            if (resp instanceof ResponseEntity<?> re
+                    && (re.getStatusCode().isError() || re.getBody() == null)) {
+                return fallbackSse(fallbackHint(userInput));
+            }
+            return (ResponseEntity<StreamingResponseBody>) resp;
         }
 
-        // 用应用级系统令牌代表 Agent 调用（走渠道 + 计费）
-        String auth = "Bearer " + (props.getAgentSystemToken() == null ? "" : props.getAgentSystemToken().trim());
-        return engineService.chatCompletions(jsonBody, auth, clientIp);
+        // 未配置系统令牌 → 尝试直连 LLM 提供商（api-key 非空的第一个）
+        AiProxyProperties.LlmProvider provider = firstAvailableProvider();
+        if (provider != null) {
+            body.put("model", provider.getModel());
+            String jsonBodyTemp;
+            try {
+                jsonBodyTemp = MAPPER.writeValueAsString(body);
+            } catch (Exception e) {
+                jsonBodyTemp = emptyBody();
+            }
+            final String jsonBody = jsonBodyTemp;
+            final String pName = provider.getName();
+            final String pBaseUrl = provider.getBaseUrl();
+            final String pKey = provider.getApiKey();
+            log.info("[Agent] 使用直连 LLM: {} ({})", pName, provider.getModel());
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_EVENT_STREAM)
+                    .header("Cache-Control", "no-cache")
+                    .header("X-Accel-Buffering", "no")
+                    .body(out -> {
+                        try {
+                            forwarder.forwardStreaming(pBaseUrl, pKey, jsonBody, out,
+                                    new SseUsageCollector());
+                        } catch (Exception e) {
+                            log.error("[Agent] 直连 LLM 失败 ({}): {}", pName, e.getMessage());
+                            try (OutputStreamWriter w = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+                                w.write("data: {\"choices\":[{\"delta\":{\"content\":\"[LLM 调用失败: "
+                                        + (e.getMessage() == null ? "unknown" : e.getMessage().replace("\"", "'"))
+                                        + "]\"}}]}\n\n");
+                                w.write("data: [DONE]\n\n");
+                                w.flush();
+                            }
+                        }
+                    });
+        }
+
+        // 既无系统令牌，也无可用直连提供商 → 本地兜底
+        return fallbackSse(fallbackHint(userInput));
+    }
+
+    /** 返回第一个 api-key 非空的 LLM 提供商，无则 null */
+    private AiProxyProperties.LlmProvider firstAvailableProvider() {
+        if (props.getAgentLlmProviders() == null) return null;
+        for (AiProxyProperties.LlmProvider p : props.getAgentLlmProviders()) {
+            if (p.getApiKey() != null && !p.getApiKey().isBlank()
+                    && p.getBaseUrl() != null && !p.getBaseUrl().isBlank()) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 本地兜底（OpenAI 兼容 SSE 格式）：LLM 上游未配置/不可用时保证 Q&A 可用，
+     * 前端 consumeAgentStream 无需改动即可按增量文本渲染。
+     */
+    private ResponseEntity<StreamingResponseBody> fallbackSse(String text) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .header("Cache-Control", "no-cache")
+                .header("X-Accel-Buffering", "no")
+                .body(out -> {
+                    try (OutputStreamWriter w = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+                        ArrayNode choices = MAPPER.createArrayNode();
+                        choices.addObject().putObject("delta").put("content", text);
+                        String payload = MAPPER.createObjectNode().set("choices", choices).toString();
+                        w.write("data: " + payload + "\n\n");
+                        w.write("data: [DONE]\n\n");
+                        w.flush();
+                    }
+                });
+    }
+
+    private String fallbackHint(String userInput) {
+        // 前缀 [NO_LLM_KEY] 作为结构化错误标识，前端据此显示更友好的提示
+        return "[NO_LLM_KEY] 大模型上游暂未连通。请在 ai-proxy-service 的 application.yml 或环境变量中配置至少一个 LLM 提供商的 API Key。\n"
+                + "支持的提供商：DeepSeek (DEEPSEEK_API_KEY)、SiliconFlow (SILICONFLOW_API_KEY)、"
+                + "LM Studio (LMSTUDIO_API_KEY)、Groq (GROQ_API_KEY)、Doubao (DOUBAO_API_KEY)、"
+                + "Together AI (TOGETHER_API_KEY)、Fireworks (FIREWORKS_API_KEY)、"
+                + "OpenRouter (OPENROUTER_API_KEY)、Ollama (OLLAMA_API_KEY)。\n"
+                + "填入任意一个 API Key 并重启服务即可恢复智能回复。\n\n"
+                + "收到你的需求：\n" + (userInput == null ? "" : userInput);
     }
 
     // ───────── 规则路由 ─────────

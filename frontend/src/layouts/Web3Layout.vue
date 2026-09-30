@@ -1,13 +1,15 @@
 <template>
   <div class="relative min-h-screen">
-    <ThreeBackground />
-    <ParticleBackground />
+    <ThreeBackground v-if="dynamicBgOn" />
+    <ParticleBackground v-if="dynamicBgOn" />
     <Web3Nav />
     <main class="relative z-10 min-h-[calc(100vh-64px)]">
       <router-view v-slot="{ Component }">
         <Suspense :timeout="0">
           <transition name="page" mode="out-in">
-            <component :is="Component" v-if="Component" />
+            <keep-alive :include="['QuantIndex']">
+              <component :is="Component" v-if="Component" />
+            </keep-alive>
           </transition>
           <template #fallback>
             <div class="flex items-center justify-center min-h-[calc(100vh-64px)]">
@@ -17,6 +19,7 @@
         </Suspense>
       </router-view>
     </main>
+    <SiteFooter v-if="!route.meta.hideSiteFooter" />
     <audio ref="audioEl" preload="auto" @ended="onEnded" @timeupdate="onTimeUpdate"></audio>
   </div>
 </template>
@@ -29,13 +32,20 @@
 // - 顶部导航 Web3Nav
 // - 内含全局 <audio> 元素，驱动全局播放器（player store）的真实播放
 // ============================================================
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { usePlayerStore } from '@/stores/modules/player'
+import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
 import ParticleBackground from '@/components/layout/ParticleBackground.vue'
 import ThreeBackground from '@/components/layout/ThreeBackground.vue'
 import Web3Nav from '@/components/layout/Web3Nav.vue'
+import SiteFooter from '@/components/layout/SiteFooter.vue'
 
 const player = usePlayerStore()
+const site = useSiteSettingsStore()
+const route = useRoute()
+// 动态背景开关：关闭后不挂载 Three.js / 粒子画布，低配设备更流畅
+const dynamicBgOn = computed(() => site.featureOn('dynamicBg'))
 const audioEl = ref(null)
 
 // 曲目切换：将播放源写入 audio 元素并触发播放

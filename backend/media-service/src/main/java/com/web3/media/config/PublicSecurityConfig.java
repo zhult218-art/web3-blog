@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.springframework.context.annotation.Bean
- *  org.springframework.context.annotation.Configuration
- *  org.springframework.security.config.annotation.web.builders.HttpSecurity
- *  org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
- *  org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer$AuthorizedUrl
- *  org.springframework.security.web.SecurityFilterChain
- */
 package com.web3.media.config;
 
 import org.springframework.context.annotation.Bean;
@@ -43,7 +32,9 @@ public class PublicSecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity.csrf(csrfConfigurer -> csrfConfigurer.disable()).authorizeHttpRequests(authorizationManagerRequestMatcherRegistry -> ((AuthorizeHttpRequestsConfigurer.AuthorizedUrl)authorizationManagerRequestMatcherRegistry.anyRequest()).permitAll());
-        return (SecurityFilterChain)httpSecurity.build();
+        httpSecurity.csrf(csrfConfigurer -> csrfConfigurer.disable())
+                .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
+                        authorizationManagerRequestMatcherRegistry.anyRequest().permitAll());
+        return httpSecurity.build();
     }
 }

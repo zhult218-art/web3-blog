@@ -13,6 +13,12 @@
     <img v-else-if="bgVideo" :src="bgVideo.poster" :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }" />
   </div>
   <div class="scroll-progress" :style="{ width: scrollProgress + '%' }"></div>
+  <!-- 维护模式横幅：系统设置中开启后全站顶部提示（普通流程文档流，随滚动离开） -->
+  <div v-if="maintenanceOn" class="maint-bar">
+    <span class="maint-icon">🚧</span>
+    <span>站点正在维护升级中，部分功能可能暂时不可用，给您带来不便敬请谅解</span>
+    <router-link v-if="auth.user?.role === 'ADMIN'" to="/admin/settings" class="maint-admin">管理员：前往关闭</router-link>
+  </div>
   <router-view v-slot="{ Component }">
     <transition name="page" mode="out-in"
       @before-leave="dimBg(true)" @after-enter="dimBg(false)" @after-leave="dimBg(false)">
@@ -22,29 +28,36 @@
   <Toast />
   <ConfirmDialog />
   <ExternalLinkGuard />
-  <XingTuAssistant />
+  <XingTuAssistant v-if="jarvisOn" />
   <GlobalPlayer />
+  <!-- 极光广场聊天 Dock：登录后全局常驻左侧栏（可展开/缩窄/关闭），路由切换不断线 -->
+  <ChatDock v-if="auth.isLoggedIn" />
   <NoticePanel />
   <SearchPanel />
   <Shortcuts />
   <CustomContextMenu />
   <ConsolePanel />
+  <QzoneJobBadge />
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, onErrorCaptured } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/modules/auth'
+import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
 import Toast from '@/components/common/Toast.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import ExternalLinkGuard from '@/components/common/ExternalLinkGuard.vue'
 import XingTuAssistant from '@/components/common/XingTuAssistant.vue'
 import GlobalPlayer from '@/components/common/GlobalPlayer.vue'
+import ChatDock from '@/components/chat/ChatDock.vue'
+import { useChatStore } from '@/stores/modules/chat'
 import NoticePanel from '@/components/common/NoticePanel.vue'
 import SearchPanel from '@/components/blog/SearchPanel.vue'
 import Shortcuts from '@/components/blog/Shortcuts.vue'
 import CustomContextMenu from '@/components/blog/CustomContextMenu.vue'
 import ConsolePanel from '@/components/blog/ConsolePanel.vue'
+import QzoneJobBadge from '@/components/qzone/QzoneJobBadge.vue'
 import { useShortcuts } from '@/composables/useShortcuts'
 import { initApplied, currentWallpaper } from '@/composables/useTheme'
 import { WALLPAPERS } from '@/config/wallpapers'
@@ -52,7 +65,39 @@ import { WALLPAPERS } from '@/config/wallpapers'
 useShortcuts()
 initApplied()
 
+// ── 屏蔽 Vue Suspense/transition 挂载·切页竞态的已知良性报错 ──
+// `<Suspense :timeout="0"><transition mode="out-in"><component :is>` 组合下，
+// 异步路由组件尚未解析完就切页（或挂载中途被卸载）时，Vue 运行时内部会对
+// 已置空的节点字段取值抛 TypeError。已观测变体：reading 'component' /
+// 'flags' / 'shapeFlag' / 'parentNode'，堆栈均指向 runtime-core 内部
+// （locateNonHydratedAsyncRoot / componentUpdateFn / getNextHostNode / flushJobs）。
+// 精确匹配"Vue 内部空指针 + 组件更新堆栈"才吞掉，其余错误照常上抛。
+const VUE_NULL_READ = /Cannot read properties of null \(reading '(flags|shapeFlag|parentNode|component|el|anchor)'\)/
+onErrorCaptured((err, _instance, info) => {
+  const msg = String(err?.message || '')
+  const stack = String(err?.stack || '')
+  const vueInternalStack = stack.includes('componentUpdateFn')
+    || stack.includes('locateNonHydratedAsyncRoot')
+    || stack.includes('getNextHostNode')
+    || stack.includes('flushJobs')
+  if (VUE_NULL_READ.test(msg) && vueInternalStack) {
+    console.warn('[vue] 已忽略挂载/切页竞态的内部良性报错（' + info + '）')
+    return false
+  }
+  return true
+})
+
 const auth = useAuthStore()
+const site = useSiteSettingsStore()
+// 全局群聊：登录即建立常驻 WebSocket，登出彻底断开
+const chat = useChatStore()
+watch(() => auth.isLoggedIn, (loggedIn) => {
+  if (loggedIn) chat.init()
+  else chat.reset()
+})
+// 功能开关：星途助手显隐 / 维护模式横幅（配置由路由守卫首跳时加载）
+const jarvisOn = computed(() => site.featureOn('jarvis'))
+const maintenanceOn = computed(() => site.featureOn('maintenance'))
 const route = useRoute()
 const scrollProgress = ref(0)
 
@@ -111,11 +156,23 @@ onUnmounted(() => {
 
 let revealMutationObserver = null
 let lastVisitReport = 0
+let ipwhoFailed = false // ipwho.is 本次会话内失败过则不再请求，避免控制台反复打 net::ERR
 
 // 访问上报：IP / 经纬度 / 位置 → admin-service（每次路由切换都上报一次，供真实在线人数统计）
 async function reportVisit() {
   try {
-    const geo = await fetch('https://ipwho.is/').then(r => r.json()).catch(() => null)
+    let geo = null
+    if (!ipwhoFailed) {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 5000) // 5s 超时，避免挂起
+      try {
+        geo = await fetch('https://ipwho.is/', { signal: ctrl.signal }).then(r => r.json())
+      } catch {
+        ipwhoFailed = true // 失败后本次会话不再请求 ipwho.is
+      } finally {
+        clearTimeout(timer)
+      }
+    }
     const body = {
       ip: geo?.ip || '',
       country: geo?.country || '',
@@ -127,13 +184,16 @@ async function reportVisit() {
       userAgent: navigator.userAgent.slice(0, 400),
       pagePath: location.pathname + location.search
     }
-    // keepalive: 请求不随页面刷新/关闭被 abort（消除控制台 net::ERR_ABORTED /api/admin/visit）
-    await fetch('/api/admin/visit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      keepalive: true
-    })
+    // sendBeacon：页面刷新/关闭时请求仍可靠送达，且失败不产生控制台 net::ERR_ABORTED 红字
+    const blob = new Blob([JSON.stringify(body)], { type: 'application/json' })
+    if (!navigator.sendBeacon('/api/admin/visit', blob)) {
+      await fetch('/api/admin/visit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        keepalive: true
+      })
+    }
   } catch {}
 }
 
@@ -147,6 +207,9 @@ onMounted(async () => {
   updateScrollProgress()
   window.addEventListener('scroll', updateScrollProgress, { passive: true })
   window.addEventListener('resize', updateScrollProgress)
+
+  // 幂等确保站点配置就绪（标题/SEO/开关/页脚）
+  try { await site.load() } catch {}
 
   reportVisit()
 
@@ -162,6 +225,9 @@ onMounted(async () => {
   if (!auth.token) {
     await auth.tryRefresh()
   }
+
+  // 登录态就绪（含刷新恢复）后立即接入全局群聊 WebSocket
+  if (auth.isLoggedIn) chat.init()
 
   // IntersectionObserver for reveal animations (covers async route components)
   const revealObserver = new IntersectionObserver((entries) => {
@@ -207,6 +273,32 @@ html, body, #app {
   box-shadow: 0 0 10px var(--color-glow);
   transition: width 0.1s linear;
 }
+
+/* 维护模式横幅 */
+.maint-bar {
+  position: relative;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 7px 16px;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: #ffe9c4;
+  background: linear-gradient(90deg, rgba(180, 83, 9, 0.92), rgba(217, 119, 6, 0.92), rgba(180, 83, 9, 0.92));
+  border-bottom: 1px solid rgba(253, 230, 138, 0.35);
+  box-shadow: 0 4px 18px -6px rgba(217, 119, 6, 0.6);
+}
+.maint-icon { font-size: 14px; }
+.maint-admin {
+  color: #fff7ed;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.maint-admin:hover { color: #fff; }
 
 .page-enter-active,
 .page-leave-active {

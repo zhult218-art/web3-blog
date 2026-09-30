@@ -47,17 +47,31 @@ public class OtpService {
 
     // ───────── 邮箱验证码 ─────────
 
-    /** 发送邮箱验证码；devCode 仅在 mailEnabled=false 时返回，供前端显示调试 */
+    /**
+     * 发送邮箱验证码。
+     *
+     * <p>2026-09-20 修订：恢复 dev 模式回传 devCode，但仅在登录路径（{@code /user/email/code}）
+     * 由 Controller 写入响应体；绑定邮箱路径（{@code /user/bind/email/code}）忽略返回值。
+     * 这样本地开发能立即测试验证码登录，而绑定路径不会被利用来账户接管。</p>
+     *
+     * <p>生产部署：设置 {@code MAIL_ENABLED=true} 并配置 {@code MAIL_HOST/MAIL_USERNAME/MAIL_PASSWORD}，
+     * 验证码走真实 SMTP，返回值为 null（不回传）。</p>
+     *
+     * @param email 邮箱
+     * @return dev 模式返回明文验证码（供 Controller 写入响应体 devCode 字段）；生产模式返回 null
+     */
     public String sendEmailCode(String email) {
         rateLimit(email, EMAIL_RATE_PREFIX);
         String code = randomCode();
         String key = EMAIL_CODE_PREFIX + email.toLowerCase();
         redis.opsForValue().set(key, code, CODE_TTL_MINUTES, TimeUnit.MINUTES);
-        log.info("[OtpService] email={} code={}", email, code);
         if (!props.isMailEnabled()) {
-            log.warn("[OtpService] mailDisabled, returning devCode only");
+            // dev 模式：验证码回传给 Controller，由 Controller 决定是否写入响应体
+            // 登录路径会回传（方便本地测试），绑定路径不回传（防账户接管）
+            log.warn("[OtpService] mailDisabled, code returned for local dev. email={} code={}", email, code);
             return code;
         }
+        log.info("[OtpService] email code sent. email={}", email);
         sendMail(email, code);
         return null;
     }
@@ -73,19 +87,57 @@ public class OtpService {
 
     // ───────── 手机短信验证码 ─────────
 
-    /** 发送短信验证码；smsEnabled=false 返回 devCode */
+    /**
+     * 发送短信验证码。
+     *
+     * <p>2026-09-20 修订：dev 模式（smsEnabled=false）回传 devCode 供登录路径写入响应体，
+     * 绑定路径忽略；生产模式（smsEnabled=true）调用 {@link #sendSmsByGateway} 真实下发。</p>
+     *
+     * <p>真实 SMS 网关接入：设置 {@code SMS_ENABLED=true} + {@code SMS_PROVIDER=aliyun|tencent}
+     * + {@code SMS_KEY/SMS_SECRET/SMS_SIGN_NAME/SMS_TEMPLATE_CODE}，然后在
+     * {@link #sendSmsByGateway} 填具体实现（阿里云 SDK / 腾讯云 SDK / HTTP 调用均可）。</p>
+     *
+     * @param phone 手机号
+     * @return dev 模式返回明文验证码；生产模式返回 null
+     */
     public String sendPhoneCode(String phone) {
         rateLimit(phone, PHONE_RATE_PREFIX);
         String code = randomCode();
         String key = PHONE_CODE_PREFIX + phone;
         redis.opsForValue().set(key, code, CODE_TTL_MINUTES, TimeUnit.MINUTES);
-        log.info("[OtpService] phone={} code={}", phone, code);
         if (!props.isSmsEnabled()) {
-            log.warn("[OtpService] smsDisabled, returning devCode only");
+            // dev 模式：回传给 Controller，由 Controller 决定是否写入响应体
+            log.warn("[OtpService] smsDisabled, code returned for local dev. phone={} code={}", phone, code);
             return code;
         }
-        // TODO: 对接真实短信网关（阿里云/腾讯云），当前返回 null
+        log.info("[OtpService] sms code sent. phone={}", phone);
+        sendSmsByGateway(phone, code);
         return null;
+    }
+
+    /**
+     * 真实短信网关下发（生产模式调用）。
+     *
+     * <p>2026-09-20 预留接入口：当前抛出"未配置"异常提示用户配置 SMS_PROVIDER 等环境变量；
+     * 拿到阿里云/腾讯云 SMS 凭据后，在此方法内按 {@code SMS_PROVIDER} 分发到具体 SDK 调用。</p>
+     *
+     * <p>推荐方案：阿里云 dysmsapi20170525 SDK 或腾讯云 tencentcloud-sdk-java-sms；
+     * 也可用 HTTP 直接调 REST 接口避免引入 SDK 包体。</p>
+     *
+     * @param phone 手机号
+     * @param code 验证码
+     */
+    private void sendSmsByGateway(String phone, String code) {
+        String provider = System.getenv().getOrDefault("SMS_PROVIDER", "");
+        if (provider.isBlank()) {
+            throw new RuntimeException("短信网关未配置：请设置 SMS_PROVIDER=aliyun|tencent 并提供 SMS_KEY/SMS_SECRET/SMS_SIGN_NAME/SMS_TEMPLATE_CODE 后重启 user-service");
+        }
+        // TODO: 拿到 SMS 凭据后按 provider 分发：
+        //   - aliyun:  new com.aliyun.dysmsapi20170525.Client(...).sendSms(...)
+        //   - tencent: new com.tencentcloudapi.sms.v20210111.SmsClient(...).SendSms(...)
+        //   或用 HttpClient 调对应 REST 接口
+        log.error("[OtpService] sendSmsByGateway 未实现：provider={} phone={} code={}（请补完 SDK 调用）", provider, phone, code);
+        throw new RuntimeException("短信网关 " + provider + " 暂未接入 SDK，请联系开发者补完 sendSmsByGateway 实现");
     }
 
     public boolean verifyPhoneCode(String phone, String code) {

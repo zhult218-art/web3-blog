@@ -52,10 +52,28 @@ public class JwtUtil {
      * @return 携带角色声明的签名 JWT 字符串
      */
     public String generateToken(String username, Long userId, String role) {
+        return generateToken(username, userId, role, null, null);
+    }
+
+    /**
+     * 生成带昵称的 JWT 令牌，声明中额外包含 nickname。
+     */
+    public String generateToken(String username, Long userId, String role, String nickname, String perms) {
+        return generateToken(username, userId, role, nickname, perms, null);
+    }
+
+    /**
+     * 生成带实名认证状态的 JWT 令牌（verified=2 表示已实名认证）。
+     * forum-service 的聊天 WebSocket 通过该声明判断用户是否可发消息。
+     */
+    public String generateToken(String username, Long userId, String role, String nickname, String perms, Integer verified) {
         HashMap<String, Object> claims = new HashMap<String, Object>();
         claims.put("username", username);
         claims.put("userId", userId);
         claims.put("authorities", "ROLE_" + role);
+        if (nickname != null) claims.put("nickname", nickname);
+        if (perms != null && !perms.isBlank()) claims.put("perms", perms);
+        if (verified != null) claims.put("verified", verified);
         return Jwts.builder().subject(username).claims(claims).issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + expireMillis))
             .signWith(this.key).compact();

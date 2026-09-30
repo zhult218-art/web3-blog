@@ -1,16 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.jarvis.controller;
 
 import com.web3.common.core.ApiResponse;
@@ -19,16 +6,16 @@ import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import com.web3.jarvis.service.JarvisService;
 import com.web3.jarvis.vo.VoiceCommandVO;
-import java.util.List;
-import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Jarvis 语音助手控制器(jarvis-service 模块)。
@@ -37,9 +24,15 @@ import org.springframework.web.bind.annotation.RestController;
  * 所有接口统一以 {@code /jarvis} 为前缀(由 {@code @RestController}
  * 与 {@code @RequestMapping("/jarvis")} 声明)。指令列表接口要求管理员
  * 身份;识别与会话接口在携带 Authorization 时校验并解析用户 ID。</p>
+ *
+ * <p>关键注解作用：
+ * <ul>
+ *   <li>@RestController：声明为 REST 控制器，返回值自动序列化为 JSON</li>
+ *   <li>@RequestMapping("/jarvis")：对外接口统一前缀为 /jarvis</li>
+ * </ul>
  */
 @RestController
-@RequestMapping(value={"/jarvis"})
+@RequestMapping(value = "/jarvis")
 public class JarvisController {
     private final JarvisService jarvisService;
     private final JwtUtil jwtUtil;
@@ -57,8 +50,8 @@ public class JarvisController {
      * @param auth 登录令牌(请求头),需具备管理员角色
      * @return 启用状态下的语音指令 VO 列表(按排序号升序)
      */
-    @GetMapping(value={"/commands"})
-    public ApiResponse<List<VoiceCommandVO>> getCommands(@RequestHeader(value="Authorization", required=false) String auth) {
+    @GetMapping(value = "/commands")
+    public ApiResponse<List<VoiceCommandVO>> getCommands(@RequestHeader(value = "Authorization", required = false) String auth) {
         AuthUtils.requireAdmin(auth, this.jwtUtil, this.jwtProperties);
         return ApiResponse.ok(this.jarvisService.getAllCommands());
     }
@@ -72,8 +65,8 @@ public class JarvisController {
      * @return 含 sessionId、response(应答文本)、action、targetUrl、commandKey 的 Map;
      *         sessionId 缺失时返回 code=400
      */
-    @PostMapping(value={"/recognize"})
-    public ApiResponse<Map<String, Object>> recognize(@RequestBody Map<String, String> body, @RequestHeader(value="Authorization", required=false) String auth) {
+    @PostMapping(value = "/recognize")
+    public ApiResponse<Map<String, Object>> recognize(@RequestBody Map<String, String> body, @RequestHeader(value = "Authorization", required = false) String auth) {
         Long userId = null;
         if (auth != null && !auth.isBlank()) {
             userId = AuthUtils.requireUserId(auth, this.jwtUtil, this.jwtProperties);
@@ -81,7 +74,7 @@ public class JarvisController {
         String text = body.get("text");
         String sessionId = body.get("sessionId");
         if (sessionId == null || sessionId.isEmpty()) {
-            return ApiResponse.fail((int)400, (String)"sessionId is required");
+            return ApiResponse.fail(400, "sessionId is required");
         }
         Map<String, Object> result = this.jarvisService.handleCommand(text, sessionId, userId);
         result.put("sessionId", sessionId);
@@ -94,8 +87,8 @@ public class JarvisController {
      * @param auth 登录令牌(可选,携带时关联用户 ID)
      * @return 含 sessionId 的 Map
      */
-    @PostMapping(value={"/session"})
-    public ApiResponse<Map<String, String>> createSession(@RequestHeader(value="Authorization", required=false) String auth) {
+    @PostMapping(value = "/session")
+    public ApiResponse<Map<String, String>> createSession(@RequestHeader(value = "Authorization", required = false) String auth) {
         Long userId = null;
         if (auth != null && !auth.isBlank()) {
             userId = AuthUtils.requireUserId(auth, this.jwtUtil, this.jwtProperties);
@@ -110,9 +103,9 @@ public class JarvisController {
      * @param auth      登录令牌(请求头)
      * @return 会话实体(VoiceSession)
      */
-    @GetMapping(value={"/session/{sessionId}"})
-    public ApiResponse<Object> getSession(@PathVariable String sessionId, @RequestHeader(value="Authorization") String auth) {
+    @GetMapping(value = "/session/{sessionId}")
+    public ApiResponse<Object> getSession(@PathVariable String sessionId, @RequestHeader(value = "Authorization") String auth) {
         AuthUtils.requireUserId(auth, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok((Object)this.jarvisService.getSession(sessionId));
+        return ApiResponse.ok(this.jarvisService.getSession(sessionId));
     }
 }

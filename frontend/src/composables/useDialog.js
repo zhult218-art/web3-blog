@@ -7,6 +7,11 @@ const state = reactive({
   message: '',
   placeholder: '',
   inputValue: '',
+  // 主题色调：default=品牌紫；danger=红色（删除等不可逆操作）
+  tone: 'default',
+  // 确认按钮文案，空时按类型使用默认文案
+  okText: '',
+  cancelText: '',
 })
 
 let _resolve = null
@@ -18,6 +23,9 @@ function open(type, message, opts = {}) {
     state.message = message
     state.placeholder = opts?.placeholder || ''
     state.inputValue = opts?.defaultValue || ''
+    state.tone = opts?.tone === 'danger' ? 'danger' : 'default'
+    state.okText = opts?.okText || ''
+    state.cancelText = opts?.cancelText || ''
     state.visible = true
     _resolve = resolve
   })

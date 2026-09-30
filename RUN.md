@@ -57,7 +57,7 @@ F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean package -DskipTests
 # 启动各个服务（每个开一个终端窗口）
 cd F:\project\my-blog\web3-blog\backend
 
-java -jar gateway/target/gateway-1.0.0.jar --spring.profiles.active=prod      # 端口 8099
+java -jar gateway/target/gateway-1.0.0.jar --spring.profiles.active=prod      # 端口 8080
 java -jar user-service/target/user-service-1.0.0.jar --spring.profiles.active=prod    # 8081
 java -jar blog-service/target/blog-service-1.0.0.jar --spring.profiles.active=prod    # 8082
 java -jar forum-service/target/forum-service-1.0.0.jar --spring.profiles.active=prod  # 8083
@@ -91,7 +91,7 @@ npm run dev
 
 | 服务 | 端口 | 数据库 | 功能 |
 |------|------|--------|------|
-| Gateway | 8099 | - | API 网关，路由转发 |
+| Gateway | 8080 | - | API 网关，路由转发 |
 | User Service | 8081 | web3_user | 用户管理、认证 |
 | Blog Service | 8082 | web3_blog | 文章、分类、标签 |
 | Forum Service | 8083 | web3_forum | 论坛帖子、评论 |
@@ -103,23 +103,26 @@ npm run dev
 | Resource Service | 8089 | web3_resource | 资源上传 |
 | Jarvis Service | 9001 | web3_jarvis | AI 语音助手 |
 | Admin Service | 9002 | web3_admin | 管理后台 |
+| Ai Proxy Service | 8093 | web3_admin | AI Token 中转 |
+| Quant Py Service | 9006 | - | A股量化数据 |
 | Nacos | 8848 | - | 服务发现/配置中心 |
 | Redis | 6379 | - | 缓存 |
 | RabbitMQ | 5672 | - | 消息队列 |
-| MySQL | 3306 | 11个DB | 数据存储 |
+| MySQL | 3306 | 13 个 web3_* 库 | 数据存储 |
 
 ## 前端访问
 
 - 开发环境：http://localhost:5173
 - Vite 代理配置：
-  - `/api` → http://localhost:8099 (Gateway)
-  - `/vr` → http://localhost:8900 (Vibe-Research)
+  - `/api` → http://localhost:8080 (Gateway)
+  - `/pyquant` → http://localhost:9006 (quant-py-service)
+  - `/whisper` → http://127.0.0.1:9011 (jarvis whisper 子模块)
 
 ## API 调用流程
 
 ```
-前端 → Vite Proxy (/api) → Gateway (8099) → 对应微服务
-前端 → Vite Proxy (/vr) → Vibe-Research (8900) → A股数据
+前端 → Vite Proxy (/api) → Gateway (8080) → 对应微服务
+前端 → Vite Proxy (/pyquant) → quant-py-service (9006) → A股数据
 ```
 
 Gateway 路由规则（application.yml）：
@@ -134,17 +137,18 @@ Gateway 路由规则（application.yml）：
 - `/resource/**` → resource-service:8089
 - `/jarvis/**` → jarvis-service:9001
 - `/admin/**` → admin-service:9002
+- `/v1/**`、`/admin/ai/**`、`/user/ai/**`、`/agent/**` → ai-proxy-service:8093
 
 ## 服务健康检查
 
 ```powershell
 # 检查所有服务端口
-netstat -ano | findstr "LISTENING" | findstr ":8081 :8082 :8083 :8084 :8085 :8086 :8087 :8088 :8089 :8099 :9001 :9002"
+netstat -ano | findstr "LISTENING" | findstr ":8080 :8081 :8082 :8083 :8084 :8085 :8086 :8087 :8088 :8089 :9001 :9002 :9006"
 
 # 测试 API
-curl http://localhost:8099/admin/dashboard
-curl http://localhost:8099/article/list
-curl http://localhost:8099/jarvis/commands
+curl http://localhost:8080/admin/dashboard
+curl http://localhost:8080/article/list
+curl http://localhost:8080/jarvis/commands
 ```
 
 ## 常见问题
@@ -171,7 +175,7 @@ taskkill //F //IM java.exe //IM javaw.exe
 
 ### 4. 前端 API 报错 404
 
-检查 Gateway (8099) 是否运行，确认 Vite 代理配置正确。
+检查 Gateway (8080) 是否运行，确认 Vite 代理配置正确。
 
 ### 5. 数据库连接失败
 

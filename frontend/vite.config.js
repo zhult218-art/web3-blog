@@ -13,6 +13,10 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // SakuraFrp 等内网穿透以隧道域名（如 frp-six.com）回源，Vite 默认会
+    // 拦截 Host 头不在白名单的请求（403 Blocked request）。放行 frp-six.com
+    // 及其所有子域名；新增穿透域名时在此追加即可（true 可放开全部域名）。
+    allowedHosts: ['frp-six.com', '.frp-six.com'],
     proxy: {
       // 开发环境：本地网关。生产 Cloudflare Pages 部署时，前端会直接走绝对地址
       // （由 VITE_API_BASE 控制，在 Cloudflare Pages 控制台配环境变量即可切换后端）。
@@ -20,6 +24,14 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api/, '')
+      },
+      // 相册/媒体文件：photo.url 为 /photo/file/{name}（不带 /api），
+      // 经网关转发到 media-service（8085），开发环境需单独代理
+      '/photo': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        timeout: 120000,
+        proxyTimeout: 120000
       },
       // 群聊 WebSocket：直连 forum-service（REST 走 /api/chat，互不冲突）
       '/chat': {
@@ -53,6 +65,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: path => path.replace(/^\/whisper/, '')
       },
+      // 时光回溯 QQ 空间备份服务（qzone-service，端口 9012）
+      // 注意：页面路由是 /qzone，故 API 代理前缀不能用 /qzone（会吞掉页面请求），
+      // 使用 /qzapi → 后端 /api/qzone。
+      '/qzapi': {
+        target: 'http://127.0.0.1:9012',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/qzapi/, '/api/qzone'),
+        timeout: 120000,
+        proxyTimeout: 120000
+      },
       // 60s API 公共实例（github-myblog/60s-main 同款服务）
       // 浏览器虽可直连，但部分图片/二级路由 CORS 不稳定，统一走代理同源
       '/sixty': {
@@ -78,6 +100,19 @@ export default defineConfig({
         rewrite: path => path.replace(/^\/audius-api/, ''),
         timeout: 30000,
         proxyTimeout: 30000
+      },
+      // 市场研究驾驶舱（marketingdashboard）：同源代理其 Node 服务（端口 3030）。
+      // 前端通过 iframe 加载 /cockpit/，React 应用内 API 调用走 /cockpit/api/*。
+      // 此代理统一转发静态资源与 /api 数据接口，剥离 /cockpit 前缀后回源到 3030。
+      '/cockpit': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/cockpit/, ''),
+        // 行情聚合接口偶发较慢，代理层不设超时限制
+        timeout: 120000,
+        proxyTimeout: 120000,
+        // 覆盖上游 Host 头，避免 marketingdashboard 服务器因 Host 校验误拒同源请求
+        headers: { Host: 'localhost:3030' }
       }
     }
   },

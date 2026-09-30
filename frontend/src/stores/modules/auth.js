@@ -29,6 +29,12 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = value
   }
 
+  // 仅合并部分字段到本地用户对象（不发请求，用于内部接口返回后同步状态）
+  function mergeUser(patch) {
+    if (!patch || typeof patch !== 'object') return
+    user.value = { ...(user.value || {}), ...patch }
+  }
+
   // 通用完成登录逻辑：接收后端返回的 { token, user } payload
   function setSession(payload) {
     if (!payload || !payload.token) {
@@ -120,6 +126,22 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
+  // 强制续期：即便本地已有 token 也重新签发（用户状态变更如实名认证通过后同步 JWT claims）
+  async function forceRefreshToken() {
+    try {
+      const res = await refreshSession()
+      const body = res && res.data !== undefined ? res : { data: res }
+      if (body.code === 200 && body.data && body.data.token) {
+        setSession(body.data)
+        if (!body.data.user) await fetchProfile()
+        return true
+      }
+    } catch {
+      // 续期失败保持现状
+    }
+    return false
+  }
+
   // 强制清除登录态（401 且续期失败时由 request 拦截器调用）
   function reset() {
     token.value = ''
@@ -148,6 +170,6 @@ export const useAuthStore = defineStore('auth', () => {
     token, user, isLoggedIn,
     login, emailLogin: emailLoginAction, phoneLogin: phoneLoginAction,
     register, completeWithToken, setSession,
-    tryRefresh, fetchProfile, reset, updateUser, logout
+    tryRefresh, forceRefreshToken, fetchProfile, mergeUser, reset, updateUser, logout
   }
 })

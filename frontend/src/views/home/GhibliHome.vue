@@ -7,7 +7,7 @@
         <div class="hud-top">
           <div class="hud-logo">
             <div class="logo-ring"></div>
-            <span class="logo-text">AURORA<span class="logo-accent">-朱</span></span>
+            <span class="logo-text">{{ brandName }}</span>
           </div>
           <div class="hud-status">
             <span class="status-indicator"></span>
@@ -24,7 +24,6 @@
           <!-- 3D TERMINAL HEAD (centerpiece) -->
           <div class="hero-terminal-container">
             <canvas ref="heroCanvas" class="hero-canvas"></canvas>
-            <div class="terminal-glow"></div>
           </div>
 
           <p class="hero-subtitle">Aurora-星途</p>
@@ -74,25 +73,24 @@
     <footer class="footer">
       <div class="footer-content">
         <div class="footer-left">
-          <span class="footer-logo">AURORA<span class="logo-accent">-朱</span></span>
-          <p class="footer-slogan">以代码构建无限可能，让每一个想法都拥有沉浸式表达。</p>
+          <span class="footer-logo">{{ brandName }}</span>
+          <p class="footer-slogan">{{ footerNote }}</p>
         </div>
         <div class="footer-right">
-          <a href="https://github.com/zhult218-art" target="_blank" rel="noopener" class="social-btn" data-glow data-magnetic aria-label="GitHub">
+          <a v-if="githubUrl" :href="githubUrl" target="_blank" rel="noopener" class="social-btn" data-glow data-magnetic aria-label="GitHub">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2c-3.2.7-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18.92-.26 1.9-.38 2.88-.39.98 0 1.96.13 2.88.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.78 1.05.78 2.12v3.14c0 .31.21.67.8.56A10.5 10.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
           </a>
-          <a href="mailto:zhult218@gmail.com" class="social-btn" data-glow data-magnetic aria-label="Gmail">
+          <a v-if="contactEmail" :href="'mailto:' + contactEmail" class="social-btn" data-glow data-magnetic aria-label="邮箱">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 7 10-7"/></svg>
-          </a>
-          <a href="mailto:m17357515408@163.com" class="social-btn mail-163" data-glow data-magnetic aria-label="163 邮箱">
-            <span class="mail-badge">163</span>
           </a>
         </div>
       </div>
       <div class="footer-bottom">
-        <span>© {{ currentYear }} Aurora-朱 · 无限可能</span>
-        <span class="fb-divider">│</span>
-        <span class="footer-mails">zhult218@gmail.com · m17357515408@163.com</span>
+        <span>{{ copyrightText }}</span>
+        <template v-if="contactEmail">
+          <span class="fb-divider">│</span>
+          <span class="footer-mails">{{ contactEmail }}</span>
+        </template>
       </div>
     </footer>
 
@@ -125,7 +123,7 @@
 // 首页（吉卜力/星尘主题）：终端 HUD 风格首屏，
 // Three.js 头部模型粒子场景 + 时间刷新 + 滚动视差
 // ====================================================
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import * as THREE from 'three'
 import HomeShowcaseMini from '@/components/home/HomeShowcaseMini.vue'
@@ -133,6 +131,19 @@ import ArticleCards from '@/components/home/ArticleCards.vue'
 import HomeQuickNav from '@/components/home/HomeQuickNav.vue'
 import DailyQuote from '@/components/home/DailyQuote.vue'
 import WelcomeGreeting from '@/components/home/WelcomeGreeting.vue'
+import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
+
+// 页脚品牌 / 社交 / 版权均来自系统设置（blog_setting）
+const site = useSiteSettingsStore()
+const brandName = computed(() => site.brandName)
+const footerNote = computed(() =>
+  site.footer.footerNote || site.site.slogan || '以代码构建无限可能，让每一个想法都拥有沉浸式表达。')
+const githubUrl = computed(() => site.social.github || '')
+const contactEmail = computed(() => site.footer.contactEmail || (
+  /^mailto:/i.test(site.social.email || '') ? site.social.email.slice(7) : (site.social.email || '')
+))
+const copyrightText = computed(() =>
+  site.footer.copyright || `© ${new Date().getFullYear()} ${site.brandName} · 无限可能`)
 
 const heroSection = ref(null)
 const heroCanvas = ref(null)
@@ -141,12 +152,10 @@ const currentTime = ref('')
 const showBackTop = ref(false)
 
 let scene, camera, renderer, clock
-let headGroup, particles, rings = []
+let headGroup, particles
 let raf = 0
 let timeInterval = 0
 let canvasBox = null
-
-const currentYear = new Date().getFullYear()
 
 // 刷新页面显示的当前时间
 function updateTime() {
@@ -296,20 +305,8 @@ function initThreeScene() {
 
   scene.add(headGroup)
 
-  const ringColors = [0x667eea, 0x764ba2, 0x00ffff]
-  for (let i = 0; i < 3; i++) {
-    const ringGeo = new THREE.TorusGeometry(1.6 + i * 0.25, 0.003, 8, 120)
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: ringColors[i],
-      transparent: true,
-      opacity: 0.25 - i * 0.06
-    })
-    const ring = new THREE.Mesh(ringGeo, ringMat)
-    ring.rotation.x = Math.PI * 0.5 + i * 0.3
-    ring.rotation.y = i * 0.5
-    rings.push(ring)
-    scene.add(ring)
-  }
+  // 2026-09-23：移除星球外围的 3 个 torus 大光环，
+  // hero-canvas 除转动星球外保持 100% 透明
 
   clock = new THREE.Clock()
   animate()
@@ -352,14 +349,6 @@ function animate() {
       particles.material.opacity = (0.6 + Math.sin(t * 0.5) * 0.2) * (1 - ease * 0.85)
     }
   }
-
-  rings.forEach((ring, i) => {
-    ring.rotation.z = t * (0.1 + i * 0.05)
-    ring.rotation.x = Math.PI * 0.5 + Math.sin(t * 0.2 + i) * 0.2
-    // 轨道散开并隐去
-    ring.position.z = ease * (5 + i * 4)
-    ring.material.opacity = (0.25 - i * 0.06) * (1 - ease * 0.72)
-  })
 
   camera.position.z = 4.5 + ease * 8
 
@@ -575,24 +564,9 @@ onBeforeRouteLeave(() => {
   height: 320px;
   margin: 0 auto 0.75rem;
   animation: fadeInUp 1s ease-out;
-  /* 深色基底：极端情况下合成层纹理未就绪时露出的是暗底而非白框，
-     同时为粒子星球增加纵深对比 */
-  background: radial-gradient(circle at 50% 45%, rgba(10, 12, 30, 0.55), rgba(5, 5, 16, 0.22) 72%);
+  /* 2026-09-23：hero-canvas 除转动星球外 100% 透明，不再加深色径向基底 */
+  background: transparent;
   border-radius: 50%;
-}
-
-.terminal-glow {
-  position: absolute;
-  inset: -40px;
-  background: radial-gradient(circle at 50% 50%, rgba(102, 126, 234, 0.15), transparent 60%);
-  pointer-events: none;
-  animation: glowPulse 4s ease-in-out infinite;
-  z-index: 0;
-}
-
-@keyframes glowPulse {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
 }
 
 /* Voice hint */

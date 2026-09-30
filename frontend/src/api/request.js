@@ -23,11 +23,16 @@ const request = axios.create({
 })
 
 // 请求拦截器：从 auth Store 读取 token 并注入 Authorization 头
+// 同时把 auth.user.id 注入 X-Blog-Uid 头（qzone-service 用来隔离扫码会话/抓取任务归属）
 request.interceptors.request.use(
   config => {
     const auth = useAuthStore()
     if (auth.token) {
       config.headers.Authorization = `Bearer ${auth.token}`
+    }
+    const uid = auth.user?.id
+    if (uid != null) {
+      config.headers['X-Blog-Uid'] = String(uid)
     }
     return config
   },

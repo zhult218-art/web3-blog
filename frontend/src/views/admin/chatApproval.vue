@@ -36,6 +36,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getPendingApplications, approveApplication, rejectApplication } from '@/api/chat'
+import { alert as dlgAlert } from '@/composables/useDialog'
 
 const applications = ref([])
 
@@ -51,7 +52,7 @@ async function approve(id) {
     await approveApplication(id)
     applications.value = applications.value.filter(a => a.id !== id)
   } catch (e) {
-    alert(e?.response?.data?.message || '操作失败')
+    dlgAlert(e?.response?.data?.message || '操作失败', { title: '通过失败' })
   }
 }
 
@@ -60,7 +61,7 @@ async function reject(id) {
     await rejectApplication(id)
     applications.value = applications.value.filter(a => a.id !== id)
   } catch (e) {
-    alert(e?.response?.data?.message || '操作失败')
+    dlgAlert(e?.response?.data?.message || '操作失败', { title: '驳回失败' })
   }
 }
 

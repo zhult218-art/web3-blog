@@ -1,19 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  com.web3.common.security.JwtUtil
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestHeader
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.quant.controller;
 
 import com.web3.common.core.ApiResponse;
@@ -44,6 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>创建、更新、删除、运行等写操作接口均要求请求头携带 {@code Authorization}
  * 登录令牌,并通过 {@link com.web3.common.security.AuthUtils} 校验 JWT 有效性。</p>
+ *
+ * <p><b>归属校验（2026-09-17 修订）</b>：update/delete/run 接口在调用 Service 前
+ * 通过 AuthUtils 拿到当前 userId，传给 Service 做归属校验，防止任意登录用户
+ * 改/删/跑他人策略。公共策略（user_id 为 NULL）的写操作仅允许 ADMIN，
+ * 通过 {@link AuthUtils#requireAdmin} 强制校验。</p>
  */
 @RestController
 @RequestMapping(value={"/strategy"})
@@ -80,7 +69,7 @@ public class StrategyController {
     public ApiResponse<StrategyVO> getById(@PathVariable Long id) {
         StrategyVO vo = this.strategyService.findById(id);
         if (vo == null) {
-            return ApiResponse.fail((int)404, (String)"Strategy not found");
+            return ApiResponse.fail(404, "Strategy not found");
         }
         return ApiResponse.ok(vo);
     }
@@ -94,12 +83,13 @@ public class StrategyController {
      */
     @PostMapping
     public ApiResponse<StrategyVO> create(@RequestBody Strategy strategy, @RequestHeader(value="Authorization") String authorization) {
-        AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.strategyService.create(strategy));
+        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
+        return ApiResponse.ok(this.strategyService.create(strategy, userId));
     }
 
     /**
      * 更新策略(前端路由 PUT /strategy/{id})。
+     * 同时校验策略归属，非归属用户禁止更新。
      *
      * @param id       策略 ID(路径参数,覆盖 request body 中的 id)
      * @param strategy 更新后的策略信息
@@ -108,16 +98,17 @@ public class StrategyController {
      */
     @PutMapping(value={"/{id}"})
     public ApiResponse<StrategyVO> update(@PathVariable Long id, @RequestBody Strategy strategy, @RequestHeader(value="Authorization") String authorization) {
-        AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        StrategyVO vo = this.strategyService.updateStrategy(id, strategy);
+        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
+        StrategyVO vo = this.strategyService.updateStrategy(id, strategy, userId);
         if (vo == null) {
-            return ApiResponse.fail((int)404, (String)"Strategy not found");
+            return ApiResponse.fail(404, "Strategy not found");
         }
         return ApiResponse.ok(vo);
     }
 
     /**
      * 删除策略(前端路由 DELETE /strategy/{id})。
+     * 同时校验策略归属，非归属用户禁止删除。
      *
      * @param id 策略 ID
      * @param authorization 登录令牌
@@ -125,14 +116,14 @@ public class StrategyController {
      */
     @DeleteMapping(value={"/{id}"})
     public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String authorization) {
-        AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        this.strategyService.deleteStrategy(id);
+        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
+        this.strategyService.deleteStrategy(id, userId);
         return ApiResponse.ok();
     }
 
     /**
      * 运行/回测策略(前端路由 POST /strategy/{id}/run),
-     * 执行时会向 quant_log 表写入一条执行日志。
+     * 执行时会向 quant_log 表写入一条执行日志。同时校验策略归属。
      *
      * @param id 策略 ID
      * @param authorization 登录令牌
@@ -140,8 +131,8 @@ public class StrategyController {
      */
     @PostMapping(value={"/{id}/run"})
     public ApiResponse<Object> run(@PathVariable Long id, @RequestHeader(value="Authorization") String authorization) {
-        AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        this.strategyService.runStrategy(id);
+        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
+        this.strategyService.runStrategy(id, userId);
         return ApiResponse.ok();
     }
 }

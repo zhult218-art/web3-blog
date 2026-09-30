@@ -220,6 +220,9 @@
 </template>
 
 <script setup>
+// <model-viewer> 自定义元素：从 Google CDN 改为 npm 包按需引入
+// （只在此页注册，打包为独立异步 chunk，不拖累首屏；CDN 在国内被墙会报连接重置）
+import '@google/model-viewer'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProductDetail, createOrder } from '@/api/shop'

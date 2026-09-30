@@ -75,6 +75,11 @@
               <h4 class="text-xs text-amber-100 font-bold">{{ result.strategy_name || '自定义筛选' }}</h4>
               <span class="text-[10px] text-amber-600/40">候选池 {{ result.pool_size || 0 }} 只 · 命中 {{ (result.items || []).length }} 只 · {{ result.generated_at }}</span>
               <span v-if="result.source" class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500/70 border border-amber-500/20 ml-auto">{{ result.source }}</span>
+              <button v-if="(result.items || []).length"
+                class="text-[10px] px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-400/25 hover:bg-cyan-500/25 transition shrink-0"
+                @click="saveToPortfolio" title="将筛选结果存入组合策略">
+                📥 存入组合策略
+              </button>
             </div>
 
             <div v-if="(result.items || []).length" class="rounded-xl bg-[#1a1208] border border-amber-800/15 overflow-hidden">
@@ -139,7 +144,7 @@ const props = defineProps({
   lastResult: { type: Object, default: null }
 })
 
-const emit = defineEmits(['update:open', 'update:lastResult'])
+const emit = defineEmits(['update:open', 'update:lastResult', 'saved'])
 
 // 弹窗内部状态
 const mode = ref('builtin')
@@ -212,6 +217,39 @@ async function runScreen() {
     error.value = e.message || '选股失败'
   } finally {
     running.value = false
+  }
+}
+
+// 将当前筛选结果存入组合策略（localStorage 持久化）
+function saveToPortfolio() {
+  if (!result.value || !(result.value.items || []).length) return
+  const entry = {
+    id: Date.now(),
+    strategy_id: builtinId.value,
+    strategy_name: result.value.strategy_name || '自定义筛选',
+    items: result.value.items.map(it => ({
+      code: it.code, name: it.name, price: it.price, pct: it.pct,
+      score: it.score, signal_date: it.signal_date, reasons: it.reasons,
+    })),
+    saved_at: new Date().toLocaleString('zh-CN'),
+  }
+  try {
+    const key = 'quant_strategy_portfolio'
+    const list = JSON.parse(localStorage.getItem(key) || '[]')
+    list.unshift(entry)
+    // 最多保留 20 条
+    if (list.length > 20) list.length = 20
+    localStorage.setItem(key, JSON.stringify(list))
+    emit('saved')
+    // 简单提示
+    const btn = event?.target
+    if (btn) {
+      const orig = btn.textContent
+      btn.textContent = '✅ 已存入'
+      setTimeout(() => { btn.textContent = orig }, 1500)
+    }
+  } catch (e) {
+    console.warn('save to portfolio failed', e)
   }
 }
 

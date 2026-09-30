@@ -1,6 +1,9 @@
 -- =====================================================================
 -- API 中转站（AI Proxy Relay）数据库设计 v2 —— 全面版
--- 库：web3_admin    引擎：InnoDB    字符集：utf8mb4_0900_ai_ci
+-- 库：web3_admin    引擎：InnoDB    字符集：utf8mb4_unicode_ci
+-- 2026-09-17 修订：原 utf8mb4_0900_ai_ci 与库默认 utf8mb4_unicode_ci 不一致，
+-- 跨表 JOIN（如 ai-proxy 表 JOIN admin_operation_log）会触发 "Illegal mix of collations" 错误。
+-- 现统一为 utf8mb4_unicode_ci，与 01-databases.sql 中 web3_admin 库默认 collation 对齐。
 -- ---------------------------------------------------------------------
 -- 设计原则：
 --   1) 高并发安全（防死锁）：
@@ -65,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `proxy_channel` (
   UNIQUE KEY `uk_name` (`name`),
   KEY `idx_status_priority` (`status`,`priority`),
   KEY `idx_updated` (`updated_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='API中转站-上游渠道';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API中转站-上游渠道';
 
 -- ---------------------------------------------------------------
 -- 2. proxy_token 访问令牌
@@ -95,7 +98,7 @@ CREATE TABLE IF NOT EXISTS `proxy_token` (
   KEY `idx_user` (`user_id`,`status`),
   KEY `idx_group` (`group_name`),
   KEY `idx_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='API中转站-访问令牌';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API中转站-访问令牌';
 
 -- ---------------------------------------------------------------
 -- 3. proxy_model 模型与倍率
@@ -119,7 +122,7 @@ CREATE TABLE IF NOT EXISTS `proxy_model` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_model` (`model_name`),
   KEY `idx_status_sort` (`status`,`sort_order`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='API中转站-模型倍率';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API中转站-模型倍率';
 
 -- ---------------------------------------------------------------
 -- 4. proxy_request_log 请求日志（追加写，逻辑外键）
@@ -148,7 +151,7 @@ CREATE TABLE IF NOT EXISTS `proxy_request_log` (
   KEY `idx_token_created` (`token_id`,`created_at`),
   KEY `idx_channel_created` (`channel_id`,`created_at`),
   KEY `idx_model_created` (`model_name`,`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='API中转站-请求日志';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API中转站-请求日志';
 
 -- ---------------------------------------------------------------
 -- 5. proxy_user_group 用户分组（P2-T14 预留，default 组即刻生效）
@@ -163,7 +166,7 @@ CREATE TABLE IF NOT EXISTS `proxy_user_group` (
   `updated_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_group` (`group_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='API中转站-用户分组倍率';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API中转站-用户分组倍率';
 
 -- ---------------------------------------------------------------
 -- 6. proxy_redeem_code 兑换码（P2-T11 预留，只存哈希防拖库）
@@ -184,7 +187,7 @@ CREATE TABLE IF NOT EXISTS `proxy_redeem_code` (
   UNIQUE KEY `uk_code_hash` (`code_hash`),
   KEY `idx_batch` (`batch_no`,`status`),
   KEY `idx_expired` (`expired_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='API中转站-额度兑换码';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API中转站-额度兑换码';
 
 -- ---------------------------------------------------------------
 -- 7. proxy_alert 告警记录（dedup_key 幂等，INSERT IGNORE 防重）
@@ -201,7 +204,7 @@ CREATE TABLE IF NOT EXISTS `proxy_alert` (
   UNIQUE KEY `uk_dedup` (`dedup_key`),
   KEY `idx_type_level_time` (`alert_type`,`level`,`created_at`),
   KEY `idx_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='API中转站-告警记录';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API中转站-告警记录';
 
 -- ---------------------------------------------------------------
 -- 8. proxy_daily_stat 日汇总（ON DUPLICATE KEY 原子累加，长历史留存，
@@ -218,7 +221,7 @@ CREATE TABLE IF NOT EXISTS `proxy_daily_stat` (
   `quota_cost`        BIGINT          NOT NULL DEFAULT 0,
   `updated_at`        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`stat_date`,`user_key`,`model_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='API中转站-按日汇总';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API中转站-按日汇总';
 
 -- ---------------------------------------------------------------
 -- 种子数据（幂等）

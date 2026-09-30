@@ -105,6 +105,7 @@ import { createPost } from '@/api/forum'
 import { uploadMedia } from '@/api/media'
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
+import { hasPerm } from '@/utils/permissions'
 
 const router = useRouter()
 const toast = useToastStore()
@@ -209,10 +210,15 @@ async function uploadVideo(e) {
 // 提交发布：社区内容走 createPost（web3_forum），与博客分库
 async function submit() {
   if (!canSubmit.value) return
+  // 发帖权限：互动类默认拥有，管理员可收回（-post）
+  if (authStore.isLoggedIn && !hasPerm(authStore.user, 'post')) {
+    toast.warning('你已被限制发帖，请联系管理员')
+    return
+  }
   submitting.value = true
   const authorName = currentUserName.value
   try {
-    await createPost({
+    const res = await createPost({
       title: form.title,
       content: form.content,
       category: form.category,
@@ -220,7 +226,11 @@ async function submit() {
       mediaUrl: form.mediaUrl,
       mediaType: form.mediaType,
     })
-    toast.success(form.type === 'video' ? '视频发布成功！' : '帖子发布成功！')
+    if (res?.data?.status === 'pending') {
+      toast.success('发布成功，等待管理员审核通过后将公开展示')
+    } else {
+      toast.success(form.type === 'video' ? '视频发布成功！' : '帖子发布成功！')
+    }
     router.push('/community')
   } catch {
     toast.error('发布失败，请先登录')

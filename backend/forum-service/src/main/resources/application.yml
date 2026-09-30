@@ -1,6 +1,10 @@
 spring:
   application:
     name: forum-service
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
   main:
     allow-bean-definition-overriding: true
   cloud:
@@ -32,3 +36,8 @@ mybatis-plus:
 logging:
   level:
     com.web3.forum: debug
+
+# 本地上传目录（图片/群相册）
+app:
+  upload:
+    dir: ${app_upload_dir:./uploads}

@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.core.mapper.BaseMapper
- *  org.apache.ibatis.annotations.Mapper
- */
 package com.web3.forum.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -28,8 +21,7 @@ import org.apache.ibatis.annotations.Update;
  * </ul>
  */
 @Mapper
-public interface PostMapper
-extends BaseMapper<Post> {
+public interface PostMapper extends BaseMapper<Post> {
     /** 帖子点赞数 +1（仅统计未删除记录） */
     @Update("UPDATE post SET like_count = like_count + 1 WHERE id = #{id} AND deleted = 0")
     int incrLikeCount(@Param("id") Long id);

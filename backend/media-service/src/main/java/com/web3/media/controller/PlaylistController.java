@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.media.controller;
 
 import com.web3.common.core.ApiResponse;
@@ -29,8 +18,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping(value={"/playlist"})
 /**
  * PlaylistController —— 播放列表接口控制器
  * <p>
@@ -45,6 +32,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>@RequestMapping("/playlist")：对外接口统一前缀为 /playlist</li>
  * </ul>
  */
+@RestController
+@RequestMapping(value={"/playlist"})
 public class PlaylistController {
     /** 播放列表业务服务 */
     private final PlaylistService playlistService;
@@ -98,12 +87,12 @@ public class PlaylistController {
     @PutMapping(value={"/{id}"})
     public ApiResponse<Playlist> update(@PathVariable Long id, @RequestBody Playlist playlist, @RequestHeader(value="Authorization") String authorization) {
         Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        Playlist exist = (Playlist)this.playlistService.getById(id);
+        Playlist exist = this.playlistService.getById(id);
         if (exist == null) {
-            return ApiResponse.fail((int)404, (String)"Playlist not found");
+            return ApiResponse.fail(404, "Playlist not found");
         }
         if (exist.getUserId() != null && !exist.getUserId().equals(userId)) {
-            throw new UnauthorizedException(403, "\u65e0\u6743\u4fee\u6539\u8be5\u64ad\u653e\u5217\u8868");
+            throw new UnauthorizedException(403, "无权修改该播放列表");
         }
         playlist.setId(id);
         playlist.setUserId(exist.getUserId());
@@ -122,12 +111,12 @@ public class PlaylistController {
     @DeleteMapping(value={"/{id}"})
     public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String authorization) {
         Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        Playlist exist = (Playlist)this.playlistService.getById(id);
+        Playlist exist = this.playlistService.getById(id);
         if (exist == null) {
-            return ApiResponse.fail((int)404, (String)"Playlist not found");
+            return ApiResponse.fail(404, "Playlist not found");
         }
         if (exist.getUserId() != null && !exist.getUserId().equals(userId)) {
-            throw new UnauthorizedException(403, "\u65e0\u6743\u5220\u9664\u8be5\u64ad\u653e\u5217\u8868");
+            throw new UnauthorizedException(403, "无权删除该播放列表");
         }
         this.playlistService.removeById(id);
         return ApiResponse.ok();

@@ -7,7 +7,8 @@
   </head>
   <body class="bg-web3-bg text-gray-100 antialiased">
     <div id="app"></div>
+    <!-- model-viewer 不再走 Google CDN（国内被墙必报 ERR_CONNECTION_RESET），
+         改为 npm 依赖 @google/model-viewer，在商品详情页（shop/detail.vue）按需 import 注册 -->
     <script type="module" src="/src/main.js"></script>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
   </body>
 </html>

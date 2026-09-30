@@ -92,4 +92,51 @@ public final class AuthUtils {
   public static String requireAdmin(String authHeader, JwtUtil jwtUtil, JwtProperties properties) {
     return requireRole(authHeader, jwtUtil, properties, "ADMIN");
   }
+
+  /**
+   * 细粒度权限校验（与前端 utils/permissions.js 的负向权限语义保持一致）：
+   * <ol>
+   *   <li>ADMIN 角色恒通过；</li>
+   *   <li>令牌 perms 声明包含 "-perm"（被管理员收回）→ 403；</li>
+   *   <li>包含 "perm"（显式授权）→ 通过；</li>
+   *   <li>两者都没有 → 按 defaultAllow 判定：互动类权限（评论/发帖/聊天）默认
+   *       true（注册即拥有），上传类权限默认 false（需管理员显式授权）；
+   *       旧令牌无 perms 声明时同样走此兜底，保证向后兼容。</li>
+   * </ol>
+   *
+   * @param authHeader Authorization 请求头原文
+   * @param jwtUtil    JWT 工具类
+   * @param properties JWT 配置
+   * @param perm       权限码（如 comment / post / chat / upload:photo）
+   * @param defaultAllow 无显式授权/收回记录时的兜底策略
+   * @return 当前用户名（subject），供业务记录操作人
+   * @throws UnauthorizedException 未登录抛 401，权限不足抛 403
+   */
+  public static String requirePerm(String authHeader, JwtUtil jwtUtil, JwtProperties properties, String perm, boolean defaultAllow) {
+    String token = resolveToken(authHeader, properties);
+    if (!jwtUtil.validate(token)) {
+      throw new UnauthorizedException(401, "登录已过期");
+    }
+    Claims claims = jwtUtil.parseClaims(token);
+    String authorities = claims.get("authorities", String.class);
+    if ("ROLE_ADMIN".equals(authorities)) {
+      return claims.getSubject();
+    }
+    String perms = claims.get("perms", String.class);
+    if (perms != null && !perms.isBlank()) {
+      for (String p : perms.split(",")) {
+        String code = p.trim();
+        if (code.equals("-" + perm)) {
+          throw new UnauthorizedException(403, "该操作已被管理员限制");
+        }
+        if (code.equals(perm)) {
+          return claims.getSubject();
+        }
+      }
+    }
+    if (!defaultAllow) {
+      throw new UnauthorizedException(403, "无权限：请联系管理员开通");
+    }
+    return claims.getSubject();
+  }
 }

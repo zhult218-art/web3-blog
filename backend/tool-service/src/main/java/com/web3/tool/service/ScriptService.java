@@ -1,16 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.core.conditions.Wrapper
- *  com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper
- *  com.baomidou.mybatisplus.core.metadata.IPage
- *  com.baomidou.mybatisplus.extension.plugins.pagination.Page
- *  com.baomidou.mybatisplus.extension.service.impl.ServiceImpl
- *  com.web3.common.core.PageResult
- *  org.springframework.stereotype.Service
- *  org.springframework.util.StringUtils
- */
 package com.web3.tool.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
@@ -35,8 +22,7 @@ import org.springframework.util.StringUtils;
  * {@code @Service} 注解使其被 Spring 容器托管,供 ScriptController 注入使用。</p>
  */
 @Service
-public class ScriptService
-extends ServiceImpl<ScriptMapper, Script> {
+public class ScriptService extends ServiceImpl<ScriptMapper, Script> {
     /**
      * 分页查询脚本列表:关键词模糊匹配名称/描述/标签,分类精确匹配,
      * 按创建时间倒序。
@@ -48,15 +34,15 @@ extends ServiceImpl<ScriptMapper, Script> {
      * @return 脚本分页结果
      */
     public PageResult<ScriptVO> page(int pageNum, int pageSize, String keyword, String category) {
-        LambdaQueryWrapper<Script> wrapper = new LambdaQueryWrapper<Script>();
-        if (StringUtils.hasText((String)keyword)) {
-            wrapper.and(w -> w.like(Script::getName, (Object)keyword).or().like(Script::getDescription, (Object)keyword).or().like(Script::getTags, (Object)keyword));
+        LambdaQueryWrapper<Script> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like(Script::getName, keyword).or().like(Script::getDescription, keyword).or().like(Script::getTags, keyword));
         }
-        if (StringUtils.hasText((String)category)) {
-            wrapper.eq(Script::getCategory, (Object)category);
+        if (StringUtils.hasText(category)) {
+            wrapper.eq(Script::getCategory, category);
         }
         wrapper.orderByDesc(Script::getCreatedAt);
-        Page<Script> p = new Page<Script>((long)pageNum, (long)pageSize);
+        Page<Script> p = new Page<>(pageNum, pageSize);
         IPage<Script> result = this.page(p, wrapper);
         List<ScriptVO> records = result.getRecords().stream().map(this::toVO).collect(Collectors.toList());
         return PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), records);
@@ -69,7 +55,7 @@ extends ServiceImpl<ScriptMapper, Script> {
      * @return 脚本 VO;不存在时返回 null
      */
     public ScriptVO findById(Long id) {
-        Script entity = (Script)this.getById(id);
+        Script entity = this.getById(id);
         if (entity == null) {
             return null;
         }
@@ -93,7 +79,7 @@ extends ServiceImpl<ScriptMapper, Script> {
      * @param id 脚本 ID
      */
     public void incrementDownload(Long id) {
-        Script script = (Script)this.getById(id);
+        Script script = this.getById(id);
         if (script != null) {
             script.setDownloadCount(script.getDownloadCount() == null ? 1L : script.getDownloadCount() + 1L);
             this.updateById(script);

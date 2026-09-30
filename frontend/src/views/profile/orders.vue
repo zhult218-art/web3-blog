@@ -107,7 +107,7 @@ async function cancel(order) {
 
 // 删除订单：二次确认后逻辑删除并刷新列表
 async function remove(order) {
-  if (!(await confirm(`确认删除订单 #${order.id}？删除后不可恢复。`))) return
+  if (!(await confirm(`确认删除订单 #${order.id}？删除后不可恢复。`, { title: '删除订单', okText: '删除', tone: 'danger' }))) return
   acting.value = order.id
   try {
     await deleteOrder(order.id)

@@ -1,6 +1,6 @@
 <template>
   <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-    <div class="glass-panel w-full max-w-lg p-6">
+    <div class="glass-panel w-full max-w-lg mx-4 p-5 md:p-6 max-h-[85vh] overflow-y-auto">
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold">{{ title }}</h3>
         <button class="text-gray-300" @click="close">关闭</button>

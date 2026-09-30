@@ -221,9 +221,13 @@ public class OrderService {
      * PENDING→PAID/CANCELLED、PAID→SHIPPED/CANCELLED、SHIPPED→COMPLETED；
      * PAID 转换走原子 UPDATE 防并发；取消订单自动回补库存
      *
+     * <p>注：方法加 @Transactional，保证"状态变更 + 库存回补"在同一事务内原子完成，
+     * 避免取消订单回补库存中途失败导致库存泄漏。</p>
+     *
      * @param id     订单 ID
      * @param status 目标状态（PENDING/PAID/SHIPPED/COMPLETED/CANCELLED）
      */
+    @Transactional
     public void updateStatus(Long id, String status) {
         if (status == null || !ALLOWED_STATUS.contains(status)) {
             throw new BusinessException("\u975e\u6cd5\u8ba2\u5355\u72b6\u6001: " + status);

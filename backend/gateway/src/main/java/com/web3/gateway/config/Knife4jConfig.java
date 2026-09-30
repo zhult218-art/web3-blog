@@ -1,9 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.springframework.context.annotation.Configuration
- */
 package com.web3.gateway.config;
 
 import org.springframework.context.annotation.Configuration;

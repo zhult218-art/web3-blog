@@ -1,21 +1,9 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.springframework.context.annotation.Bean
- *  org.springframework.context.annotation.Configuration
- *  org.springframework.security.config.annotation.web.builders.HttpSecurity
- *  org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
- *  org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer$AuthorizedUrl
- *  org.springframework.security.web.SecurityFilterChain
- */
 package com.web3.shop.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -28,8 +16,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * <p>
  * 关键注解作用：
  * <ul>
- *   <li>@Configuration：声明为 Spring 配置类</li>
- *   <li>@EnableWebSecurity：启用 Spring Security Web 安全配置</li>
+ *   <li>{@code @Configuration}：声明为 Spring 配置类</li>
+ *   <li>{@code @EnableWebSecurity}：启用 Spring Security Web 安全配置</li>
  * </ul>
  */
 @Configuration
@@ -43,7 +31,8 @@ public class PublicSecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth -> ((AuthorizeHttpRequestsConfigurer.AuthorizedUrl)auth.anyRequest()).permitAll());
-        return (SecurityFilterChain)http.build();
+        http.csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        return http.build();
     }
 }

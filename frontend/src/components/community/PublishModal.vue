@@ -113,6 +113,7 @@ import { createPost } from '@/api/forum'
 import { uploadMedia } from '@/api/media'
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
+import { hasPerm } from '@/utils/permissions'
 
 const props = defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue', 'published'])
@@ -177,6 +178,11 @@ async function uploadVideo(e) {
 
 async function submit() {
   if (!canSubmit.value) return
+  // 发帖权限：互动类默认拥有，管理员可收回（-post）
+  if (authStore.isLoggedIn && !hasPerm(authStore.user, 'post')) {
+    toast.warning('你已被限制发帖，请联系管理员')
+    return
+  }
   submitting.value = true
   try {
     const authorName = currentUserName.value
@@ -188,11 +194,13 @@ async function submit() {
       })
       toast.success('文章发布成功！')
     } else {
-      await createPost({
+      const res = await createPost({
         title: form.title, content: form.content, category: form.category,
         authorName, mediaUrl: form.mediaUrl, mediaType: form.mediaType,
       })
-      toast.success(form.type === 'video' ? '视频发布成功！' : '帖子发布成功！')
+      toast.success(res?.data?.status === 'pending'
+        ? '发布成功，等待管理员审核通过后将公开展示'
+        : (form.type === 'video' ? '视频发布成功！' : '帖子发布成功！'))
     }
     emit('published')
     resetForm()

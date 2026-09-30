@@ -1,19 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  io.swagger.v3.oas.annotations.tags.Tag
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestHeader
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.shop.controller;
 
 import com.web3.common.core.ApiResponse;
@@ -25,19 +9,17 @@ import com.web3.shop.dto.OrderCreateDTO;
 import com.web3.shop.service.OrderService;
 import com.web3.shop.vo.OrderVO;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping(value={"/order"})
-@Tag(name="\u8ba2\u5355\u7ba1\u7406", description="\u8ba2\u5355\u521b\u5efa\u4e0e\u67e5\u8be2")
 /**
  * OrderController —— 订单接口控制器
  * <p>
@@ -49,11 +31,14 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>
  * 关键注解作用：
  * <ul>
- *   <li>@RestController：声明为 REST 控制器，返回值自动序列化为 JSON</li>
- *   <li>@RequestMapping("/order")：对外接口统一前缀为 /order</li>
- *   <li>@Tag：OpenAPI/Swagger 文档分组标签（订单管理）</li>
+ *   <li>{@code @RestController}：声明为 REST 控制器，返回值自动序列化为 JSON</li>
+ *   <li>{@code @RequestMapping("/order")}：对外接口统一前缀为 /order</li>
+ *   <li>{@code @Tag}：OpenAPI/Swagger 文档分组标签（订单管理）</li>
  * </ul>
  */
+@RestController
+@RequestMapping("/order")
+@Tag(name = "订单管理", description = "订单创建与查询")
 public class OrderController {
     /** 订单业务服务 */
     private final OrderService orderService;
@@ -77,9 +62,9 @@ public class OrderController {
      * @return 创建成功后的订单视图对象
      */
     @PostMapping
-    public ApiResponse<OrderVO> create(@RequestBody OrderCreateDTO dto, @RequestHeader(value="Authorization", required=false) String authorization) {
-        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.orderService.createOrder(dto, userId));
+    public ApiResponse<OrderVO> create(@RequestBody OrderCreateDTO dto, @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = AuthUtils.requireUserId(authorization, jwtUtil, jwtProperties);
+        return ApiResponse.ok(orderService.createOrder(dto, userId));
     }
 
     /**
@@ -91,10 +76,10 @@ public class OrderController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 分页的订单视图对象列表
      */
-    @GetMapping(value={"/list"})
-    public ApiResponse<PageResult<OrderVO>> list(@RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="20") int size, @RequestHeader(value="Authorization", required=false) String authorization) {
-        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.orderService.pageByUser(userId, page, size));
+    @GetMapping("/list")
+    public ApiResponse<PageResult<OrderVO>> list(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size, @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = AuthUtils.requireUserId(authorization, jwtUtil, jwtProperties);
+        return ApiResponse.ok(orderService.pageByUser(userId, page, size));
     }
 
     /**
@@ -105,10 +90,10 @@ public class OrderController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 订单视图对象
      */
-    @GetMapping(value={"/{id}"})
-    public ApiResponse<OrderVO> getDetail(@PathVariable Long id, @RequestHeader(value="Authorization", required=false) String authorization) {
-        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.orderService.getDetailOwned(id, userId));
+    @GetMapping("/{id}")
+    public ApiResponse<OrderVO> getDetail(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = AuthUtils.requireUserId(authorization, jwtUtil, jwtProperties);
+        return ApiResponse.ok(orderService.getDetailOwned(id, userId));
     }
 
     /**
@@ -119,10 +104,10 @@ public class OrderController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 取消后的订单视图对象
      */
-    @PostMapping(value={"/{id}/cancel"})
-    public ApiResponse<OrderVO> cancel(@PathVariable Long id, @RequestHeader(value="Authorization", required=false) String authorization) {
-        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.orderService.cancelOwned(id, userId));
+    @PostMapping("/{id}/cancel")
+    public ApiResponse<OrderVO> cancel(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = AuthUtils.requireUserId(authorization, jwtUtil, jwtProperties);
+        return ApiResponse.ok(orderService.cancelOwned(id, userId));
     }
 
     /**
@@ -133,10 +118,10 @@ public class OrderController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @DeleteMapping(value={"/{id}"})
-    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization", required=false) String authorization) {
-        Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        this.orderService.deleteOwned(id, userId);
+    @DeleteMapping("/{id}")
+    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = AuthUtils.requireUserId(authorization, jwtUtil, jwtProperties);
+        orderService.deleteOwned(id, userId);
         return ApiResponse.ok();
     }
 
@@ -150,10 +135,10 @@ public class OrderController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 分页的订单视图对象列表
      */
-    @GetMapping(value={"/admin/list"})
-    public ApiResponse<PageResult<OrderVO>> adminList(@RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="20") int size, @RequestParam(required=false) String status, @RequestHeader(value="Authorization", required=false) String authorization) {
-        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
-        return ApiResponse.ok(this.orderService.pageAll(page, size, status));
+    @GetMapping("/admin/list")
+    public ApiResponse<PageResult<OrderVO>> adminList(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size, @RequestParam(required = false) String status, @RequestHeader(value = "Authorization", required = false) String authorization) {
+        AuthUtils.requireAdmin(authorization, jwtUtil, jwtProperties);
+        return ApiResponse.ok(orderService.pageAll(page, size, status));
     }
 
     /**
@@ -165,10 +150,10 @@ public class OrderController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @org.springframework.web.bind.annotation.PutMapping(value={"/{id}/status"})
-    public ApiResponse<Object> updateStatus(@PathVariable Long id, @RequestParam String status, @RequestHeader(value="Authorization", required=false) String authorization) {
-        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
-        this.orderService.updateStatus(id, status);
+    @PutMapping("/{id}/status")
+    public ApiResponse<Object> updateStatus(@PathVariable Long id, @RequestParam String status, @RequestHeader(value = "Authorization", required = false) String authorization) {
+        AuthUtils.requireAdmin(authorization, jwtUtil, jwtProperties);
+        orderService.updateStatus(id, status);
         return ApiResponse.ok();
     }
 }

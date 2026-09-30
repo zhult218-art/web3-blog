@@ -867,8 +867,45 @@ body[data-theme='aurora'] .web3-btn-ghost { color: rgba(15, 23, 42, 0.72); }
 .page-back:active { transform: translateY(1px) scale(0.98); }
 .page-back svg { width: 14px; height: 14px; transition: transform 0.25s ease; }
 .page-back:hover svg { transform: translateX(-3px); }
+
+/* ============================================================
+   GLOBAL RESPONSIVE SAFETY NET
+   断点标准：手机 ≤768 / 平板 769–1024 / 桌面 ≥1025
+   （侧栏统一在 xl≥1280 出现）
+   ============================================================ */
+
+/* 媒体元素不超出容器，避免横向滚动 */
+img, video, canvas, svg, iframe { max-width: 100%; }
+
+/* 手机端 */
 @media (max-width: 768px) {
-  body[data-theme='aurora'] body { background: #eef1f7; }
+  /* 输入框字号 ≥16px，避免 iOS Safari 聚焦时自动放大页面 */
+  input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  select,
+  textarea { font-size: 16px; }
+
+  /* 长代码强制换行，不撑破布局 */
+  pre, code {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /* 长文本链接断行 */
+  p, h1, h2, h3, h4, h5, h6, li, td, th { overflow-wrap: break-word; }
+
+  /* 表格无包裹容器时的兜底：小屏横向滚动而非压缩重叠 */
+  .web3-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+}
+
+/* 平板端：细滚动条保持，确保 1rem 基准在横竖屏下一致（不缩放页面） */
+@media (min-width: 769px) and (max-width: 1024px) {
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 }
 
 /* ============================================================

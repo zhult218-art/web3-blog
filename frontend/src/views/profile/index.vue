@@ -251,6 +251,64 @@
           </div>
         </div>
 
+        <!-- ══════ 实名认证 ══════ -->
+        <div ref="verifySection" class="mb-8 opacity-0">
+          <h2 class="section-title mb-4">实名认证</h2>
+          <div class="isekai-card p-6">
+            <!-- 已认证 -->
+            <div v-if="auth.user?.verified === 2" class="flex items-center gap-4">
+              <div class="text-4xl">✅</div>
+              <div>
+                <p class="text-sm font-bold text-emerald-300">已完成实名认证</p>
+                <p class="text-xs text-slate-500 mt-0.5">你可以在极光广场自由发言</p>
+              </div>
+            </div>
+            <!-- 审核中 -->
+            <div v-else-if="auth.user?.verified === 1" class="flex items-center gap-4">
+              <div class="text-4xl animate-pulse">⏳</div>
+              <div>
+                <p class="text-sm font-bold text-amber-300">实名认证审核中</p>
+                <p class="text-xs text-slate-500 mt-0.5">请耐心等待管理员审核，审核通过后即可发言</p>
+              </div>
+            </div>
+            <!-- 已拒绝 -->
+            <div v-else-if="auth.user?.verified === 3" class="text-center">
+              <div class="text-4xl mb-3">❌</div>
+              <p class="text-sm font-bold text-red-300 mb-2">实名认证被拒绝</p>
+              <p class="text-xs text-slate-500 mb-4">请核实信息后重新提交</p>
+              <button class="isekai-btn-primary text-xs" @click="showVerifyForm = true">重新提交</button>
+            </div>
+            <!-- 未认证 -->
+            <div v-else class="text-center">
+              <div class="text-4xl mb-3">🪪</div>
+              <p class="text-sm font-bold text-slate-300 mb-2">尚未完成实名认证</p>
+              <p class="text-xs text-slate-500 mb-4">完成实名认证后即可在极光广场群聊中发言<br/>未认证用户只能查看消息，不能发送</p>
+              <button class="isekai-btn-primary text-xs" @click="showVerifyForm = true">前往认证</button>
+            </div>
+
+            <!-- 认证表单 -->
+            <div v-if="showVerifyForm" class="mt-5 pt-5 border-t border-white/[0.06]">
+              <div class="space-y-3">
+                <div class="space-y-1.5">
+                  <label class="isekai-label">真实姓名</label>
+                  <input v-model="verifyForm.realName" class="isekai-input" placeholder="请输入真实姓名" />
+                </div>
+                <div class="space-y-1.5">
+                  <label class="isekai-label">身份证号</label>
+                  <input v-model="verifyForm.idCard" class="isekai-input" placeholder="18 位身份证号码" maxlength="18" />
+                </div>
+              </div>
+              <div class="flex justify-end gap-2 mt-4">
+                <button class="text-xs text-slate-500 hover:text-slate-300 px-4 py-2 transition" @click="showVerifyForm = false">取消</button>
+                <button class="isekai-btn-primary text-xs" :disabled="verifyForm.sending" @click="submitVerify">
+                  {{ verifyForm.sending ? '提交中...' : '提交认证' }}
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-600 mt-3">🔒 您的实名信息仅用于身份验证，不会公开展示</p>
+            </div>
+          </div>
+        </div>
+
         <!-- ══════ 职业选择 ══════ -->
         <div ref="classSection" class="mb-8 opacity-0">
           <h2 class="section-title mb-4">选择你的职业</h2>
@@ -485,7 +543,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'v
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useToastStore } from '@/stores/modules/toast'
-import { updateProfile, chooseClass } from '@/api/user'
+import { updateProfile, chooseClass, submitVerification } from '@/api/user'
 // updateAvatar 已移入子组件 AvatarModal.vue
 import { getUserLikes, getUserFavorites } from '@/api/blog'
 import { listGuilds, getMyGuild, applyGuild, createGuild, getPendingMembers, approveMember } from '@/api/guild'
@@ -524,6 +582,11 @@ const statsSection = ref(null)
 const tierSection = ref(null)
 const achievementSection = ref(null)
 const privilegeSection = ref(null)
+
+// ═══ 实名认证 ═══
+const verifySection = ref(null)
+const showVerifyForm = ref(false)
+const verifyForm = reactive({ realName: '', idCard: '', sending: false })
 
 // ═══ 职业数据 ═══
 const classes = [
@@ -715,6 +778,30 @@ async function selectClass(key) {
   } catch (e) { toast.error(e?.response?.data?.message || '选择失败') }
 }
 
+// ═══ 实名认证提交 ═══
+async function submitVerify() {
+  if (!verifyForm.realName.trim() || verifyForm.realName.trim().length < 2) {
+    toast.warning('请输入真实姓名'); return
+  }
+  if (!verifyForm.idCard.trim().match(/^\d{17}[\dXx]$/)) {
+    toast.warning('请输入有效的 18 位身份证号'); return
+  }
+  verifyForm.sending = true
+  try {
+    const res = await submitVerification(verifyForm.realName.trim(), verifyForm.idCard.trim())
+    const data = res.data || res
+    if (data) auth.mergeUser(data)
+    toast.success('实名认证已提交，等待管理员审核')
+    showVerifyForm.value = false
+    verifyForm.realName = ''
+    verifyForm.idCard = ''
+  } catch (e) {
+    toast.error(e?.response?.data?.message || '提交失败')
+  } finally {
+    verifyForm.sending = false
+  }
+}
+
 // ═══ 头像 ═══
 // 弹窗已移入子组件 AvatarModal.vue（保留 showAvatarModal 用于触发按钮）
 const showAvatarModal = ref(false)
@@ -863,7 +950,7 @@ function entranceAnimation() {
     return
   }
   nextTick(() => {
-    const targets = [heroCard.value, statsSection.value, tierSection.value, achievementSection.value, contentSection.value, classSection.value, guildCardSection.value, adminSection.value, privilegeSection.value, actionSection.value].filter(Boolean)
+    const targets = [heroCard.value, statsSection.value, tierSection.value, achievementSection.value, contentSection.value, verifySection.value, classSection.value, guildCardSection.value, adminSection.value, privilegeSection.value, actionSection.value].filter(Boolean)
     animate(targets, { opacity: [0, 1], translateY: [25, 0], duration: 600, ease: 'outCubic', delay: stagger(100) })
     if (heroName.value) animate(heroName.value, { opacity: [0, 1], duration: 800, delay: 300, ease: 'inOutQuad' })
     nextTick(() => {

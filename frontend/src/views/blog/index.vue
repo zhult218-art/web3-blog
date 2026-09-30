@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <!-- 页面 Hero Header：标题 + 副标题 + 站点资讯统计 -->
-    <header class="blog-hero panel p-6 md:p-8">
+    <header class="blog-hero panel p-5 sm:p-6 md:p-8">
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="min-w-0">
           <div class="flex items-center gap-2 text-[11px] text-gray-500 mb-2">
@@ -15,7 +15,7 @@
             记录元宇宙、嵌入式、软件工程与 Web3 的实践笔记 — 在代码与电波间，搭建一座可被检索的小宇宙。
           </p>
         </div>
-        <dl class="grid grid-cols-3 gap-3 text-center shrink-0">
+        <dl class="grid grid-cols-3 gap-3 text-center shrink-0 w-full sm:w-auto">
           <div class="hero-stat">
             <dt>文章</dt>
             <dd>{{ stats.totalArticles ?? '--' }}</dd>

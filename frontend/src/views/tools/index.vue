@@ -187,6 +187,7 @@ async function deleteScriptItem(item) {
 // 在线工具快捷入口配置
 const onlineTools = [
   { id: 'plaza', name: '60秒 API 广场', icon: '🌐', desc: '60+接口在线调试', path: '/tools/api-plaza' },
+  { id: 'video-vip', name: 'VIP视频解析', icon: '🎬', desc: '全网VIP免费解析', path: '/tools/video-vip' },
   { id: 'news60s', name: '60秒读世界', icon: '📰', desc: '每日新闻快报', path: '/tools/news60s' },
   { id: 'qrnote', name: 'API 工具中心', icon: '🧩', desc: '第三方免费API聚合', path: '/tools/api' },
   { id: 'sites', name: '分享网站', icon: '🛰️', desc: '优质外链收藏(含AI导航)', path: '/tools/sites' },

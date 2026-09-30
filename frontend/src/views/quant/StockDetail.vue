@@ -166,6 +166,48 @@
             </div>
           </div>
         </div>
+
+        <!-- 技术指标解读（行情区底部） -->
+        <div class="scroll-card overflow-hidden">
+          <div class="p-4 border-b border-cyan-800/30 flex items-center justify-between">
+            <h3 class="text-sm font-bold text-cyan-200 font-serif">📊 技术指标解读</h3>
+            <span class="text-[10px] text-slate-500">基于当前 K 线周期 · 随周期切换自动重算</span>
+          </div>
+          <div class="p-4">
+            <div v-if="!indicatorInsights.length" class="text-xs text-slate-500 py-4 text-center">K 线数据加载后展示指标解读…</div>
+            <div v-else class="space-y-4">
+              <!-- 综合研判 -->
+              <div v-if="insightSummary" class="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-[#0a1118] border"
+                :class="insightSummary.tone === 'bull' ? 'border-red-500/30' : insightSummary.tone === 'bear' ? 'border-green-500/30' : 'border-slate-600/30'">
+                <span class="text-xs font-bold"
+                  :class="insightSummary.tone === 'bull' ? 'text-red-400' : insightSummary.tone === 'bear' ? 'text-green-400' : 'text-slate-300'">
+                  {{ insightSummary.label }}
+                </span>
+                <div class="flex items-center gap-2 text-[10px] font-mono">
+                  <span class="px-2 py-0.5 rounded bg-red-500/10 text-red-400">偏多 {{ insightSummary.bull }}</span>
+                  <span class="px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">中性 {{ insightSummary.neutral }}</span>
+                  <span class="px-2 py-0.5 rounded bg-green-500/10 text-green-400">偏空 {{ insightSummary.bear }}</span>
+                </div>
+              </div>
+              <!-- 各指标卡片 -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div v-for="it in indicatorInsights" :key="it.key"
+                  class="rounded-xl border p-3.5"
+                  :class="it.tone === 'bull' ? 'bg-red-500/[0.04] border-red-500/20' : it.tone === 'bear' ? 'bg-green-500/[0.04] border-green-500/20' : 'bg-slate-500/[0.04] border-slate-600/20'">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-slate-200">{{ it.name }}</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded font-mono"
+                      :class="it.tone === 'bull' ? 'bg-red-500/15 text-red-400' : it.tone === 'bear' ? 'bg-green-500/15 text-green-400' : 'bg-slate-500/15 text-slate-400'">
+                      {{ it.tone === 'bull' ? '偏多' : it.tone === 'bear' ? '偏空' : '中性' }}
+                    </span>
+                  </div>
+                  <p class="text-[11px] leading-relaxed text-slate-400">{{ it.text }}</p>
+                </div>
+              </div>
+              <div class="text-[10px] text-slate-600">⚠️ 指标解读由行情数据与数学公式自动生成，单一指标存在滞后性与失效场景，需结合大盘环境、基本面与仓位综合判断，不构成投资建议。</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ===== Component-based Tabs (资金流向/龙虎榜/研报/融资融券) ===== -->
@@ -592,6 +634,294 @@ const markovSignals = computed(() => markovPrediction.value?.signals || [])
 const markovBgStyle = computed(() => {
   const c = markovColor.value
   return { backgroundColor: c + '1a', border: `1px solid ${c}4d` }
+})
+
+// ============================================================
+// 技术指标解读
+// 基于当前 K 线数据，复用页面指标函数，输出每个指标的中文信号解读
+// tone: bull 偏多 / bear 偏空 / neutral 中性
+// ============================================================
+const indicatorInsights = computed(() => {
+  const data = lastKlineData.value
+  if (!Array.isArray(data) || data.length < 30) return []
+  const closes = data.map(d => Number(d.close))
+  const n = closes.length - 1
+  const p = n - 1
+  const f = (v, d = 2) => (v == null || Number.isNaN(v)) ? '--' : Number(v).toFixed(d)
+  const out = []
+
+  // 1) 均线系统 MA
+  const [ma5A, ma10A, ma20A, ma60A] = [sma(closes, 5), sma(closes, 10), sma(closes, 20), sma(closes, 60)]
+  const [a5, a10, a20, a60] = [ma5A[n], ma10A[n], ma20A[n], ma60A[n]]
+  const c = closes[n]
+  if (a5 != null && a20 != null) {
+    const bullAlign = a5 > a10 && a10 > a20 && (a60 == null || a20 > a60)
+    const bearAlign = a5 < a10 && a10 < a20 && (a60 == null || a20 < a60)
+    const crossUp = ma5A[p] <= ma10A[p] && a5 > a10
+    const crossDn = ma5A[p] >= ma10A[p] && a5 < a10
+    let tone = 'neutral', text = ''
+    if (bullAlign) {
+      tone = 'bull'
+      text = `MA5(${f(a5)}) > MA10(${f(a10)}) > MA20(${f(a20)})${a60 ? ` > MA60(${f(a60)})` : ''}，呈多头排列，股价站上各均线，中期趋势向上。`
+    } else if (bearAlign) {
+      tone = 'bear'
+      text = `MA5(${f(a5)}) < MA10(${f(a10)}) < MA20(${f(a20)})${a60 ? ` < MA60(${f(a60)})` : ''}，呈空头排列，股价受压于各均线，中期趋势向下。`
+    } else if (crossUp) {
+      tone = 'bull'
+      text = `MA5 上穿 MA10 形成金叉，短线有走强迹象；但中长均线尚未理顺，需观察能否持续放量确认。`
+    } else if (crossDn) {
+      tone = 'bear'
+      text = `MA5 下穿 MA10 形成死叉，短线动能转弱，注意回调风险。`
+    } else if (c > a20) {
+      tone = 'bull'
+      text = `股价位于 MA20(${f(a20)}) 上方，中期重心偏上，但均线尚未形成整齐多头排列，以震荡偏强看待。`
+    } else {
+      tone = 'bear'
+      text = `股价位于 MA20(${f(a20)}) 下方，均线交织且重心偏下，反弹易受均线压制。`
+    }
+    out.push({ key: 'ma', name: '均线系统', tone, text })
+  }
+
+  // 2) MACD
+  const m = macd(closes)
+  const [dif, dea, hist] = [m.dif[n], m.dea[n], m.hist[n]]
+  const [difP, deaP, histP] = [m.dif[p], m.dea[p], m.hist[p]]
+  {
+    const crossUp = difP <= deaP && dif > dea
+    const crossDn = difP >= deaP && dif < dea
+    let tone = 'neutral', text = ''
+    if (crossUp) {
+      tone = dif >= 0 ? 'bull' : 'neutral'
+      text = `DIF(${f(dif)}) 上穿 DEA(${f(dea)}) 形成金叉${dif >= 0 ? '且位于零轴上方，多头动能增强' : '（零轴下方，属反弹性质，强度待确认）'}。`
+    } else if (crossDn) {
+      tone = dif <= 0 ? 'bear' : 'neutral'
+      text = `DIF(${f(dif)}) 下穿 DEA(${f(dea)}) 形成死叉${dif <= 0 ? '且位于零轴下方，空头动能占优' : '（零轴上方，属上涨途中的回调信号）'}。`
+    } else if (dif > dea && dif >= 0) {
+      tone = 'bull'
+      text = `DIF(${f(dif)}) 在 DEA(${f(dea)}) 上方运行，${hist >= histP ? '红柱放大，多头动能延续' : '红柱缩短，上涨动能有所衰减'}。`
+    } else if (dif < dea && dif <= 0) {
+      tone = 'bear'
+      text = `DIF(${f(dif)}) 在 DEA(${f(dea)}) 下方运行，${hist <= histP ? '绿柱放大，空头动能延续' : '绿柱缩短，下跌动能趋缓，留意企稳'}。`
+    } else {
+      text = `DIF ${f(dif)}、DEA ${f(dea)}，零轴附近反复，趋势信号不强，等待方向选择。`
+    }
+    out.push({ key: 'macd', name: 'MACD', tone, text })
+  }
+
+  // 3) RSI
+  const r14 = rsi(closes, 14)[n]
+  const r6 = rsi(closes, 6)[n]
+  if (r14 != null) {
+    let tone = 'neutral', text = ''
+    if (r14 > 80) {
+      tone = 'bear'
+      text = `RSI14=${f(r14)}（RSI6=${f(r6)}），处于严重超买区，短期获利盘较多，随时有技术性回调压力，不宜追高。`
+    } else if (r14 > 70) {
+      tone = 'bear'
+      text = `RSI14=${f(r14)} 进入超买区，涨势强劲但上行空间收窄，警惕高位回落。`
+    } else if (r14 < 20) {
+      tone = 'bull'
+      text = `RSI14=${f(r14)} 处于严重超卖区，空头动能过度释放，存在技术性反弹机会，但需等待企稳信号。`
+    } else if (r14 < 30) {
+      tone = 'bull'
+      text = `RSI14=${f(r14)} 进入超卖区，继续下跌空间有限，可关注低吸/反弹机会。`
+    } else if (r14 >= 50) {
+      tone = 'bull'
+      text = `RSI14=${f(r14)} 位于 50 中轴上方，多方力量占优但未超买，上行节奏相对健康。`
+    } else {
+      tone = 'bear'
+      text = `RSI14=${f(r14)} 位于 50 中轴下方，空方力量占主导，反弹力度通常受限。`
+    }
+    out.push({ key: 'rsi', name: 'RSI 强弱', tone, text })
+  }
+
+  // 4) KDJ
+  const kd = kdj(data)
+  const [K, D, J] = [kd.k[n], kd.d[n], kd.j[n]]
+  {
+    const crossUp = kd.k[p] <= kd.d[p] && K > D
+    const crossDn = kd.k[p] >= kd.d[p] && K < D
+    let tone = 'neutral', text = ''
+    if (J > 100) {
+      tone = 'bear'
+      text = `K=${f(K)}、D=${f(D)}、J=${f(J, 1)}，J 值超过 100 进入超买区，短线追高风险大，注意高位钝化后的回落。`
+    } else if (J < 0) {
+      tone = 'bull'
+      text = `K=${f(K)}、D=${f(D)}、J=${f(J, 1)}，J 值跌破 0 进入超卖区，短线超跌，反弹概率上升。`
+    } else if (crossUp) {
+      tone = 'bull'
+      text = `K 线上穿 D 线形成金叉（K=${f(K)}，D=${f(D)}），短线买入信号，低位金叉可靠性更高。`
+    } else if (crossDn) {
+      tone = 'bear'
+      text = `K 线下穿 D 线形成死叉（K=${f(K)}，D=${f(D)}），短线卖出信号，高位死叉需及时减仓。`
+    } else if (K > D) {
+      tone = 'bull'
+      text = `K(${f(K)}) 在 D(${f(D)}) 上方，短线动能偏多，结合 J 值可判断超买超卖节奏。`
+    } else {
+      tone = 'bear'
+      text = `K(${f(K)}) 在 D(${f(D)}) 下方，短线动能偏空，暂宜观望。`
+    }
+    out.push({ key: 'kdj', name: 'KDJ 随机', tone, text })
+  }
+
+  // 5) BOLL
+  const bo = boll(closes)
+  const [bu, bm, bd] = [bo.up[n], bo.mid[n], bo.dn[n]]
+  if (bu != null) {
+    const pos = bu === bd ? 0.5 : (c - bd) / (bu - bd)
+    let bw = (bu - bd) / bm
+    const bwArr = []
+    for (let i = n - 19; i <= n; i++) if (bo.up[i] != null) bwArr.push((bo.up[i] - bo.dn[i]) / bo.mid[i])
+    const bwAvg = bwArr.reduce((a, b) => a + b, 0) / bwArr.length
+    let tone = 'neutral', text = ''
+    if (c >= bu) {
+      tone = 'bull'
+      text = `收盘价突破布林上轨(${f(bu)})，短期进入强势拉升状态；但也意味着偏离中轨(${f(bm)})较远，需防触碰后快速回踩。`
+    } else if (c <= bd) {
+      tone = 'bear'
+      text = `收盘价跌破布林下轨(${f(bd)})，短期处于极弱状态；超跌后可能有向中轨(${f(bm)})的技术修复。`
+    } else if (pos > 0.8) {
+      tone = 'bull'
+      text = `价格运行于布林上轨附近（位置 ${(pos * 100).toFixed(0)}%），走势偏强，关注能否有效突破上轨打开空间。`
+    } else if (pos < 0.2) {
+      tone = 'bear'
+      text = `价格运行于布林下轨附近（位置 ${(pos * 100).toFixed(0)}%），走势偏弱，下轨若失守则打开下行空间。`
+    } else {
+      text = `价格在布林中轨(${f(bm)})附近运行（位置 ${(pos * 100).toFixed(0)}%），方向暂不明确。`
+    }
+    text += bw < bwAvg * 0.85 ? ' 带宽明显收窄（收口），往往预示即将出现方向性变盘。' : ''
+    out.push({ key: 'boll', name: 'BOLL 布林', tone, text })
+  }
+
+  // 6) WR 威廉
+  const w = wr(data, 14)[n]
+  if (w != null) {
+    let tone = 'neutral', text = ''
+    if (w > -20) {
+      tone = 'bear'
+      text = `WR14=${f(w, 1)} 接近 0，处于超买区，短线见顶回落概率增大，可考虑高抛。`
+    } else if (w < -80) {
+      tone = 'bull'
+      text = `WR14=${f(w, 1)} 接近 -100，处于超卖区，短线见底反弹概率增大，可关注低吸。`
+    } else if (w > -50) {
+      tone = 'bull'
+      text = `WR14=${f(w, 1)} 位于中轴(-50)上方，多头略占优。`
+    } else {
+      tone = 'bear'
+      text = `WR14=${f(w, 1)} 位于中轴(-50)下方，空头略占优。`
+    }
+    out.push({ key: 'wr', name: 'WR 威廉', tone, text })
+  }
+
+  // 7) CCI
+  const cc = cci(data, 14)[n]
+  if (cc != null) {
+    let tone = 'neutral', text = ''
+    if (cc > 200) {
+      tone = 'bear'
+      text = `CCI=${f(cc, 0)} 远超 +100，股价处于极端超买/异动拉升状态，注意短线获利回吐。`
+    } else if (cc > 100) {
+      tone = 'bull'
+      text = `CCI=${f(cc, 0)} 上破 +100，进入强势区域，多头主导。`
+    } else if (cc < -200) {
+      tone = 'bull'
+      text = `CCI=${f(cc, 0)} 远低于 -100，极端超卖后存在均值回归（反弹）需求。`
+    } else if (cc < -100) {
+      tone = 'bear'
+      text = `CCI=${f(cc, 0)} 下破 -100，进入弱势区域，空头主导。`
+    } else {
+      text = `CCI=${f(cc, 0)} 在 ±100 区间内，属常态震荡，无明显趋势信号。`
+    }
+    out.push({ key: 'cci', name: 'CCI 顺势', tone, text })
+  }
+
+  // 8) OBV 能量潮
+  const ov = obv(data)
+  {
+    const base = Math.max(0, n - 10)
+    const upO = ov[n] > ov[base]
+    const upP = closes[n] > closes[base]
+    let tone = 'neutral', text = ''
+    if (upP && upO) {
+      tone = 'bull'
+      text = `近 10 个周期股价与 OBV 同步走高，量能配合上涨，资金净流入，上升趋势较健康。`
+    } else if (!upP && upO) {
+      tone = 'bull'
+      text = `股价横盘/回落但 OBV 率先走高，呈"量在价先"的底背离迹象，需提防反弹但需价的确认。`
+    } else if (upP && !upO) {
+      tone = 'bear'
+      text = `股价走高但 OBV 不升反降，上涨缺乏量能支撑，存在顶背离风险，追高需谨慎。`
+    } else {
+      tone = 'bear'
+      text = `股价与 OBV 同步走低，资金持续流出，下跌有量能配合，弱势格局未改。`
+    }
+    out.push({ key: 'obv', name: 'OBV 能量潮', tone, text })
+  }
+
+  // 9) DMI 趋向
+  const dm = dmi(data)
+  const [pdi, mdi, adx] = [dm.pdi[n], dm.mdi[n], dm.adx[n]]
+  if (adx != null) {
+    let tone = 'neutral', text = ''
+    if (adx > 25 && pdi > mdi) {
+      tone = 'bull'
+      text = `+DI(${f(pdi, 1)}) > -DI(${f(mdi, 1)}) 且 ADX=${f(adx, 1)} > 25，多头趋势明确且强度较高，可顺势持有。`
+    } else if (adx > 25 && mdi > pdi) {
+      tone = 'bear'
+      text = `-DI(${f(mdi, 1)}) > +DI(${f(pdi, 1)}) 且 ADX=${f(adx, 1)} > 25，空头趋势明确且强度较高，宜回避或减仓。`
+    } else if (adx < 20) {
+      text = `ADX=${f(adx, 1)} < 20，趋势指标走弱，市场处于无方向震荡，DI 的多空信号参考意义降低。`
+    } else if (pdi > mdi) {
+      tone = 'bull'
+      text = `+DI(${f(pdi, 1)}) 略占优，但 ADX=${f(adx, 1)} 未确认趋势强度，暂作震荡偏多。`
+    } else {
+      tone = 'bear'
+      text = `-DI(${f(mdi, 1)}) 略占优，但 ADX=${f(adx, 1)} 未确认趋势强度，暂作震荡偏空。`
+    }
+    out.push({ key: 'dmi', name: 'DMI 趋向', tone, text })
+  }
+
+  // 10) 成交量
+  {
+    const vol = Number(data[n].volume || 0)
+    const v5 = data.slice(-6, -1).reduce((a, d) => a + Number(d.volume || 0), 0) / 5
+    const ratio = v5 ? vol / v5 : 1
+    const up = closes[n] >= closes[p]
+    let tone = 'neutral', text = ''
+    if (ratio > 1.8 && up) {
+      tone = 'bull'
+      text = `最新成交量达 5 周期均量的 ${ratio.toFixed(1)} 倍且价涨，放量上涨，资金做多意愿强，突破信号较可信。`
+    } else if (ratio > 1.8 && !up) {
+      tone = 'bear'
+      text = `放量 ${ratio.toFixed(1)} 倍但价跌，抛压沉重或资金出逃，短线需防进一步下探。`
+    } else if (ratio < 0.6 && up) {
+      tone = 'neutral'
+      text = `缩量（仅均量 ${(ratio * 100).toFixed(0)}%）上涨，上攻动能不足，持续性存疑，需补量确认。`
+    } else if (ratio < 0.6 && !up) {
+      tone = 'neutral'
+      text = `缩量（仅均量 ${(ratio * 100).toFixed(0)}%）回调，抛压有所减轻，若地量企稳反而可能接近阶段底部。`
+    } else {
+      text = `成交量约为均量的 ${ratio.toFixed(1)} 倍，量能平稳，无明显异常。`
+    }
+    out.push({ key: 'vol', name: '成交量能', tone, text })
+  }
+
+  return out
+})
+
+// 综合研判：统计偏多/偏空指标数量
+const insightSummary = computed(() => {
+  const list = indicatorInsights.value
+  if (!list.length) return null
+  const bull = list.filter(x => x.tone === 'bull').length
+  const bear = list.filter(x => x.tone === 'bear').length
+  const neutral = list.length - bull - bear
+  let tone = 'neutral', label = '多空交织 · 震荡观望'
+  if (bull >= bear + 3) { tone = 'bull'; label = '技术面整体偏多' }
+  else if (bear >= bull + 3) { tone = 'bear'; label = '技术面整体偏空' }
+  else if (bull > bear) { tone = 'bull'; label = '略偏多 · 留意量能确认' }
+  else if (bear > bull) { tone = 'bear'; label = '略偏空 · 注意控制仓位' }
+  return { bull, bear, neutral, tone, label }
 })
 
 // 各周期请求的根数（pyquant 语义：days = 该周期的 bar 数量）
@@ -1124,9 +1454,12 @@ let klineWarmupDone = false
 async function warmupKlinePeriods() {
   if (klineWarmupDone || !sym.value) return
   klineWarmupDone = true
-  for (const p of ['weekly', 'monthly', '60m']) {
-    try { await getPyKline(sym.value, KLINE_DAYS_MAP[p] || 120, p) } catch (e) { /* 预热失败不影响页面 */ }
-  }
+  // 并行预热（非阻塞），不等待结果
+  Promise.allSettled(
+    ['weekly', 'monthly', '60m'].map(p =>
+      getPyKline(sym.value, KLINE_DAYS_MAP[p] || 120, p).catch(() => {})
+    )
+  )
 }
 
 function isTradeTime() {

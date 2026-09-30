@@ -208,6 +208,9 @@ public class StockPriceService {
             Map<String, String> pool = new LinkedHashMap<>();
             for (JsonNode item : data) {
                 String code = item.path("code").asText("");
+                if (code.isEmpty()) {
+                    code = item.path("symbol").asText("");
+                }
                 String name = item.path("name").asText("");
                 if (!code.isEmpty()) {
                     pool.put(code, name.isEmpty() ? code : name);
@@ -221,6 +224,54 @@ public class StockPriceService {
             System.err.println("[StockPriceService] failed to fetch pool from gateway: " + e);
             return null;
         }
+    }
+
+    /**
+     * 批量获取全部股票最新行情（单次调用网关 /api/quant/market/quotes）。
+     * 避免对每只股票单独发 HTTP 请求，全市场 5900+ 只股票一次性获取。
+     * 网关不可用时回退到池内逐个查询。
+     *
+     * @return 全部股票行情实体列表
+     */
+    public List<StockPrice> findAllLatest() {
+        List<StockPrice> result = new ArrayList<>();
+        try {
+            JsonNode data = gatewayGet("/api/quant/market/quotes");
+            if (data != null && data.isArray()) {
+                for (JsonNode item : data) {
+                    String symbol = item.path("symbol").asText("");
+                    if (symbol.isEmpty()) {
+                        symbol = item.path("code").asText("");
+                    }
+                    if (symbol.isEmpty()) continue;
+                    StockPrice sp = new StockPrice();
+                    sp.setSymbol(symbol);
+                    sp.setName(item.path("name").asText(symbol));
+                    sp.setPeriod("day");
+                    sp.setClose(item.path("price").isNumber() ? new BigDecimal(item.path("price").asText()) : BigDecimal.ZERO);
+                    sp.setOpen(item.path("open").isNumber() ? new BigDecimal(item.path("open").asText()) : sp.getClose());
+                    sp.setHigh(item.path("high").isNumber() ? new BigDecimal(item.path("high").asText()) : sp.getClose());
+                    sp.setLow(item.path("low").isNumber() ? new BigDecimal(item.path("low").asText()) : sp.getClose());
+                    sp.setVolume(item.path("volume").isNumber() ? new BigDecimal(item.path("volume").asText()) : BigDecimal.ZERO);
+                    sp.setTurnover(item.path("turnover").isNumber() ? new BigDecimal(item.path("turnover").asText()) : BigDecimal.ZERO);
+                    sp.setChange(item.path("change").isNumber() ? new BigDecimal(item.path("change").asText()) : BigDecimal.ZERO);
+                    sp.setChangePercent(item.path("change_percent").isNumber() ? new BigDecimal(item.path("change_percent").asText()) : BigDecimal.ZERO);
+                    sp.setAmplitude(item.path("amplitude").isNumber() ? new BigDecimal(item.path("amplitude").asText()) : BigDecimal.ZERO);
+                    sp.setTurnoverRate(item.path("turnover_rate").isNumber() ? new BigDecimal(item.path("turnover_rate").asText()) : BigDecimal.ZERO);
+                    sp.setTimestamp(LocalDateTime.now());
+                    sp.setCreatedAt(LocalDateTime.now());
+                    result.add(sp);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[StockPriceService] findAllLatest failed: " + e);
+        }
+        if (result.isEmpty()) {
+            for (String symbol : getStockPool().keySet()) {
+                result.add(findLatest(symbol));
+            }
+        }
+        return result;
     }
 
     /**

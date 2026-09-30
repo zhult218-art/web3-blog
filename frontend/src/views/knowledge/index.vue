@@ -20,6 +20,18 @@
       </div>
     </div>
 
+    <!-- ============ Supabase 网络不可达（熔断冷却） ============ -->
+    <div v-if="netOffline" class="panel p-4 border-amber-500/30">
+      <div class="flex items-center gap-3">
+        <span class="text-xl">🌐</span>
+        <div class="flex-1">
+          <div class="text-sm font-semibold text-amber-300">Supabase 网络连接暂不可用</div>
+          <div class="text-xs text-gray-400 mt-0.5">当前处于熔断冷却期（因之前连接 supabase.co 失败）。可点击下方按钮立即重试，或等待 60 秒后自动探测恢复。</div>
+        </div>
+        <button class="web3-btn text-xs !px-4 !py-2" @click="retryNetwork">🔄 立即重试</button>
+      </div>
+    </div>
+
     <!-- ============ 头部：知识树介绍 + 成长统计 ============ -->
     <div class="panel p-6 md:p-8 relative overflow-hidden" v-if="tableReady">
       <div class="absolute -right-16 -top-16 text-[180px] opacity-[0.06] select-none pointer-events-none">🧠</div>
@@ -302,11 +314,13 @@ import {
   createEntry, updateEntry, deleteEntry, advanceStage,
   scheduleReview, publishToBlog, entryToMarkdown, exportAllToMarkdown,
 } from '@/api/knowledge'
+import { resetSupabaseCircuit, isSupabaseCircuitOpen } from '@/lib/supabase/client'
 
 const router = useRouter()
 const toast = useToastStore()
 
 const tableReady = ref(true)       // kb_entries 表是否已创建
+const netOffline = ref(false)      // Supabase 网络不可达（熔断冷却中）
 const sqlCopied = ref(false)
 const entries = ref([])
 const stats = ref(null)
@@ -364,10 +378,14 @@ async function reload() {
     })
     stats.value = await getGrowthStats()
     dueCount.value = await getDueCount()
+    netOffline.value = false
   } catch (e) {
-    // 表不存在时给出初始化引导而非红色报错
     const msg = String(e.message || '')
-    if (msg.includes("'public.kb_entries'")) {
+    if (msg.includes('circuit open') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+      // Supabase 网络熔断：静默降级为离线提示条，不再用技术错误打扰用户
+      netOffline.value = true
+    } else if (msg.includes("'public.kb_entries'")) {
+      // 表不存在时给出初始化引导而非红色报错
       tableReady.value = false
     } else {
       toast.error('知识库加载失败：' + msg)
@@ -375,6 +393,16 @@ async function reload() {
   } finally {
     loading.value = false
   }
+}
+
+/** 用户点击"立即重试"：手动重置熔断器并重新加载 */
+async function retryNetwork() {
+  resetSupabaseCircuit()
+  netOffline.value = false
+  loading.value = true
+  await checkTable()
+  if (tableReady.value) await reload()
+  loading.value = false
 }
 
 function selectCategory(key) {

@@ -59,6 +59,10 @@ export const updateProfile = data => request.put('/user/profile', data)
 export const updateAvatar = avatar => request.put('/user/profile/avatar', { avatar })
 // 选择异世界职业
 export const chooseClass = userClass => request.put('/user/profile/class', { userClass })
+// 提交实名认证申请（真实姓名 + 身份证号）
+export const submitVerification = (realName, idCard) => request.post('/user/profile/verify', { realName, idCard })
+// 后台：审核实名认证（verified: 2=通过, 3=拒绝）
+export const auditUserVerification = (id, verified) => request.put(`/user/${id}/verify`, null, { params: { verified } })
 
 // ───────── 后台用户管理 ─────────
 // 后台：用户分页列表（支持 keyword 搜索）

@@ -1,17 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.media.controller;
 
 import com.web3.common.core.ApiResponse;
@@ -25,12 +11,15 @@ import com.web3.media.service.VideoService;
 import com.web3.media.vo.VideoVO;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,8 +27,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-@RestController
-@RequestMapping(value={"/video"})
 /**
  * VideoController —— 视频接口控制器
  * <p>
@@ -55,6 +42,8 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>@RequestMapping("/video")：对外接口统一前缀为 /video</li>
  * </ul>
  */
+@RestController
+@RequestMapping(value={"/video"})
 public class VideoController {
     /** 视频业务服务 */
     private final VideoService videoService;
@@ -113,15 +102,42 @@ public class VideoController {
             @RequestParam(value="tags", required=false) String tags,
             @RequestParam(value="cover", required=false) String cover,
             @RequestHeader(value="Authorization") String token) {
-        AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
+        // 视频上传原本对所有登录用户开放：互动类权限，默认允许，可被管理员收回（-upload:video）
+        AuthUtils.requirePerm(token, this.jwtUtil, this.jwtProperties, "upload:video", true);
         try {
             return ApiResponse.ok(this.videoService.upload(file, title, description, tags, cover));
         }
         catch (IllegalArgumentException e) {
-            return ApiResponse.fail((int)400, e.getMessage());
+            return ApiResponse.fail(400, e.getMessage());
         }
         catch (IOException e) {
-            return ApiResponse.fail((int)500, "\u4e0a\u4f20\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5");
+            return ApiResponse.fail(500, "上传失败，请重试");
+        }
+    }
+
+    /**
+     * 通过 yt-dlp 从 URL 下载视频（需登录）
+     * 支持 YouTube/B站/抖音等 1800+ 平台，下载后自动入库
+     *
+     * @param body  请求体 { url, quality, subtitle, tags }
+     * @param token 请求头 Authorization 的 JWT 令牌
+     * @return 下载成功后的视频视图对象
+     */
+    @PostMapping(value={"/download"})
+    public ApiResponse<VideoVO> download(@RequestBody Map<String, Object> body, @RequestHeader(value="Authorization") String token) {
+        AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
+        String url = (String) body.get("url");
+        if (url == null || url.isEmpty()) {
+            return ApiResponse.fail(400, "url 不能为空");
+        }
+        String quality = (String) body.getOrDefault("quality", "best");
+        boolean subtitle = Boolean.TRUE.equals(body.get("subtitle"));
+        String tags = (String) body.getOrDefault("tags", "网络下载");
+        try {
+            return ApiResponse.ok(this.videoService.downloadFromUrl(url, quality, subtitle, tags));
+        } catch (IOException | InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return ApiResponse.fail(500, "下载失败: " + e.getMessage());
         }
     }
 
@@ -165,7 +181,7 @@ public class VideoController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 更新后的视频视图对象
      */
-    @org.springframework.web.bind.annotation.PutMapping(value={"/{id}"})
+    @PutMapping(value={"/{id}"})
     public ApiResponse<VideoVO> update(@PathVariable Long id, @RequestBody Video video, @RequestHeader(value="Authorization") String authorization) {
         AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
         return ApiResponse.ok(this.videoService.update(id, video));
@@ -178,7 +194,7 @@ public class VideoController {
      * @param authorization 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @org.springframework.web.bind.annotation.DeleteMapping(value={"/{id}"})
+    @DeleteMapping(value={"/{id}"})
     public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String authorization) {
         AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
         this.videoService.delete(id);

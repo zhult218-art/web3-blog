@@ -1,12 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.springframework.cloud.gateway.route.RouteLocator
- *  org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder
- *  org.springframework.context.annotation.Bean
- *  org.springframework.context.annotation.Configuration
- */
 package com.web3.gateway.config;
 
 import org.springframework.cloud.gateway.route.RouteLocator;

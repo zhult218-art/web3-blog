@@ -12,13 +12,13 @@
       <div class="glass-panel overflow-hidden">
         <div class="overflow-x-auto">
           <table class="web3-table min-w-[760px]">
-            <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>邮箱</th><th>角色</th><th>状态</th><th>权限</th><th>创建时间</th><th>操作</th></tr></thead>
+            <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>邮箱</th><th>角色</th><th>状态</th><th>实名</th><th>权限</th><th>创建时间</th><th>操作</th></tr></thead>
             <tbody>
               <tr v-if="loading">
-                <td colspan="9" class="text-center py-10"><Loading text="加载中..." /></td>
+                <td colspan="10" class="text-center py-10"><Loading text="加载中..." /></td>
               </tr>
               <tr v-else-if="!list.length">
-                <td colspan="9" class="text-center text-gray-600 py-10">暂无数据</td>
+                <td colspan="10" class="text-center text-gray-600 py-10">暂无数据</td>
               </tr>
               <tr v-for="u in list" :key="u.id">
                 <td class="matrix-text text-xs">#{{ u.id }}</td>
@@ -27,6 +27,18 @@
                 <td class="text-gray-500 text-xs">{{ u.email || '-' }}</td>
                 <td><span :class="u.role === 'ADMIN' ? 'web3-badge-orange' : 'web3-badge-purple'">{{ u.role }}</span></td>
                 <td><span :class="u.status === 1 ? 'web3-badge-green' : 'web3-badge-red'">{{ u.status === 1 ? '正常' : '禁用' }}</span></td>
+                <td>
+                  <span v-if="u.verified === 2" class="web3-badge-green whitespace-nowrap">✅ 已认证</span>
+                  <template v-else-if="u.verified === 1">
+                    <span class="web3-badge-orange whitespace-nowrap">⏳ 待审核</span>
+                    <div class="flex gap-1.5 mt-1">
+                      <button @click="auditVerify(u, 2)" class="text-[10px] px-1.5 py-0.5 rounded border border-emerald-400/30 text-emerald-300 hover:bg-emerald-400/10">通过</button>
+                      <button @click="auditVerify(u, 3)" class="text-[10px] px-1.5 py-0.5 rounded border border-red-400/30 text-red-300 hover:bg-red-400/10">拒绝</button>
+                    </div>
+                  </template>
+                  <span v-else-if="u.verified === 3" class="web3-badge-red whitespace-nowrap">❌ 已拒绝</span>
+                  <span v-else class="text-[11px] text-gray-600 whitespace-nowrap">未认证</span>
+                </td>
                 <td>
                   <button v-if="u.role !== 'ADMIN'" @click="openPerms(u)"
                     class="text-[11px] px-2 py-0.5 rounded-md border border-white/10 text-gray-400 hover:text-cyan-300 hover:border-cyan-400/40 transition whitespace-nowrap">
@@ -54,14 +66,18 @@
 
     <Modal v-model="showPermModal" :title="`权限设置 - ${permTarget?.username || ''}`">
       <div class="space-y-4">
-        <p class="text-xs text-gray-500">勾选该用户可以浏览的界面；不勾选任何服务权限时，该用户默认只能浏览「默认内容」（首页/社区/媒体/更多）。</p>
+        <p class="text-xs text-gray-500">默认内容注册即拥有（不可收回）；互动权限默认勾选，取消勾选即收回；上传/服务权限需勾选授权。保存后用户重新登录或会话续期时生效。</p>
         <div v-for="group in PERMISSIONS" :key="group.group" class="space-y-2">
           <p class="text-[11px] text-gray-500 uppercase tracking-widest matrix-text">{{ group.group }}</p>
           <div class="grid grid-cols-2 gap-2">
             <label v-for="item in group.items" :key="item.code"
               class="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.06] bg-[#0c0c22] hover:border-cyan-400/30 transition cursor-pointer"
-              :class="{ 'border-cyan-400/40 bg-cyan-400/[0.06]': permChecked.includes(item.code) }">
-              <input type="checkbox" :value="item.code" v-model="permChecked" class="accent-cyan-400" />
+              :class="{
+                'border-cyan-400/40 bg-cyan-400/[0.06]': permChecked.includes(item.code),
+                'opacity-60 cursor-not-allowed': isLockedPerm(item.code)
+              }">
+              <input type="checkbox" :value="item.code" v-model="permChecked" class="accent-cyan-400"
+                :disabled="isLockedPerm(item.code)" />
               <span class="text-xs text-gray-300">{{ item.label }}</span>
             </label>
           </div>
@@ -128,8 +144,8 @@
 // 支持新建/编辑/启停用/删除与权限配置
 // ====================================================
 import { ref, onMounted } from 'vue'
-import { getUserList, updateUserStatus, deleteUser as apiDeleteUser, createUser, updateUser, getUserPermissions, updateUserPermissions } from '@/api/user'
-import { PERMISSIONS, DEFAULT_PERMS, permLabel } from '@/utils/permissions'
+import { getUserList, updateUserStatus, deleteUser as apiDeleteUser, createUser, updateUser, getUserPermissions, updateUserPermissions, auditUserVerification } from '@/api/user'
+import { PERMISSIONS, DEFAULT_PERMS, REVOCABLE_PERMS, permLabel } from '@/utils/permissions'
 import Pagination from '@/components/common/Pagination.vue'
 import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
@@ -154,12 +170,55 @@ const permTarget = ref(null)
 const permChecked = ref([])
 const permSaving = ref(false)
 
-// 汇总显示用户前台权限标签
+// 汇总显示用户前台权限标签（正向授权 + 已收回的互动权限）
 function permSummary(u) {
   if (!Array.isArray(u.permissions) || !u.permissions.length) return ''
-  const codes = u.permissions.filter(c => !DEFAULT_PERMS.includes(c))
-  const labels = codes.slice(0, 2).map(permLabel)
-  return labels.length ? labels.join('、') + (codes.length > 2 ? ` +${codes.length - 2}` : '') : ''
+  const granted = u.permissions.filter(c => c && !c.startsWith('-') && !DEFAULT_PERMS.includes(c)).map(permLabel)
+  const revoked = u.permissions.filter(c => c && c.startsWith('-')).map(c => permLabel(c.slice(1)))
+  const parts = []
+  if (granted.length) parts.push(granted.slice(0, 2).join('、') + (granted.length > 2 ? ` +${granted.length - 2}` : ''))
+  if (revoked.length) parts.push('已限:' + revoked.slice(0, 2).join('、') + (revoked.length > 2 ? ` +${revoked.length - 2}` : ''))
+  return parts.join(' ')
+}
+
+// 默认权限码 checkbox 锁定为勾选（注册即拥有，收回无效果）
+function isLockedPerm(code) {
+  return DEFAULT_PERMS.includes(code)
+}
+
+// 由存储的权限串（正向码 + "-code" 负向码）还原弹窗勾选状态：
+// 默认权限恒勾选；互动权限默认勾选、被收回（-code）则不勾选；上传/服务权限勾选=显式授权
+function storedToChecked(stored) {
+  const set = new Set(stored || [])
+  const checked = []
+  for (const g of PERMISSIONS) {
+    for (const it of g.items) {
+      if (DEFAULT_PERMS.includes(it.code) || (REVOCABLE_PERMS.includes(it.code) && !set.has('-' + it.code))) {
+        checked.push(it.code)
+      } else if (set.has(it.code)) {
+        checked.push(it.code)
+      }
+    }
+  }
+  return checked
+}
+
+// 由弹窗勾选状态生成存储权限串：
+// 默认权限不落库（人人恒有）；互动权限取消勾选 → "-code"；上传/服务权限勾选 → "code"
+function checkedToStored(checked) {
+  const set = new Set(checked)
+  const out = []
+  for (const g of PERMISSIONS) {
+    for (const it of g.items) {
+      if (DEFAULT_PERMS.includes(it.code)) continue
+      if (REVOCABLE_PERMS.includes(it.code)) {
+        if (!set.has(it.code)) out.push('-' + it.code)
+      } else if (set.has(it.code)) {
+        out.push(it.code)
+      }
+    }
+  }
+  return out
 }
 
 // 打开权限编辑弹窗并加载用户已有权限
@@ -168,8 +227,7 @@ async function openPerms(u) {
   permChecked.value = []
   try {
     const res = await getUserPermissions(u.id)
-    const perms = res.data || []
-    permChecked.value = [...perms]
+    permChecked.value = storedToChecked(res.data || [])
   } catch { toast.error('加载权限失败') }
   showPermModal.value = true
 }
@@ -179,8 +237,9 @@ async function savePerms() {
   if (permSaving.value) return
   permSaving.value = true
   try {
-    await updateUserPermissions(permTarget.value.id, permChecked.value)
-    permTarget.value.permissions = [...permChecked.value]
+    const stored = checkedToStored(permChecked.value)
+    await updateUserPermissions(permTarget.value.id, stored)
+    permTarget.value.permissions = stored
     toast.success('权限已更新')
     showPermModal.value = false
   } catch { toast.error('保存失败') }
@@ -249,6 +308,19 @@ async function toggleUserStatus(u) {
     u.status = u.status === 1 ? 0 : 1
     toast.success('状态已更新')
   } catch { toast.error('操作失败') }
+}
+
+// 实名认证审核（2=通过 3=拒绝）
+async function auditVerify(u, verified) {
+  const action = verified === 2 ? '通过' : '拒绝'
+  if (!(await dlgConfirm(`确定${action} ${u.nickname || u.username} 的实名认证申请？`, {
+    title: '实名认证审核', okText: `确认${action}`, tone: verified === 3 ? 'danger' : undefined
+  }))) return
+  try {
+    await auditUserVerification(u.id, verified)
+    u.verified = verified
+    toast.success(`已${action}该用户的实名认证`)
+  } catch { toast.error('审核操作失败') }
 }
 
 // 删除用户（二次确认后执行）

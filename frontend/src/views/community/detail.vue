@@ -183,6 +183,7 @@ import { likePost, getCommentList, createComment } from '@/api/forum'
 import { renderMarkdown } from '@/utils/markdown'
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
+import { hasPerm } from '@/utils/permissions'
 import Loading from '@/components/common/Loading.vue'
 
 const route = useRoute()
@@ -294,6 +295,11 @@ function sharePost() {
 
 async function submitComment() {
   if (!commentText.value.trim()) return
+  // 评论权限：互动类默认拥有，管理员可收回（-comment）
+  if (authStore.isLoggedIn && !hasPerm(authStore.user, 'comment')) {
+    toast.warning('你已被限制评论，请联系管理员')
+    return
+  }
   try {
     const user = authStore.user
     const authorName = user?.nickname || user?.username || '访客'
@@ -304,15 +310,20 @@ async function submitComment() {
       authorName
     })
     const saved = res.data || {}
-    comments.value.push({
-      id: saved.id || Date.now(),
-      content: commentText.value,
-      authorName,
-      createdAt: saved.createdAt || new Date().toISOString(),
-      likeCount: 0
-    })
+    const postedText = commentText.value
     commentText.value = ''
-    toast.success('评论发布成功')
+    if (saved.status === 'pending') {
+      toast.success('评论发布成功，等待管理员审核通过后展示')
+    } else {
+      comments.value.push({
+        id: saved.id || Date.now(),
+        content: postedText,
+        authorName,
+        createdAt: saved.createdAt || new Date().toISOString(),
+        likeCount: 0
+      })
+      toast.success('评论发布成功')
+    }
   } catch (e) {
     toast.error(e.message || '评论失败')
   }

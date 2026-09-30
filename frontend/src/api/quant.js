@@ -61,10 +61,12 @@ export const getStockNews = code => vr('/news', { params: { code } })
 
 // quant-py-service 统一数据网关 (proxy to 9006 via /pyquant/)
 // Python 服务获取行情数据较慢（全市场快照冷启可达数十秒），超时放宽到 60s
-// 行情/K线直连 pyquant 后端(9006)绕过 vite /pyquant 代理；部署环境可用 VITE_QUANT_API 覆盖
-const PY_BASE = (import.meta.env?.VITE_QUANT_API || 'http://localhost:9006').replace(/\/$/, '')
+// 默认走同源 /pyquant 前缀（Vite 代理→9006），内网穿透公网访问同样可用；
+// 仅在需要跨机部署时用 VITE_QUANT_API 覆盖（旧默认值 http://localhost:9006
+// 在公网访问时会打到访客自己电脑，必须避免）。
+const PY_BASE = (import.meta.env?.VITE_QUANT_API || '/pyquant').replace(/\/$/, '')
 const py = (path, config) => {
-  return request.request({ ...config, url: `${PY_BASE}${path}`, method: config?.method || 'get', timeout: config?.timeout || 60000 })
+  return request.request({ ...config, url: `${PY_BASE}${path}`, method: config?.method || 'get', baseURL: '', timeout: config?.timeout || 60000 })
 }
 
 export const getPyQuotes = (page = 0, pageSize = 30) => py('/api/quant/market/quotes', { params: { page, page_size: pageSize } })
@@ -83,9 +85,10 @@ export const runPyBacktest = data => py('/api/quant/backtest/run', { method: 'po
 export const getPyBacktestStatus = taskId => py(`/api/quant/backtest/status/${taskId}`)
 export const getPyBacktestResult = taskId => py(`/api/quant/backtest/result/${taskId}`)
 export const runPyBacktestQuick = data => py('/api/quant/backtest/quick', { method: 'post', data })
-// 策略选股：内置策略条件筛选 / 自定义 Python 代码筛选（6s 沙箱，放宽超时）
-export const getPyScreenStrategy = (id, params) => py(`/api/quant/strategies/${id}/screen`, { params, timeout: 180000 })
-export const getPyScreenCustom = data => py('/api/quant/screen/custom', { method: 'post', data, timeout: 180000 })
+// 策略选股：内置策略条件筛选 / 自定义 Python 代码筛选
+// build_pool 优化后 80 只候选股并行拉 K 线（16 workers + 8s per-stock 超时），总耗时应 < 60s
+export const getPyScreenStrategy = (id, params) => py(`/api/quant/strategies/${id}/screen`, { params, timeout: 120000 })
+export const getPyScreenCustom = data => py('/api/quant/screen/custom', { method: 'post', data, timeout: 120000 })
 // 行情同步告警（NoticePanel 轮询用）
 export const getPyMarketAlerts = () => py('/api/quant/market/alerts')
 // 服务端默认 LLM 配置状态（不暴露 api_key）
@@ -120,3 +123,24 @@ export const getPyStockBlockTrade = symbol => py(`/api/quant/market/block-trade/
 // 基本面历史采集（全池/单股手动触发 + 状态）
 export const startPyFundHistoryCollect = (symbol = 'all') => py(`/api/quant/data/fund-history/collect?symbol=${symbol}`, { method: 'post' })
 export const getPyFundHistoryStatus = () => py('/api/quant/data/fund-history/status')
+
+// 用户持仓管理（quant-py-service，JWT 鉴权）
+// 普通用户只能看/改自己的持仓，管理员可查看所有用户
+export const getMyHoldings = () => py('/api/quant/my-holdings', { timeout: 15000 })
+export const saveHolding = data => py('/api/quant/my-holdings', { method: 'post', data, timeout: 15000 })
+export const deleteHolding = id => py(`/api/quant/my-holdings/${id}`, { method: 'delete', timeout: 15000 })
+
+// ============================================================
+// 同花顺金融数据 API（HiThink-Tech/Financial-API，付费源，数据质量最优）
+// 走 /pyquant 代理到 quant-py-service 的 /api/quant/hithink/* 端点
+// ============================================================
+export const getHithinkStatus = () => py('/api/quant/hithink/status')
+export const getHithinkQuote = symbols => py('/api/quant/hithink/quote', { params: { symbols: Array.isArray(symbols) ? symbols.join(',') : symbols } })
+export const getHithinkKline = (symbol, days = 120, adjust = 'forward') => py(`/api/quant/hithink/kline/${symbol}`, { params: { days, adjust } })
+export const getHithinkDragonTiger = (tradeDate = '', boardType = 'all') => py('/api/quant/hithink/dragon-tiger', { params: { trade_date: tradeDate, board_type: boardType } })
+export const getHithinkLimitUp = (tradeDate = '') => py('/api/quant/hithink/limit-up', { params: { trade_date: tradeDate } })
+export const getHithinkLimitDown = (tradeDate = '') => py('/api/quant/hithink/limit-down', { params: { trade_date: tradeDate } })
+export const getHithinkLimitLadder = () => py('/api/quant/hithink/limit-ladder')
+export const getHithinkHotStocks = (period = '24h') => py('/api/quant/hithink/hot-stocks', { params: { period } })
+export const getHithinkSkyrocket = (period = '24h') => py('/api/quant/hithink/skyrocket', { params: { period } })
+export const getHithinkSearch = query => py('/api/quant/hithink/search', { params: { query } })

@@ -18,7 +18,7 @@
           <span class="top-avatar">🌌</span>
           <div class="top-meta">
             <span class="top-name">{{ room.name }}</span>
-            <span class="top-sub">{{ members.length }} 位成员 · 注册即加入</span>
+            <span class="top-sub">{{ chat.onlineCount }} 人在线 · 共 {{ members.length }} 位成员</span>
           </div>
         </div>
         <div class="top-actions">
@@ -55,7 +55,10 @@
               <div v-if="msg.msgType === 'system'" class="sys-line">{{ msg.content }}</div>
               <!-- 图片消息 -->
               <div v-else-if="msg.msgType === 'image'" :class="['bubble-row', { mine: msg.userId === myUserId }]">
-                <div class="bubble-avatar">{{ avatarChar(msg) }}</div>
+                <div class="bubble-avatar">
+                  <img v-if="avatarOf(msg)" :src="avatarOf(msg)" referrerpolicy="no-referrer" loading="lazy" />
+                  <template v-else>{{ avatarChar(msg) }}</template>
+                </div>
                 <div class="bubble-col">
                   <div class="bubble-meta"><span>{{ nameOf(msg) }}</span><time>{{ fmtTime(msg.createdAt) }}</time></div>
                   <img class="bubble-img" :src="msg.content" loading="lazy" @click="lightbox = msg.content" referrerpolicy="no-referrer" />
@@ -63,7 +66,10 @@
               </div>
               <!-- 大表情 -->
               <div v-else-if="msg.msgType === 'emoji'" :class="['bubble-row', { mine: msg.userId === myUserId }]">
-                <div class="bubble-avatar">{{ avatarChar(msg) }}</div>
+                <div class="bubble-avatar">
+                  <img v-if="avatarOf(msg)" :src="avatarOf(msg)" referrerpolicy="no-referrer" loading="lazy" />
+                  <template v-else>{{ avatarChar(msg) }}</template>
+                </div>
                 <div class="bubble-col">
                   <div class="bubble-meta"><span>{{ nameOf(msg) }}</span><time>{{ fmtTime(msg.createdAt) }}</time></div>
                   <div class="bubble-emoji">{{ msg.content }}</div>
@@ -71,7 +77,10 @@
               </div>
               <!-- 文本 -->
               <div v-else :class="['bubble-row', { mine: msg.userId === myUserId }]">
-                <div class="bubble-avatar">{{ avatarChar(msg) }}</div>
+                <div class="bubble-avatar">
+                  <img v-if="avatarOf(msg)" :src="avatarOf(msg)" referrerpolicy="no-referrer" loading="lazy" />
+                  <template v-else>{{ avatarChar(msg) }}</template>
+                </div>
                 <div class="bubble-col">
                   <div class="bubble-meta"><span>{{ nameOf(msg) }}</span><time>{{ fmtTime(msg.createdAt) }}</time></div>
                   <div class="bubble-text">{{ msg.content }}</div>
@@ -199,16 +208,21 @@
               <div v-if="!notifications.length" class="muted">暂无通知</div>
             </div>
 
-            <!-- 群成员 -->
+            <!-- 群成员：全部注册用户，在线置顶 -->
             <div v-if="drawerTab==='members'" class="tab-panel">
-              <div class="member-count-line">共 {{ members.length }} 人</div>
-              <div v-for="m in members" :key="m.id" class="member-row">
-                <div class="member-avatar">{{ (m.nickname || m.username || '?').charAt(0).toUpperCase() }}</div>
+              <div class="member-count-line">共 {{ members.length }} 人 · {{ chat.onlineCount }} 人在线</div>
+              <div v-for="m in members" :key="m.userId" class="member-row" :class="{ off: !m.online }">
+                <div class="member-avatar">
+                  <img v-if="m.avatar" :src="m.avatar" referrerpolicy="no-referrer" loading="lazy" />
+                  <template v-else>{{ (m.nickname || m.username || '?').charAt(0).toUpperCase() }}</template>
+                  <b :class="['mem-dot', m.online ? 'on' : 'off']"></b>
+                </div>
                 <div class="member-info">
                   <span class="member-n">{{ m.nickname || m.username }}</span>
                   <span class="member-u">@{{ m.username }}</span>
                 </div>
-                <span v-if="m.id === room.ownerId" class="owner-tag">群主</span>
+                <span v-if="m.role === 'admin' || m.role === 'owner'" class="owner-tag">{{ m.role === 'owner' ? '群主' : '管理' }}</span>
+                <span :class="['mem-state', { on: m.online }]">{{ m.online ? '在线' : '离线' }}</span>
               </div>
             </div>
           </aside>
@@ -216,7 +230,7 @@
       </div>
 
       <!-- ============ 输入区 ============ -->
-      <footer class="chat2-input">
+      <footer v-if="chat.canChat" class="chat2-input">
         <div class="input-buttons">
           <div class="emoji-wrap">
             <button class="icon-btn round" @click="showEmoji = !showEmoji" title="表情">😊</button>
@@ -238,6 +252,11 @@
         <textarea ref="inputRef" v-model="inputText" @keydown.enter.exact.prevent="sendText"
           placeholder="在极光广场说点什么… Enter 发送，Shift+Enter 换行" rows="1"></textarea>
         <button class="c-btn primary send" @click="sendText" :disabled="!inputText.trim()">发送</button>
+      </footer>
+      <!-- 未实名认证：只读提示条 -->
+      <footer v-else class="chat2-readonly-bar">
+        <span>🔒 完成实名认证后即可在极光广场发言 ·</span>
+        <router-link to="/profile" class="readonly-link">前往个人中心认证</router-link>
       </footer>
 
       <!-- 图片灯箱 -->
@@ -269,11 +288,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/modules/auth'
+import { useToastStore } from '@/stores/modules/toast'
+import { useChatStore } from '@/stores/modules/chat'
+import { confirm as dlgConfirm } from '@/composables/useDialog'
 import {
-  getChatRooms, getChatMembers, getChatMessages, uploadChatImage,
+  uploadChatImage,
   getAnnouncements, createAnnouncement, deleteAnnouncement,
   getAlbums, createAlbum, deleteAlbum,
   getPhotos, addPhoto, deletePhoto,
@@ -283,22 +306,22 @@ import {
 
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToastStore()
+// 房间/成员/消息/连接状态全部由全局 chat store 驱动（左侧 Dock 共用，路由切换不断线）
+const chat = useChatStore()
+const { room, members, messages, wsConnected } = storeToRefs(chat)
 
-const room = ref(null)
-const members = ref([])
-const messages = ref([])
 const inputText = ref('')
 const inputRef = ref(null)
 const messagesRef = ref(null)
-const wsConnected = ref(false)
 const loadingHistory = ref(true)
 const loadError = ref('')
-let ws = null
 
 const myUserId = computed(() => auth.user?.id)
 
 // ========== 工具 ==========
 function avatarChar(msg) { return (msg.nickname || msg.username || '?').charAt(0).toUpperCase() }
+function avatarOf(msg) { return chat.avatarOf(msg) }
 function nameOf(msg) { return msg.nickname || msg.username || '匿名' }
 function fmtTime(t) {
   if (!t) return ''
@@ -309,61 +332,28 @@ function fmtTime(t) {
 function fmtDate(t) { return t ? String(t).slice(0,10) : '' }
 function goBack() { router.push('/community') }
 
-// ========== 初始化 ==========
+// ========== 初始化（store.init 幂等：已在别页连过则直接复用） ==========
 async function init() {
   if (!auth.isLoggedIn) return
   loadError.value = ''
   loadingHistory.value = true
-  try {
-    const res = await getChatRooms()
-    const list = res?.data ?? res
-    room.value = Array.isArray(list) ? list[0] : null
-    if (!room.value) {
-      loadError.value = '群聊服务尚未就绪'
-      loadingHistory.value = false
-      return
-    }
-    notifySeenAt.value = Number(localStorage.getItem(seenKey.value) || 0)
-    const [memRes, msgRes] = await Promise.all([
-      getChatMembers(room.value.id).catch(() => ({ data: [] })),
-      getChatMessages(room.value.id, 100).catch(() => ({ data: [] })),
-      loadNotifications(),
-    ])
-    members.value = memRes?.data ?? memRes ?? []
-    messages.value = msgRes?.data ?? msgRes ?? []
+  await chat.init()
+  if (!chat.room) {
     loadingHistory.value = false
-    scrollBottom()
-    connectWs(room.value.id)
-  } catch (e) {
-    loadingHistory.value = false
-    loadError.value = e?.response?.status === 404 ? '群聊服务尚未启动，请稍后再试' : '群聊连接失败，请检查网络'
+    loadError.value = chat.loadError || '群聊服务尚未启动，请稍后再试'
+    return
   }
+  notifySeenAt.value = Number(localStorage.getItem(seenKey.value) || 0)
+  await loadNotifications()
+  loadingHistory.value = false
+  scrollBottom()
 }
 
-// ========== WebSocket ==========
-function connectWs(roomId) {
-  disconnectWs()
-  const token = auth.token
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const url = `${proto}://${location.host}/chat/ws/${roomId}?token=${encodeURIComponent(token)}`
-  try {
-    ws = new WebSocket(url)
-    ws.onopen = () => { wsConnected.value = true }
-    ws.onmessage = (e) => {
-      try { messages.value.push(JSON.parse(e.data)); scrollBottom() } catch {}
-    }
-    ws.onclose = () => { wsConnected.value = false }
-    ws.onerror = () => { wsConnected.value = false }
-  } catch { wsConnected.value = false }
-}
-function disconnectWs() { if (ws) { ws.close(); ws = null } wsConnected.value = false }
-
-// ========== 发送文本 ==========
+// ========== 发送文本（权限校验在 store 内统一处理） ==========
 function sendText() {
   const text = inputText.value.trim()
-  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return
-  ws.send(JSON.stringify({ type: 'text', content: text }))
-  inputText.value = ''
+  if (!text) return
+  if (chat.sendText(text)) inputText.value = ''
 }
 function scrollBottom() {
   nextTick(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight })
@@ -382,9 +372,7 @@ const showEmoji = ref(false)
 const emojiGroupIdx = ref(0)
 function pickEmoji(e) {
   // 直接作为大表情发送
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'emoji', content: e }))
-  }
+  chat.sendEmoji(e)
   showEmoji.value = false
 }
 
@@ -395,16 +383,9 @@ async function onChatFile(ev) {
   const file = ev.target.files?.[0]
   ev.target.value = ''
   if (!file) return
-  if (!ws || ws.readyState !== WebSocket.OPEN) return
-  try {
-    const res = await uploadChatImage(file)
-    const url = res?.url ?? res?.data?.url
-    if (url) {
-      ws.send(JSON.stringify({ type: 'image', content: url }))
-      // 归档到默认相册（随手拍），非阻塞
-      addPhoto(room.value.id, { albumId: 1, url }).catch(() => {})
-    }
-  } catch {}
+  const url = await chat.sendImage(file)
+  // 归档到默认相册（随手拍），非阻塞
+  if (url && room.value) addPhoto(room.value.id, { albumId: 1, url }).catch(() => {})
 }
 
 // ========== 右侧抽屉 ==========
@@ -485,7 +466,8 @@ async function removeAlbum(al) {
   const tip = al.photoCount > 0
     ? `「${al.name}」里还有 ${al.photoCount} 张照片，删除文件夹会一并移除这些照片记录，确定删除吗？`
     : `确定删除文件夹「${al.name}」吗？`
-  if (!window.confirm(tip)) return
+  const ok = await dlgConfirm(tip, { title: '删除相册', okText: '删除', tone: 'danger' })
+  if (!ok) return
   await deleteAlbum(al.id)
   loadAlbums()
 }
@@ -542,7 +524,8 @@ function jumpToMessage() { showSearch.value = false; scrollBottom() }
 const lightbox = ref('')
 
 onMounted(() => { init() })
-onBeforeUnmount(() => { disconnectWs() })
+// 新消息到达时自动滚到底部（WebSocket 全局常驻，离开本页也不断线）
+watch(() => messages.value.length, () => scrollBottom())
 </script>
 
 <style scoped>
@@ -615,8 +598,9 @@ onBeforeUnmount(() => { disconnectWs() })
 .bubble-row.mine { align-self:flex-end;flex-direction:row-reverse; }
 .bubble-avatar {
   width:36px;height:36px;border-radius:50%;flex-shrink:0;font-size:.85rem;font-weight:700;color:#fff;
-  background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;overflow:hidden;
 }
+.bubble-avatar img { width:100%;height:100%;object-fit:cover; }
 .bubble-row.mine .bubble-avatar { background:linear-gradient(135deg,#22d3ee,#a855f7); }
 .bubble-col { min-width:0; }
 .bubble-row.mine .bubble-col { text-align:right; }
@@ -719,10 +703,20 @@ onBeforeUnmount(() => { disconnectWs() })
 .member-count-line { font-size:.75rem;color:rgba(255,255,255,.45);margin-bottom:10px; }
 .member-row { display:flex;align-items:center;gap:10px;padding:7px 6px;border-radius:10px; }
 .member-row:hover { background:rgba(255,255,255,.04); }
+.member-row.off { opacity:.5; }
 .member-row .member-avatar {
-  width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);
-  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;
+  position:relative;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;flex-shrink:0;
 }
+.member-row .member-avatar img { width:100%;height:100%;object-fit:cover;border-radius:50%; }
+.mem-dot {
+  position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;
+  border:2px solid rgba(12,14,34,.95);
+}
+.mem-dot.on { background:#34d399;box-shadow:0 0 6px rgba(52,211,153,.8); }
+.mem-dot.off { background:#6b7280; }
+.mem-state { font-size:.66rem;color:rgba(255,255,255,.35);flex-shrink:0; }
+.mem-state.on { color:#34d399; }
 .member-info { flex:1;display:flex;flex-direction:column;min-width:0; }
 .member-n { font-size:.84rem;color:#fff; }
 .member-u { font-size:.7rem;color:rgba(255,255,255,.4); }
@@ -739,6 +733,8 @@ onBeforeUnmount(() => { disconnectWs() })
 
 /* 输入区 */
 .chat2-input { display:flex;align-items:flex-end;gap:10px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.07);background:rgba(10,12,30,.7);flex-shrink:0; }
+.chat2-readonly-bar { display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;border-top:1px solid rgba(255,255,255,.07);background:rgba(10,12,30,.7);flex-shrink:0;font-size:.82rem;color:rgba(255,255,255,.55); }
+.chat2-readonly-bar .readonly-link { color:#67e8f9;text-decoration:underline; }
 .input-buttons { display:flex;gap:4px;position:relative; }
 .emoji-wrap { position:relative; }
 .chat2-input textarea {

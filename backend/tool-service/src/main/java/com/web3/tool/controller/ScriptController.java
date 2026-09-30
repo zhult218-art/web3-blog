@@ -1,18 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestHeader
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.tool.controller;
 
 import com.web3.common.core.ApiResponse;
@@ -77,7 +62,7 @@ public class ScriptController {
     public ApiResponse<ScriptVO> getById(@PathVariable Long id) {
         ScriptVO vo = this.scriptService.findById(id);
         if (vo == null) {
-            return ApiResponse.fail((int)404, (String)"Script not found");
+            return ApiResponse.fail(404, "Script not found");
         }
         return ApiResponse.ok(vo);
     }

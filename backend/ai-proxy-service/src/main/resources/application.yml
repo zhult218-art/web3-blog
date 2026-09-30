@@ -49,9 +49,13 @@ logging:
 
 ai-proxy:
   # 令牌哈希 salt（务必部署时随机生成并妥善保管）
-  token-secret: ${AI_PROXY_TOKEN_SECRET:change-me-token-salt-please-random}
+  # 2026-09-17 修订：删除硬编码兜底 "change-me-token-salt-please-random"，强制注入。
+  token-secret: ${AI_PROXY_TOKEN_SECRET:}
   # 渠道上游 Key 的 AES 加密密钥（16/24/32 字符）
-  channel-key-secret: ${AI_PROXY_CHANNEL_KEY_SECRET:change-me-aes-key-16b}
+  # 2026-09-17 修订：删除硬编码兜底 "change-me-aes-key-16b"，改为空兜底强制注入。
+  # 密钥未注入时启动 fail-fast（见 AiProxyProperties#validateSecret）。
+  # 安全要求：至少 32 字符随机串，避免 SHA-256 派生后碰撞。
+  channel-key-secret: ${AI_PROXY_CHANNEL_KEY_SECRET:}
   # 未配置任何启用渠道时的直连兜底地址（保持老行为）
   fallback-base-url: ${APP_OPENAI_API_BASE_URL:http://localhost:8000/v1}
   # 渠道选择策略：weight / random / round-robin
@@ -63,3 +67,42 @@ ai-proxy:
   # Supabase（Agent 工具调用，服务端密钥仅后端持有）
   supabase-url: ${SUPABASE_URL:https://nyzpglrmxltsirxmtkjo.supabase.co}
   supabase-service-key: ${SUPABASE_SERVICE_KEY:}
+  # Agent 直连 LLM 提供商列表（api-key 留空则跳过，填入环境变量后自动启用）
+  # 优先级：从上到下，第一个 api-key 非空的提供商将被使用
+  agent-llm-providers:
+    - name: DeepSeek
+      base-url: https://api.deepseek.com/v1
+      api-key: ${DEEPSEEK_API_KEY:}
+      model: deepseek-chat
+    - name: SiliconFlow
+      base-url: https://api.siliconflow.cn/v1
+      api-key: ${SILICONFLOW_API_KEY:}
+      model: Qwen/Qwen2.5-7B-Instruct
+    - name: LM Studio
+      base-url: http://localhost:1234/v1
+      api-key: ${LMSTUDIO_API_KEY:}
+      model: local-model
+    - name: Groq
+      base-url: https://api.groq.com/openai/v1
+      api-key: ${GROQ_API_KEY:}
+      model: llama-3.3-70b-versatile
+    - name: Doubao
+      base-url: https://ark.cn-beijing.volces.com/api/v3
+      api-key: ${DOUBAO_API_KEY:}
+      model: doubao-pro-32k
+    - name: Together AI
+      base-url: https://api.together.xyz/v1
+      api-key: ${TOGETHER_API_KEY:}
+      model: meta-llama/Llama-3.3-70B-Instruct-Turbo
+    - name: Fireworks
+      base-url: https://api.fireworks.ai/inference/v1
+      api-key: ${FIREWORKS_API_KEY:}
+      model: accounts/fireworks/models/llama-v3p1-70b-instruct
+    - name: OpenRouter
+      base-url: https://openrouter.ai/api/v1
+      api-key: ${OPENROUTER_API_KEY:}
+      model: google/gemini-2.0-flash-exp:free
+    - name: Ollama
+      base-url: http://localhost:11434/v1
+      api-key: ${OLLAMA_API_KEY:}
+      model: qwen2.5

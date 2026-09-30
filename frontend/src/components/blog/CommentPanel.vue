@@ -132,6 +132,7 @@ import { renderMarkdown } from '@/utils/markdown'
 import { formatMinute } from '@/utils/date'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useToastStore } from '@/stores/modules/toast'
+import { hasPerm } from '@/utils/permissions'
 
 const props = defineProps({
   targetId: { type: [String, Number], required: true },
@@ -186,12 +187,13 @@ async function submitReply(topId) {
   const content = replyText.value.trim()
   if (!content) return
   const isLoggedIn = auth.isLoggedIn
+  if (isLoggedIn && !hasPerm(auth.user, 'comment')) { toast.warning('你已被限制评论，请联系管理员'); return }
   if (!isLoggedIn) {
     if (!form.value.authorName.trim()) { toast.error('请填写昵称'); return }
   }
   submittingReply.value = true
   try {
-    await createComment({
+    const res = await createComment({
       targetId: props.targetId,
       targetType: props.targetType,
       content,
@@ -203,7 +205,7 @@ async function submitReply(topId) {
     replyingTo.value = null
     page.value = 1
     await fetchList()
-    toast.success('回复成功')
+    toast.success(res?.data?.status === 'pending' ? '回复成功，等待管理员审核通过后展示' : '回复成功')
   } catch {
     toast.error('回复失败')
   } finally {
@@ -232,12 +234,14 @@ async function submit() {
   const content = form.value.content.trim()
   if (!content) return
   const isLoggedIn = auth.isLoggedIn
+  // 评论权限：互动类默认拥有，管理员可收回（-comment）
+  if (isLoggedIn && !hasPerm(auth.user, 'comment')) { toast.warning('你已被限制评论，请联系管理员'); return }
   if (!isLoggedIn) {
     if (!form.value.authorName.trim()) { toast.error('请填写昵称'); return }
   }
   submitting.value = true
   try {
-    await createComment({
+    const res = await createComment({
       targetId: props.targetId,
       targetType: props.targetType,
       content,
@@ -246,7 +250,7 @@ async function submit() {
     form.value.content = ''
     page.value = 1
     await fetchList()
-    toast.success('评论成功')
+    toast.success(res?.data?.status === 'pending' ? '评论成功，等待管理员审核通过后展示' : '评论成功')
   } catch {
     toast.error('评论失败')
   } finally {

@@ -1,20 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.extension.plugins.pagination.Page
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  com.web3.common.security.JwtUtil
- *  io.jsonwebtoken.Claims
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestHeader
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.forum.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -26,7 +9,8 @@ import com.web3.common.security.JwtUtil;
 import com.web3.forum.dto.CommentCreateDTO;
 import com.web3.forum.dto.CommentVO;
 import com.web3.forum.service.CommentService;
-import java.util.List;
+import io.jsonwebtoken.Claims;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping(value={"/comment"})
 /**
  * CommentController —— 评论接口控制器
  * <p>
@@ -52,6 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>@RequestMapping("/comment")：对外接口统一前缀为 /comment</li>
  * </ul>
  */
+@RestController
+@RequestMapping(value = "/comment")
 public class CommentController {
     /** 评论业务服务 */
     private final CommentService commentService;
@@ -76,8 +60,11 @@ public class CommentController {
      * @param size       每页条数，默认 20
      * @return 分页的评论视图对象列表
      */
-    @GetMapping(value={"/list"})
-    public ApiResponse<PageResult<CommentVO>> list(@RequestParam Long targetId, @RequestParam String targetType, @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="20") int size) {
+    @GetMapping(value = "/list")
+    public ApiResponse<PageResult<CommentVO>> list(@RequestParam Long targetId,
+                                                   @RequestParam String targetType,
+                                                   @RequestParam(defaultValue = "1") int page,
+                                                   @RequestParam(defaultValue = "20") int size) {
         Page<CommentVO> result = this.commentService.page(targetId, targetType, page, size);
         PageResult<CommentVO> pageResult = PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), result.getRecords());
         return ApiResponse.ok(pageResult);
@@ -86,6 +73,7 @@ public class CommentController {
     /**
      * 发表评论（前端路由：POST /comment）
      * 登录可选：携带有效令牌时记录作者 ID；未登录可匿名评论（昵称必填）
+     * 权限：登录用户需未被收回 comment 权限（管理员可收回，匿名评论不受影响）
      * 评论对象为帖子时同步帖子回复数 +1
      *
      * @param dto   评论创建参数（目标 ID、目标类型、内容、昵称）
@@ -93,20 +81,23 @@ public class CommentController {
      * @return 创建成功后的评论视图对象
      */
     @PostMapping
-    public ApiResponse<CommentVO> create(@RequestBody CommentCreateDTO dto, @RequestHeader(value="Authorization", required=false) String token) {
+    public ApiResponse<CommentVO> create(@RequestBody CommentCreateDTO dto, @RequestHeader(value = "Authorization", required = false) String token) {
         Long authorId = null;
         if (token != null && !token.isBlank()) {
             try {
                 authorId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
-            }
-            catch (RuntimeException e) {
+                // 登录用户校验互动权限（默认拥有，被收回则 403）
+                AuthUtils.requirePerm(token, this.jwtUtil, this.jwtProperties, "comment", true);
+            } catch (RuntimeException e) {
+                if (authorId != null) throw e;
                 authorId = null;
             }
         }
         if (authorId == null && (dto.getAuthorName() == null || dto.getAuthorName().isBlank())) {
             return ApiResponse.fail(400, "匿名评论请填写昵称");
         }
-        CommentVO vo = this.commentService.create(dto, authorId);
+        boolean admin = token != null && !token.isBlank() && this.isAdmin(token);
+        CommentVO vo = this.commentService.create(dto, authorId, admin);
         return ApiResponse.ok(vo);
     }
 
@@ -118,8 +109,8 @@ public class CommentController {
      * @param token 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @org.springframework.web.bind.annotation.DeleteMapping(value={"/{id}"})
-    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String token) {
+    @DeleteMapping(value = "/{id}")
+    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         this.commentService.delete(id, userId, this.isAdmin(token));
         return ApiResponse.ok();
@@ -137,10 +128,9 @@ public class CommentController {
             if (!this.jwtUtil.validate(token)) {
                 return false;
             }
-            io.jsonwebtoken.Claims claims = this.jwtUtil.parseClaims(token);
+            Claims claims = this.jwtUtil.parseClaims(token);
             return "ROLE_ADMIN".equals(claims.get("authorities", String.class));
-        }
-        catch (RuntimeException e) {
+        } catch (RuntimeException e) {
             return false;
         }
     }

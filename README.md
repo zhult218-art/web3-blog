@@ -124,7 +124,7 @@ npm run dev        # 访问 http://localhost:5173
 | Nacos | 8848 | - | 服务注册/配置中心 |
 | Redis | 6379 | - | 缓存 |
 | RabbitMQ | 5672 | - | 消息队列 |
-| MySQL | 3306 | 11 个 web3_* 库 | 数据存储 |
+| MySQL | 3306 | 13 个 web3_* 库（见 backend/deploy/mysql/init/01-13 号 SQL） | 数据存储 |
 
 ## 调用链路
 

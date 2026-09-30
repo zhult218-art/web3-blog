@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.core.mapper.BaseMapper
- *  org.apache.ibatis.annotations.Mapper
- */
 package com.web3.media.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -19,6 +12,5 @@ import org.apache.ibatis.annotations.Mapper;
  * 职责：操作 playlist 播放列表表，继承 BaseMapper 获得通用 CRUD。
  */
 @Mapper
-public interface PlaylistMapper
-extends BaseMapper<Playlist> {
+public interface PlaylistMapper extends BaseMapper<Playlist> {
 }

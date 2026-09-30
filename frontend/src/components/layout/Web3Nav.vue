@@ -1,9 +1,11 @@
 <template>
   <header class="xhdr sticky top-0 z-40">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-      <!-- Logo：极光渐变 "A" + 朱红点（Aurora-朱 品牌标） -->
-      <router-link to="/" class="group flex items-center gap-2.5" title="Aurora-朱">
-        <svg viewBox="0 0 40 40" class="relative w-9 h-9 drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] transition-transform duration-300 group-hover:scale-110" aria-label="Aurora-朱 logo">
+      <!-- Logo：后台可配置图片 Logo；未配置时使用极光渐变 "A" + 朱红点 -->
+      <router-link to="/" class="group flex items-center gap-2.5" :title="brandName">
+        <img v-if="logoUrl" :src="logoUrl" :alt="brandName"
+          class="relative w-9 h-9 rounded-[11px] object-cover drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] transition-transform duration-300 group-hover:scale-110" />
+        <svg v-else viewBox="0 0 40 40" class="relative w-9 h-9 drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] transition-transform duration-300 group-hover:scale-110" :aria-label="brandName + ' logo'">
           <defs>
             <linearGradient id="logoAurora" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0" stop-color="#22d3ee"/>
@@ -21,7 +23,7 @@
           <circle cx="31.6" cy="9.6" r="5.4" fill="#fb3b5c" opacity="0.25"/>
         </svg>
         <span class="text-base font-bold group-hover:opacity-80 transition-all duration-300 hidden sm:inline">
-          <span class="bg-gradient-to-r from-cyan-300 via-purple-300 to-emerald-300 bg-clip-text text-transparent">Aurora</span><span class="text-rose-400">-朱</span>
+          <span class="bg-gradient-to-r from-cyan-300 via-purple-300 to-emerald-300 bg-clip-text text-transparent">{{ brandName }}</span>
         </span>
       </router-link>
 
@@ -30,6 +32,8 @@
         <router-link v-for="item in visibleNav" :key="item.path" :to="item.path"
           class="nav-link relative px-3.5 py-2 text-sm rounded-lg group"
           :class="isActive(item.path) ? 'nav-active' : ''"
+          @mouseenter="onNavEnter(item)"
+          @focus="onNavEnter(item)"
         >
           <span class="nav-label relative z-10">
             <span class="nl-main">{{ item.label }}</span>
@@ -140,7 +144,7 @@
         </div>
 
         <!-- Cart indicator -->
-        <router-link v-if="hasPerm(auth.user, 'shop')" to="/shop/cart" class="relative text-gray-400 hover:text-white transition-colors">
+        <router-link v-if="hasPerm(auth.user, 'shop') && (isAdmin || site.featureOn('shop'))" to="/shop/cart" class="relative text-gray-400 hover:text-white transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
           <span v-if="cart.totalCount" class="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-pink-500 text-[10px] font-bold flex items-center justify-center">{{ cart.totalCount }}</span>
         </router-link>
@@ -192,7 +196,8 @@
       </div>
     </div>
 
-    <!-- Mobile Dropdown -->
+    <!-- Mobile Dropdown：Teleport 到 body，脱离 header(z-40) 层叠上下文，z-85 才能压过公告按钮 -->
+    <Teleport to="body">
     <transition name="mobile-nav">
       <div v-if="mobileOpen" class="xhdr-mobile md:hidden">
         <div class="px-4 py-3 space-y-1">
@@ -237,6 +242,7 @@
         </div>
       </div>
     </transition>
+    </Teleport>
   </header>
 </template>
 
@@ -250,13 +256,19 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useCartStore } from '@/stores/modules/cart'
+import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
 import { hasPerm } from '@/utils/permissions'
 import { useTheme } from '@/composables/useTheme'
 import { useServiceHealth, isServiceUp } from '@/composables/useServiceHealth'
 import { WALLPAPERS, WALLPAPER_GROUPS } from '@/config/wallpapers'
+import { prefetchBlogMeta } from '@/api/blog'
 
 const auth = useAuthStore()
 const cart = useCartStore()
+const site = useSiteSettingsStore()
+// 品牌名 / Logo 来自系统设置（blog_setting 持久化），后台修改后即时生效
+const brandName = computed(() => site.brandName)
+const logoUrl = computed(() => site.site.logoUrl || '')
 const route = useRoute()
 const mobileOpen = ref(false)
 const userOpen = ref(false)
@@ -270,7 +282,6 @@ const themes = [
   { id: 'inferno', label: '熔岩橙', swatch: 'linear-gradient(135deg,#fb923c,#ef4444)' },
   { id: 'quantum', label: '量子绿', swatch: 'linear-gradient(135deg,#34d399,#22d3ee)' }
 ]
-const brand = 'Aurora-朱'
 const { theme, wallpaper, setTheme, setWallpaper } = useTheme()
 const wallpapers = WALLPAPERS
 const wallGroups = WALLPAPER_GROUPS
@@ -297,26 +308,36 @@ function onDocClick(e) {
 onMounted(() => {
   document.body.dataset.theme = theme.value
   document.addEventListener('click', onDocClick)
+  // 确保品牌名/功能开关配置就绪（路由守卫通常已加载，此处幂等兜底）
+  site.load()
 })
 onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 // 主导航（桌面端常驻）—— 异世界冒险风：label 为冒险语术，sub 为直观说明
 // svc: 关联的微服务名称，服务关闭时隐藏该项
+// feature: 关联系统设置中的功能开关，关闭后隐藏（管理员仍可见）
 const nav = [
   { path: '/', label: '主城广场', sub: '首页', perm: 'home' },
   { path: '/blog', label: '冒险日志', sub: '博客', perm: 'community', svc: 'blog-service' },
-  { path: '/community', label: '冒险者酒馆', sub: '社区', perm: 'community', svc: 'forum-service' },
-  { path: '/shop', label: '魔法杂货铺', sub: '商城', perm: 'shop', svc: 'shop-service' },
-  { path: '/media', label: '幻镜水晶', sub: '书影音', perm: 'media', svc: 'media-service' }
+  { path: '/community', label: '冒险者酒馆', sub: '社区', perm: 'community', svc: 'forum-service', feature: 'forum' },
+  { path: '/shop', label: '魔法杂货铺', sub: '商城', perm: 'shop', svc: 'shop-service', feature: 'shop' },
+  { path: '/media', label: '幻镜水晶', sub: '书影音', perm: 'media', svc: 'media-service', feature: 'media' },
+  { path: '/qzone', label: '时光回溯', sub: 'QQ空间备份', perm: 'qzone' }
 ]
 
+// 菜单项可见：有权限 + 服务在线 + 功能开关开启（管理员豁免开关）
+const itemVisible = i =>
+  hasPerm(auth.user, i.perm) &&
+  (!i.svc || isServiceUp(i.svc)) &&
+  (!i.feature || isAdmin.value || site.featureOn(i.feature))
+
 // 主航道过滤
-const visibleNav = computed(() => nav.filter(i => hasPerm(auth.user, i.perm) && (!i.svc || isServiceUp(i.svc))))
+const visibleNav = computed(() => nav.filter(itemVisible))
 
 // "服务"下拉菜单 —— 分组展示，同类功能聚簇，层次清晰。
 // svc: 关联微服务按健康状态显隐；icon: 视觉快速定位；perm: 权限过滤
 const serviceGroups = [
   { name: '智能分析', items: [
-    { path: '/quant', label: '占星推演', sub: '量化分析', perm: 'quant', svc: 'quant-service', icon: '📊' },
+    { path: '/quant', label: '占星推演', sub: '量化分析', perm: 'quant', svc: 'quant-service', feature: 'quant', icon: '📊' },
     { path: '/agent', label: 'Agent 会话台', sub: 'Workflow 智能体', perm: 'home', svc: 'ai-proxy-service', icon: '🧠' },
     { path: '/ai-station', label: 'AI 中转站', sub: '令牌·模型', perm: 'home', svc: 'ai-proxy-service', icon: '🤖' },
   ]},
@@ -335,8 +356,8 @@ const moreGroups = [
     { path: '/album', label: '回忆水晶', sub: '相册集', perm: 'album', icon: '📸' },
   ]},
   { name: '创作展示', items: [
-    { path: '/nails', label: '美甲小铺', sub: '预约·作品集', perm: 'home', svc: 'media-service', icon: '💅' },
-    { path: '/three', label: '星空漫游', sub: '3D 粒子空间', perm: 'home', icon: '🌀' },
+    { path: '/nails', label: '美甲小铺', sub: '预约·作品集', perm: 'home', svc: 'media-service', feature: 'media', icon: '💅' },
+    { path: '/three', label: '星空漫游', sub: '3D 粒子空间', perm: 'home', feature: 'metaverse', icon: '🌀' },
     { path: '/architecture', label: '架构图鉴', sub: '微服务拓扑', perm: 'home', icon: '🏛️' },
     { path: '/twin', label: '世界之眼', sub: '服务数字孪生', perm: 'home', icon: '🌐' },
   ]},
@@ -347,10 +368,10 @@ const moreGroups = [
   ]},
 ]
 
-// 按权限 + 服务健康状态过滤分组内项目，隐藏空分组
+// 按权限 + 服务健康状态 + 功能开关过滤分组内项目，隐藏空分组
 const groupVisible = (g) => ({
   ...g,
-  items: g.items.filter(i => hasPerm(auth.user, i.perm) && (!i.svc || isServiceUp(i.svc)))
+  items: g.items.filter(itemVisible)
 })
 const visibleServiceGroups = computed(() => serviceGroups.map(groupVisible).filter(g => g.items.length))
 const visibleMoreGroups = computed(() => moreGroups.map(groupVisible).filter(g => g.items.length))
@@ -372,6 +393,11 @@ function isActive(path) {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
+// 悬停/聚焦「博客」时预热数据与页面 chunk（幂等，重复触发无副作用）
+function onNavEnter(item) {
+  if (item.path === '/blog') prefetchBlogMeta()
+}
+
 // 退出登录：通知后端作废会话并清空登录态后回首页
 function handleLogout() {
   auth.logout()
@@ -389,12 +415,12 @@ function handleLogout() {
   padding-right: 2px;
 }
 
-.mobile-nav-enter-active { transition: all 0.25s ease; }
-.mobile-nav-leave-active { transition: all 0.2s ease; }
-.mobile-nav-enter-from { opacity: 0; max-height: 0; }
-.mobile-nav-enter-to { opacity: 1; max-height: 500px; }
-.mobile-nav-leave-from { opacity: 1; max-height: 500px; }
-.mobile-nav-leave-to { opacity: 0; max-height: 0; }
+.mobile-nav-enter-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.mobile-nav-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.mobile-nav-enter-from,
+.mobile-nav-leave-to { opacity: 0; transform: translateY(-12px); }
+.mobile-nav-enter-to,
+.mobile-nav-leave-from { opacity: 1; transform: translateY(0); }
 
 /* ── 层叠玻璃导航：多层背景 + 高光边 + 主题光晕 ── */
 .xhdr {
@@ -551,8 +577,16 @@ function handleLogout() {
   opacity: 0.88;
 }
 
-/* 移动端抽屉：同款玻璃层次 */
+/* 移动端全屏固定抽屉：z-10000 压过公告按钮(80)/弹窗(3000)/星途悬浮球(9999)，
+   抽屉开启时这些元素均不可交互 */
 .xhdr-mobile {
+  position: fixed;
+  top: 62px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  overflow-y: auto;
   background: linear-gradient(180deg, var(--nav-b), var(--nav-a));
   backdrop-filter: blur(22px) saturate(1.5);
   -webkit-backdrop-filter: blur(22px) saturate(1.5);

@@ -34,8 +34,11 @@ spring:
 server:
   port: 8081
 jwt:
-  expire: 10080
-  refresh: 43200
+  # 2026-09-17 修订：access 由 7 天（10080 分）缩短为 2 小时（120 分）；
+  # refresh 由 30 天（43200 分）缩短为 7 天（10080 分），降低 token 泄漏后的暴露窗口。
+  # 可通过环境变量 JWT_EXPIRE_MINUTES / JWT_REFRESH_MINUTES 覆盖。
+  expire: ${JWT_EXPIRE_MINUTES:120}
+  refresh: ${JWT_REFRESH_MINUTES:10080}
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

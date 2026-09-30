@@ -1,4 +1,45 @@
-﻿services:
+# =====================================================================
+# Web3 Portal — Docker Compose
+# 2026-09-17 修订（与体检报告 P0-3 对齐）：
+#   1. 补充 nacos / ai-proxy-service / quant-py-service 三个缺失服务定义；
+#   2. 所有 Java 服务的 *_SERVICE_HOST 环境变量统一指向对应容器名，
+#      与 gateway/application.yml 的 ${XXX_SERVICE_HOST:localhost} 占位一一对应；
+#      —— 修复网关路由全部 502 的根因（容器内服务发现失败）。
+#   3. 注入 JWT_SECRET 环境变量（强制，缺失则服务启动 fail-fast）；
+#   4. 删除 user/blog/forum/shop/media/quant/tool/software/resource/jarvis/admin
+#      十一个业务服务的宿主机端口映射——只保留 gateway 8080 与 frontend 80，
+#      防止绕过网关直连服务端口；外部调试可通过 `docker compose exec` 进入容器。
+#   5. 变量名统一为 NACOS_SERVER（与代码读取一致），不再用 NACOS_SERVER_ADDR。
+#   6. 移除 SPRING_PROFILES_ACTIVE=dev（仓库无 application-dev.yml，会导致 Nacos
+#      配置客户端按 dev profile 加载而失败；默认 profile 即可）。
+# =====================================================================
+
+# 公共环境锚点（YAML anchor，mapping 格式以支持 << 合并键）
+x-java-env: &java-env
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
+  MYSQL_HOST: ${MYSQL_HOST:-mysql}
+  MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD required}
+  REDIS_HOST: ${REDIS_HOST:-redis}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  NACOS_SERVER: ${NACOS_SERVER:-nacos:8848}
+  # 网关路由用 ${XXX_SERVICE_HOST:localhost}，统一指向容器名
+  USER_SERVICE_HOST: user-service
+  BLOG_SERVICE_HOST: blog-service
+  FORUM_SERVICE_HOST: forum-service
+  SHOP_SERVICE_HOST: shop-service
+  MEDIA_SERVICE_HOST: media-service
+  QUANT_SERVICE_HOST: quant-service
+  TOOL_SERVICE_HOST: tool-service
+  SOFTWARE_SERVICE_HOST: software-service
+  RESOURCE_SERVICE_HOST: resource-service
+  JARVIS_SERVICE_HOST: jarvis-service
+  ADMIN_SERVICE_HOST: admin-service
+  AI_PROXY_SERVICE_HOST: ai-proxy-service
+  J8Y_APP_KEY: ${J8Y_APP_KEY:-}
+  SHOWAPI_APP_KEY: ${SHOWAPI_APP_KEY:-}
+
+services:
   mysql:
     image: mysql:8.0
     environment:
@@ -27,160 +68,127 @@
       - '15672:15672'
     restart: always
 
+  nacos:
+    image: nacos/nacos-server:v2.3.2-slim
+    environment:
+      MODE: standalone
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+    ports:
+      - '8848:8848'
+      - '9848:9848'
+    restart: always
+
   gateway:
     build:
       context: ./backend/gateway
     ports:
       - '8080:8080'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   user-service:
     build:
       context: ./backend/user-service
-    ports:
-      - '8081:8081'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   blog-service:
     build:
       context: ./backend/blog-service
-    ports:
-      - '8082:8082'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   forum-service:
     build:
       context: ./backend/forum-service
-    ports:
-      - '8083:8083'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   shop-service:
     build:
       context: ./backend/shop-service
-    ports:
-      - '8084:8084'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   media-service:
     build:
       context: ./backend/media-service
-    ports:
-      - '8085:8085'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   quant-service:
     build:
       context: ./backend/quant-service
-    ports:
-      - '8086:8086'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   tool-service:
     build:
       context: ./backend/tool-service
-    ports:
-      - '8087:8087'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   software-service:
     build:
       context: ./backend/software-service
-    ports:
-      - '8088:8088'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     restart: always
 
   resource-service:
     build:
       context: ./backend/resource-service
-    ports:
-      - '8089:8089'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
     volumes:
       - ./backend/resource-service/runtime:/app/runtime
     restart: always
@@ -188,37 +196,50 @@
   jarvis-service:
     build:
       context: ./backend/jarvis-service
-    ports:
-      - '9001:9001'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
-      - RABBITMQ_USERNAME=${RABBITMQ_DEFAULT_USER}
-      - RABBITMQ_PASSWORD=${RABBITMQ_DEFAULT_PASS}
+      <<: *java-env
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
     depends_on:
       - mysql
       - redis
       - rabbitmq
+      - nacos
     restart: always
 
   admin-service:
     build:
       context: ./backend/admin-service
-    ports:
-      - '9002:9002'
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      <<: *java-env
     depends_on:
       - mysql
       - redis
+      - nacos
+    restart: always
+
+  ai-proxy-service:
+    build:
+      context: ./backend/ai-proxy-service
+    environment:
+      <<: *java-env
+    depends_on:
+      - mysql
+      - redis
+      - nacos
+    restart: always
+
+  quant-py-service:
+    build:
+      context: ./quant-py-service
+    environment:
+      - QUANT_DATA_DIR=/app/data
+      - QUANT_OUTPUT_DIR=/app/output
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-}
+    depends_on:
+      - mysql
     restart: always
 
   frontend:
@@ -228,4 +249,5 @@
       - '80:80'
     depends_on:
       - gateway
+      - quant-py-service
     restart: always

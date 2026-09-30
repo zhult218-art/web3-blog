@@ -4,3 +4,6 @@ pydantic>=2.0.0
 numpy>=1.24.0
 pandas>=2.0.0
 requests>=2.31.0
+# akshare 是核心 A 股数据源（mootdx 之外的备选数据源、东方财富/新浪行情接口）。
+# 历史上漏列此依赖，导致换机 pip install -r 后 main.py 内的 akshare 调用直接 ImportError。
+akshare>=1.12.0

@@ -1,22 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.baomidou.mybatisplus.extension.plugins.pagination.Page
- *  com.web3.common.core.ApiResponse
- *  com.web3.common.core.PageResult
- *  com.web3.common.security.JwtUtil
- *  io.jsonwebtoken.Claims
- *  org.springframework.web.bind.annotation.DeleteMapping
- *  org.springframework.web.bind.annotation.GetMapping
- *  org.springframework.web.bind.annotation.PathVariable
- *  org.springframework.web.bind.annotation.PostMapping
- *  org.springframework.web.bind.annotation.RequestBody
- *  org.springframework.web.bind.annotation.RequestHeader
- *  org.springframework.web.bind.annotation.RequestMapping
- *  org.springframework.web.bind.annotation.RequestParam
- *  org.springframework.web.bind.annotation.RestController
- */
 package com.web3.forum.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -29,19 +10,19 @@ import com.web3.forum.dto.PostCreateDTO;
 import com.web3.forum.dto.PostVO;
 import com.web3.forum.service.PostService;
 import io.jsonwebtoken.Claims;
-import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping(value={"/post"})
+import java.util.Map;
+
 /**
  * PostController —— 帖子接口控制器
  * <p>
@@ -56,6 +37,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>@RequestMapping("/post")：对外接口统一前缀为 /post</li>
  * </ul>
  */
+@RestController
+@RequestMapping(value = "/post")
 public class PostController {
     /** 帖子业务服务 */
     private final PostService postService;
@@ -84,8 +67,7 @@ public class PostController {
             }
             Claims claims = this.jwtUtil.parseClaims(token);
             return "ROLE_ADMIN".equals(claims.get("authorities", String.class));
-        }
-        catch (RuntimeException e) {
+        } catch (RuntimeException e) {
             return false;
         }
     }
@@ -100,8 +82,11 @@ public class PostController {
      * @param sort    排序方式，默认 latest
      * @return 分页的帖子视图对象列表
      */
-    @GetMapping(value={"/list"})
-    public ApiResponse<PageResult<PostVO>> list(@RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="20") int size, @RequestParam(defaultValue="") String keyword, @RequestParam(defaultValue="latest") String sort) {
+    @GetMapping(value = "/list")
+    public ApiResponse<PageResult<PostVO>> list(@RequestParam(defaultValue = "1") int page,
+                                               @RequestParam(defaultValue = "20") int size,
+                                               @RequestParam(defaultValue = "") String keyword,
+                                               @RequestParam(defaultValue = "latest") String sort) {
         Page<PostVO> result = this.postService.page(page, size, keyword, sort);
         PageResult<PostVO> pageResult = PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), result.getRecords());
         return ApiResponse.ok(pageResult);
@@ -113,8 +98,8 @@ public class PostController {
      *
      * @return 统计数据 Map
      */
-    @GetMapping(value={"/stats"})
-    public ApiResponse<java.util.Map<String, Object>> stats() {
+    @GetMapping(value = "/stats")
+    public ApiResponse<Map<String, Object>> stats() {
         return ApiResponse.ok(this.postService.stats());
     }
 
@@ -125,11 +110,11 @@ public class PostController {
      * @param id 帖子 ID
      * @return 帖子视图对象
      */
-    @GetMapping(value={"/{id}"})
+    @GetMapping(value = "/{id}")
     public ApiResponse<PostVO> detail(@PathVariable Long id) {
         PostVO vo = this.postService.getDetail(id);
         if (vo == null) {
-            return ApiResponse.fail((int)404, (String)"Post not found");
+            return ApiResponse.fail(404, "Post not found");
         }
         return ApiResponse.ok(vo);
     }
@@ -137,15 +122,17 @@ public class PostController {
     /**
      * 创建帖子（前端路由：POST /post，需登录）
      * 从请求头令牌解析出作者 ID 后创建帖子
+     * 权限：需未被收回 post 权限（互动类，默认拥有，管理员可收回）
      *
      * @param dto   帖子创建参数（标题、内容、分类、媒体等）
      * @param token 请求头 Authorization 的 JWT 令牌
      * @return 创建成功后的帖子视图对象
      */
     @PostMapping
-    public ApiResponse<PostVO> create(@RequestBody PostCreateDTO dto, @RequestHeader(value="Authorization") String token) {
+    public ApiResponse<PostVO> create(@RequestBody PostCreateDTO dto, @RequestHeader(value = "Authorization") String token) {
         Long authorId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
-        PostVO vo = this.postService.create(dto, authorId);
+        AuthUtils.requirePerm(token, this.jwtUtil, this.jwtProperties, "post", true);
+        PostVO vo = this.postService.create(dto, authorId, this.isAdmin(token));
         return ApiResponse.ok(vo);
     }
 
@@ -158,8 +145,8 @@ public class PostController {
      * @param token 请求头 Authorization 的 JWT 令牌
      * @return 更新后的帖子视图对象
      */
-    @org.springframework.web.bind.annotation.PutMapping(value={"/{id}"})
-    public ApiResponse<PostVO> update(@PathVariable Long id, @RequestBody PostCreateDTO dto, @RequestHeader(value="Authorization") String token) {
+    @PutMapping(value = "/{id}")
+    public ApiResponse<PostVO> update(@PathVariable Long id, @RequestBody PostCreateDTO dto, @RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         PostVO vo = this.postService.update(id, dto, userId, this.isAdmin(token));
         return ApiResponse.ok(vo);
@@ -173,8 +160,8 @@ public class PostController {
      * @param token 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @PostMapping(value={"/{id}/like"})
-    public ApiResponse<Object> like(@PathVariable Long id, @RequestHeader(value="Authorization") String token) {
+    @PostMapping(value = "/{id}/like")
+    public ApiResponse<Object> like(@PathVariable Long id, @RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         this.postService.like(id, userId);
         return ApiResponse.ok();
@@ -188,8 +175,8 @@ public class PostController {
      * @param token 请求头 Authorization 的 JWT 令牌
      * @return 成功提示
      */
-    @DeleteMapping(value={"/{id}"})
-    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String token) {
+    @DeleteMapping(value = "/{id}")
+    public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value = "Authorization") String token) {
         Long userId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         this.postService.delete(id, userId, this.isAdmin(token));
         return ApiResponse.ok();

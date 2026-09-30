@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS `resource` (
   `content_type` VARCHAR(128) DEFAULT NULL,
   `size` BIGINT DEFAULT 0,
   `download_url` VARCHAR(512) DEFAULT NULL,
+  `download_count` BIGINT DEFAULT 0,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `deleted` INT DEFAULT 0,
   PRIMARY KEY (`id`),
