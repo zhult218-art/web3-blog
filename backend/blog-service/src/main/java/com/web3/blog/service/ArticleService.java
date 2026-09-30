@@ -85,6 +85,8 @@ extends ServiceImpl<ArticleMapper, Article> {
      * @return 文章视图对象列表
      */
     public List<ArticleVO> related(Long id, int limit) {
+        // SQL 注入防御：limit 是 int 不可注入，但无上限可被恶意传超大值拖垮 DB，钳制到 1..50
+        limit = Math.min(Math.max(limit, 1), 50);
         Article current = (Article)this.getById(id);
         if (current == null) {
             return java.util.Collections.emptyList();
@@ -186,6 +188,8 @@ extends ServiceImpl<ArticleMapper, Article> {
      * @return 文章视图对象列表
      */
     public List<ArticleVO> recent(int limit) {
+        // SQL 注入防御：钳制 limit 到 1..100，防止超大值拖垮 DB
+        limit = Math.min(Math.max(limit, 1), 100);
         LambdaQueryWrapper<Article> wrapper = new LambdaQueryWrapper<Article>();
         wrapper.eq(Article::getStatus, (Object)"PUBLISHED");
         wrapper.orderByDesc(Article::getUpdatedAt);
@@ -328,6 +332,8 @@ extends ServiceImpl<ArticleMapper, Article> {
      * @return 文章视图对象列表
      */
     public List<ArticleVO> hotArticles(int limit) {
+        // SQL 注入防御：钳制 limit 到 1..100，防止超大值拖垮 DB
+        limit = Math.min(Math.max(limit, 1), 100);
         LambdaQueryWrapper<Article> wrapper = new LambdaQueryWrapper<Article>();
         wrapper.eq(Article::getStatus, (Object)"PUBLISHED");
         wrapper.orderByDesc(Article::getViewCount);

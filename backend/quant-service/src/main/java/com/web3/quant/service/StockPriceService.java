@@ -403,7 +403,9 @@ public class StockPriceService {
             if (!list.isEmpty()) return list;
         }
         LambdaQueryWrapper<StockPrice> wrapper = new LambdaQueryWrapper<StockPrice>();
-        wrapper.eq(StockPrice::getSymbol, symbol).eq(StockPrice::getPeriod, period).orderByDesc(StockPrice::getTimestamp).last("LIMIT " + Math.max(limit, 30));
+        // SQL 注入防御：钳制 limit 到 30..500，原 Math.max(limit,30) 无上限可被传超大值拖垮 DB
+        int safeLimit = Math.min(Math.max(limit, 30), 500);
+        wrapper.eq(StockPrice::getSymbol, symbol).eq(StockPrice::getPeriod, period).orderByDesc(StockPrice::getTimestamp).last("LIMIT " + safeLimit);
         List<StockPrice> dbList = this.stockPriceMapper.selectList(wrapper);
         if (dbList != null && !dbList.isEmpty()) return dbList;
         List<StockPrice> mock = this.generateMockKline(symbol, this.getStockName(symbol), period, 90);

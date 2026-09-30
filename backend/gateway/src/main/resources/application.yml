@@ -19,6 +19,18 @@ spring:
         import-check:
           enabled: false
     gateway:
+      # ===== DDoS 防护：HTTP 客户端连接池限制 =====
+      # 限制最大连接数、获取超时、请求体大小，防止大文件/慢速攻击耗尽连接
+      httpclient:
+        pool:
+          max-connections: 500        # 全局最大连接数上限
+          acquire-timeout: 2000       # 获取连接超时 2s，超时立即 503 拒绝
+          type: elastic
+        connect-timeout: 3000        # 上游连接超时 3s
+        response-timeout: 30s        # 上游响应超时 30s
+      # ===== 请求头/行大小限制 =====
+      # 防止超大头/超长请求行攻击（默认值过高）
+      # server.netty 相关配置在 server 节点
       routes:
         - id: user
           uri: http://${USER_SERVICE_HOST:localhost}:8081
@@ -174,6 +186,25 @@ spring:
 
 server:
   port: 8080
+  netty:
+    # 请求行/头/块大小上限：防止超大请求行攻击（默认很大）
+    max-initial-line-length: 16KB
+    max-header-size: 64KB
+    max-chunk-size: 16KB
+  # 请求体大小上限 10MB（覆盖文件上传场景；大文件上传走专用路径）
+  max-http-request-size: 10MB
+
+# ===== 限流配置（RateLimitFilter 消费） =====
+# 全局：每 IP 每秒填充 2 令牌（≈120/分钟），桶容量 120（短时突发 120 请求）
+# 路径：每 IP 每秒填充 1 令牌（≈60/分钟），桶容量 60（针对单接口刷量）
+gateway:
+  ratelimit:
+    global-capacity: 120
+    global-refill: 2
+    path-capacity: 60
+    path-refill: 1
+    # 白名单 IP（本机回环 + IPv6 本机 + 内网段，服务间互调不限流）
+    whitelist-ips: 127.0.0.1,0:0:0:0:0:0:0:1
 
 management:
   endpoints:
