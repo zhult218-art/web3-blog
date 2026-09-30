@@ -59,7 +59,8 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 // iframe 源：同源代理 /cockpit/ → marketingdashboard 服务（3030）
 // bn=/cockpit 让 react-router 在子路径下路由；apiBase=/cockpit 让 API 走 /cockpit/api/* 经代理回源
-const cockpitSrc = '/cockpit/?bn=/cockpit&apiBase=/cockpit'
+// _v= 构建版本戳: 强制浏览器每次取最新 index.html(避免旧 bundle 缓存导致 ERR_ABORTED)
+const cockpitSrc = '/cockpit/?bn=/cockpit&apiBase=/cockpit&_v=20260930e'
 const iframeRef = ref(null)
 const loaded = ref(false)
 const checking = ref(true)
@@ -79,16 +80,12 @@ function onLoad() {
 async function probe() {
   checking.value = true
   try {
-    const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), 3000)
-    const r = await fetch('/cockpit/api/health', { signal: ctrl.signal })
-    clearTimeout(t)
-    if (r.ok) {
-      const j = await r.json().catch(() => ({}))
-      serviceUp.value = !!(j?.ok || j?.data || r.ok)
-    } else {
-      serviceUp.value = false
-    }
+    // 不使用 AbortController: 服务不可达时 fetch 快速失败(连接拒绝),
+    // 无需超时; 任何 abort 都会在响应体未消费时触发 ERR_ABORTED 控制台污染。
+    // 始终消费响应体(r.json)防止 Chrome 标记未消费 body stream 为 cancelled。
+    const r = await fetch('/cockpit/api/health')
+    const j = await r.json().catch(() => ({}))
+    serviceUp.value = !!(j?.ok || j?.data || r.ok)
   } catch {
     serviceUp.value = false
   }

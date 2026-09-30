@@ -71,6 +71,7 @@
           {{ playing ? 'NOW PLAYING' : 'PAUSED' }} · {{ sourceLabel }}
         </div>
         <MusicPlayer
+          ref="musicPlayerRef"
           :tracks="tracks"
           :lyrics-map="lyricsMap"
           :show-vinyl="false"
@@ -109,6 +110,7 @@ import { useSupabase } from '@/composables/useSupabase'
 import { usePlayerStore } from '@/stores/modules/player'
 import { fixNeteaseId } from '@/config/musicFixes'
 import { DEMO_TRACKS, DEMO_LYRICS } from './lyricsData'
+import { useMusicHotkeys } from '@/composables/useMusicHotkeys'
 
 const route = useRoute()
 const router = useRouter()
@@ -121,6 +123,15 @@ const playing = ref(false)
 const activePreset = ref('')
 const searchTerm = ref('')
 const sourceLabel = ref('NIGHT RADIO')
+
+// MusicPlayer 组件实例引用：用于把全局快捷键回调接到子组件方法
+const musicPlayerRef = ref(null)
+
+// 启用全局音乐快捷键（Space 播放暂停 / Ctrl+←→ 上下首 / ↑↓ 音量 / L 喜欢 / M 静音 / S 搜索）
+useMusicHotkeys({
+  onToggleLike: () => musicPlayerRef.value?.toggleLike?.(),
+  onFocusSearch: () => musicPlayerRef.value?.focusSearchInput?.(),
+})
 
 const mainHead = ref(null)
 const tFashion = ref(null)

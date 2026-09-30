@@ -940,7 +940,7 @@ function startWebListening() {
     recognition.start()
     isListening.value = true
     statusText.value = '监听中...'
-    console.log('[xingtu] Web Speech recognition started')
+    import.meta.env.DEV && console.log('[xingtu] Web Speech recognition started')
   } catch (e) {
     try { recognition.stop() } catch {}
     setTimeout(() => {
@@ -1183,15 +1183,15 @@ onMounted(() => {
   if (!SR) {
     console.warn('[xingtu] Web Speech API not supported in this browser')
   } else {
-    console.log('[xingtu] Web Speech API available')
+    import.meta.env.DEV && console.log('[xingtu] Web Speech API available')
   }
 
   // 预加载 Vosk 模型（不自动启动监听，等用户点击球或按钮）
   statusText.value = '加载中...'
   setTimeout(() => {
     loadVoskModel()
-      .then(() => { voskOk = true; statusText.value = '就绪'; console.log('[xingtu] vosk ready') })
-      .catch(() => { voskOk = false; statusText.value = '就绪'; console.log('[xingtu] vosk unavailable, will use Web Speech') })
+      .then(() => { voskOk = true; statusText.value = '就绪'; import.meta.env.DEV && console.log('[xingtu] vosk ready') })
+      .catch(() => { voskOk = false; statusText.value = '就绪'; import.meta.env.DEV && console.log('[xingtu] vosk unavailable, will use Web Speech') })
   }, 1000)
 
   window.addEventListener('pointerup', onOrbPointerUp)

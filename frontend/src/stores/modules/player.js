@@ -5,7 +5,86 @@
 // ============================================================
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getNeteaseSongUrl, getNeteaseLyric } from '@/api/music'
+import { getNeteaseSongUrl, getNeteaseLyric, recordPlay } from '@/api/music'
+
+// localStorage 兜底历史 key（未登录/弱网仍可访问最近播放）
+const LOCAL_HISTORY_KEY = 'music_history'
+const LOCAL_HISTORY_MAX = 100
+
+// 读取本地历史（[{ id, title, artist, cover, neteaseId, url, duration, playedAt }]）
+function readLocalHistory() {
+  try {
+    const raw = localStorage.getItem(LOCAL_HISTORY_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+// 写入本地历史（新歌 unshift 到顶部，按 id 去重，最多 100 条）
+function writeLocalHistory(track) {
+  if (!track?.id) return
+  try {
+    const list = readLocalHistory().filter(t => String(t.id) !== String(track.id))
+    list.unshift({
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      cover: track.cover,
+      neteaseId: track.neteaseId,
+      url: track.url,
+      duration: track.duration,
+      playedAt: Date.now(),
+    })
+    localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(list.slice(0, LOCAL_HISTORY_MAX)))
+  } catch { /* localStorage 不可用时静默 */ }
+}
+
+// 公开：读本地历史（前端历史面板兜底展示）
+export function getLocalHistory() { return readLocalHistory() }
+
+// 公开：清空本地历史
+export function clearLocalHistory() {
+  try { localStorage.removeItem(LOCAL_HISTORY_KEY) } catch { /* ignore */ }
+}
+
+// 同步 navigator.mediaSession.metadata（锁屏/通知栏控制）
+function updateMediaSession(track) {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track?.title || '未知曲目',
+      artist: track?.artist || '未知艺术家',
+      album: track?.album || '星屿电台',
+      artwork: track?.cover
+        ? [{ src: track.cover, sizes: '512x512', type: 'image/jpeg' }]
+        : [],
+    })
+  } catch { /* MediaMetadata 不可用时静默 */ }
+}
+
+// 同步 mediaSession.playbackState（'playing' / 'paused'）：通知栏控制图标显隐
+function updatePlaybackState(state) {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return
+  try { navigator.mediaSession.playbackState = state } catch { /* ignore */ }
+}
+
+// 注册 mediaSession 控制按钮（play/pause/previoustrack/nexttrack/seekto）
+// 传入回调函数（store 实例方法）— 仅注册一次
+let mediaSessionBound = false
+function bindMediaSessionHandlers({ onPlay, onPause, onPrev, onNext, onSeekTo }) {
+  if (mediaSessionBound) return
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return
+  const ms = navigator.mediaSession
+  try { ms.setActionHandler('play', () => onPlay?.()) } catch { /* not supported */ }
+  try { ms.setActionHandler('pause', () => onPause?.()) } catch { /* not supported */ }
+  try { ms.setActionHandler('previoustrack', () => onPrev?.()) } catch { /* not supported */ }
+  try { ms.setActionHandler('nexttrack', () => onNext?.()) } catch { /* not supported */ }
+  try {
+    ms.setActionHandler('seekto', (details) => {
+      if (details?.seekTime != null) onSeekTo?.(details.seekTime)
+    })
+  } catch { /* not supported */ }
+  mediaSessionBound = true
+}
 
 // 将网易云 LRC 文本解析为 [{ time, text }]
 export function parseLrc(lrcText) {
@@ -139,10 +218,19 @@ export const usePlayerStore = defineStore('player', () => {
     duration.value = target.duration || 0
     lyrics.value = []
     loadLyrics(target)
+    updateMediaSession(target)
     el.play().then(() => {
       isPlaying.value = true
+      updatePlaybackState('playing')
+      // 埋点：本地历史（兜底，未登录也能用）+ 后端 play_count +1（失败静默，不影响播放）
+      writeLocalHistory(target)
+      const idStr = String(target.id || '')
+      if (/^\d+$/.test(idStr)) {
+        recordPlay(target.id).catch(() => { /* 后端不可用时不影响播放 */ })
+      }
     }).catch(() => {
       isPlaying.value = false
+      updatePlaybackState('paused')
     })
   }
 
@@ -194,6 +282,7 @@ export const usePlayerStore = defineStore('player', () => {
   // 暂停播放
   function pause() {
     isPlaying.value = false
+    updatePlaybackState('paused')
     ensureAudio().pause()
   }
 
@@ -201,7 +290,7 @@ export const usePlayerStore = defineStore('player', () => {
   function resume() {
     const el = ensureAudio()
     if (!currentTrack.value) return
-    el.play().then(() => { isPlaying.value = true }).catch(() => { isPlaying.value = false })
+    el.play().then(() => { isPlaying.value = true; updatePlaybackState('playing') }).catch(() => { isPlaying.value = false; updatePlaybackState('paused') })
   }
 
   // 播放/暂停切换
@@ -308,6 +397,18 @@ export const usePlayerStore = defineStore('player', () => {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
 
+  // 注册锁屏/通知栏控制按钮（store 实例方法已就绪时调用一次）
+  // 调用时机：音乐页面 onMounted 时（避免空 store 时注册无意义 handler）
+  function bindMediaSession() {
+    bindMediaSessionHandlers({
+      onPlay: () => resume(),
+      onPause: () => pause(),
+      onPrev: () => prev(),
+      onNext: () => next(),
+      onSeekTo: (t) => seek(t),
+    })
+  }
+
   return {
     currentTrack, isPlaying, volume, playlist, playlistVisible,
     playerBarVisible, currentTime, duration, playMode, hasTrack,
@@ -316,5 +417,6 @@ export const usePlayerStore = defineStore('player', () => {
     setMode, addToPlaylist, setPlaylist, togglePlaylist,
     showBar, hideBar, toggleBar,
     prev, next, stop, formatTime, getAudioElement,
+    bindMediaSession,
   }
 })

@@ -1,5 +1,17 @@
 package com.web3.forum.controller;
 
+import com.web3.common.core.FileSecurityChecker;
+import com.web3.common.security.AuthUtils;
+import com.web3.common.security.JwtProperties;
+import com.web3.common.security.JwtUtil;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -9,22 +21,13 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-import com.web3.common.security.AuthUtils;
-import com.web3.common.security.JwtProperties;
-import com.web3.common.security.JwtUtil;
 
 /**
  * 聊天图片上传：POST /chat/upload (multipart/form-data, field=file)
  * 权限：需未被收回 chat 权限（互动类，默认拥有，管理员可收回）
+ * 安全：调用 {@link FileSecurityChecker#validate} 做扩展名白名单 + 魔数 + 危险内容扫描，
+ * 防止伪装扩展名的恶意文件（可执行/脚本）进入服务器。
  * 返回 { url: "/uploads/chat/xxx.jpg" }
  */
 @RestController
@@ -42,28 +45,18 @@ public class ChatUploadController {
     @Value("${app.upload.dir:./uploads}")
     private String uploadDir;
 
-    private static final Set<String> ALLOWED = Set.of(
-            "jpg", "jpeg", "png", "gif", "webp", "bmp", "avif");
+    /** 聊天图片大小上限 5MB */
+    private static final long MAX_SIZE = 5_000_000L;
 
     @PostMapping("/upload")
     public Map<String, Object> upload(@RequestParam("file") MultipartFile file,
                                       @RequestHeader(value = "Authorization", required = false) String authorization) throws IOException {
         AuthUtils.requirePerm(authorization, this.jwtUtil, this.jwtProperties, "chat", true);
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("文件为空");
-        }
-        String original = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
-        String ext = "jpg";
-        int dot = original.lastIndexOf('.');
-        if (dot >= 0) ext = original.substring(dot + 1);
-        // 根据 contentType 兜底
-        String ct = file.getContentType() == null ? "" : file.getContentType();
-        if (!ALLOWED.contains(ext)) {
-            if (ct.contains("png")) ext = "png";
-            else if (ct.contains("gif")) ext = "gif";
-            else if (ct.contains("webp")) ext = "webp";
-            else throw new IllegalArgumentException("仅支持图片文件");
-        }
+        // 复用共享 FileSecurityChecker：扩展名白名单 + 魔数 + 危险内容扫描
+        FileSecurityChecker.validate(file, MAX_SIZE, FileSecurityChecker.IMAGE_EXTENSIONS);
+        // validate 已确认扩展名合法，直接提取
+        String ext = FileSecurityChecker.extractExtension(file.getOriginalFilename());
+        if (ext == null) ext = "jpg";
 
         String date = LocalDate.now().toString();
         // 必须转绝对路径：MultipartFile.transferTo 对相对路径会按 Tomcat
@@ -82,3 +75,4 @@ public class ChatUploadController {
         return result;
     }
 }
+

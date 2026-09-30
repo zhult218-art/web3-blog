@@ -197,6 +197,8 @@ server:
 # ===== 限流配置（RateLimitFilter 消费） =====
 # 全局：每 IP 每秒填充 2 令牌（≈120/分钟），桶容量 120（短时突发 120 请求）
 # 路径：每 IP 每秒填充 1 令牌（≈60/分钟），桶容量 60（针对单接口刷量）
+# 可信代理（XFF 信任加固）：仅这些来源转发的 X-Forwarded-For 才被解析，
+# 杜绝攻击者伪造 XFF 绕过 IP 限流。生产环境需补充前置 CDN/反代节点 IP。
 gateway:
   ratelimit:
     global-capacity: 120
@@ -205,6 +207,8 @@ gateway:
     path-refill: 1
     # 白名单 IP（本机回环 + IPv6 本机 + 内网段，服务间互调不限流）
     whitelist-ips: 127.0.0.1,0:0:0:0:0:0:0:1
+  # 可信代理 IP 集合（支持精确 IP；内网段 127./10./192.168. 默认可信无需配置）
+  trusted-proxies: 127.0.0.1,0:0:0:0:0:0:0:1
 
 management:
   endpoints:

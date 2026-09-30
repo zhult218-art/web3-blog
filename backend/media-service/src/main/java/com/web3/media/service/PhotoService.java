@@ -58,6 +58,9 @@ extends ServiceImpl<PhotoMapper, Photo> {
      * @return 照片实体的分页结果
      */
     public PageResult<Photo> page(int page, int size) {
+        // 分页 size 钳制：防止恶意超大 size 拖垮 DB（1..100）
+        page = Math.max(page, 1);
+        size = Math.min(Math.max(size, 1), 100);
         LambdaQueryWrapper<Photo> wrapper = new LambdaQueryWrapper<Photo>().orderByDesc(Photo::getCreatedAt);
         Page<Photo> mpPage = new Page<Photo>((long)page, (long)size);
         Page<Photo> result = this.baseMapper.selectPage(mpPage, wrapper);

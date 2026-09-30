@@ -21,5 +21,9 @@ public class MusicVO {
     private Integer duration;
     private String album;
     private String tags;
+    /** 播放次数 */
+    private Long playCount;
+    /** 当前用户是否已收藏（详情接口返回，列表接口为 null） */
+    private Boolean liked;
     private LocalDateTime createdAt;
 }

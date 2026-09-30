@@ -48,6 +48,9 @@ public class ResourceService extends ServiceImpl<ResourceMapper, Resource> {
      * @return 资源分页结果
      */
     public PageResult<ResourceVO> page(int pageNum, int pageSize, String keyword, String category) {
+        // 分页 size 钳制：防止恶意超大 size 拖垮 DB（1..100）
+        pageNum = Math.max(pageNum, 1);
+        pageSize = Math.min(Math.max(pageSize, 1), 100);
         LambdaQueryWrapper<Resource> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(Resource::getTitle, keyword).or().like(Resource::getDescription, keyword));

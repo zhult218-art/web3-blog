@@ -39,6 +39,17 @@ backend/media-service/runtime/
 /runtime/
 *.pid
 
+# SQLite / local databases
+*.db
+*.sqlite
+*.db-journal
+
+# Embedded Tomcat temp work dir
+/work/
+
+# Python bytecode (standalone, outside __pycache__/)
+*.pyc
+
 # Test artifacts
 quant-py-service/test_output.txt
 quant-py-service/test_error.txt

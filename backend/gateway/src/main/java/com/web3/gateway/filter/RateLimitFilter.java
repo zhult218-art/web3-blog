@@ -74,6 +74,10 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
   @Value("${gateway.ratelimit.whitelist-ips:127.0.0.1,0:0:0:0:0:0:0:1}")
   private Set<String> whitelistIps;
 
+  /** 可信代理 IP 集合：仅这些来源转发的 XFF 才被解析，杜绝任意客户端伪造 XFF 绕过限流 */
+  @Value("${gateway.trusted-proxies:127.0.0.1,0:0:0:0:0:0:0:1}")
+  private Set<String> trustedProxies;
+
   public RateLimitFilter(ReactiveStringRedisTemplate redis) {
     this.redis = redis;
     this.script = new DefaultRedisScript<>();
@@ -143,18 +147,42 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
     return exchange.getResponse().writeWith(Mono.just(buf));
   }
 
-  /** 提取客户端真实 IP：优先 X-Forwarded-For / X-Real-IP，兜底 remoteAddress */
+  /** 提取客户端真实 IP：仅当直连来源为可信代理时才解析 XFF，从右向左取第一个非可信 IP；
+   * 否则直接用 remoteAddress。杜绝攻击者伪造 XFF 绕过 IP 限流。
+   * <p>XFF 链格式：client, proxy1, proxy2...，最右侧是最近一跳代理，从右向左逆推 */
   private String resolveClientIp(ServerHttpRequest req) {
+    InetSocketAddress remote = req.getRemoteAddress();
+    String remoteIp = remote != null ? remote.getAddress().getHostAddress() : "unknown";
+    // 直连来源不是可信代理 → 无条件信任 TCP 对端地址，忽略所有 XFF 头
+    if (!isTrustedProxy(remoteIp)) {
+      return remoteIp;
+    }
+    // 直连来源是可信代理 → 解析 XFF，从右向左取第一个非可信代理 IP
     String xff = req.getHeaders().getFirst("X-Forwarded-For");
     if (xff != null && !xff.isEmpty()) {
-      int comma = xff.indexOf(',');
-      String first = comma > 0 ? xff.substring(0, comma).trim() : xff.trim();
-      if (!first.isEmpty()) return first;
+      String[] parts = xff.split(",");
+      for (int i = parts.length - 1; i >= 0; i--) {
+        String ip = parts[i].trim();
+        if (!ip.isEmpty() && !isTrustedProxy(ip)) {
+          return ip;
+        }
+      }
+      // 整条 XFF 链都是可信代理（罕见，说明链路都是内部代理），返回链尾
+      String tail = parts[parts.length - 1].trim();
+      if (!tail.isEmpty()) return tail;
     }
+    // 可信代理转发但无 XFF，退回 X-Real-IP，再兜底 TCP 对端
     String xri = req.getHeaders().getFirst("X-Real-IP");
     if (xri != null && !xri.isEmpty()) return xri.trim();
-    InetSocketAddress remote = req.getRemoteAddress();
-    return remote != null ? remote.getAddress().getHostAddress() : "unknown";
+    return remoteIp;
+  }
+
+  /** 判断 IP 是否为可信代理（仅这些来源转发的 XFF 才被信任） */
+  private boolean isTrustedProxy(String ip) {
+    if (ip == null) return false;
+    if (trustedProxies.contains(ip)) return true;
+    return ip.startsWith("127.") || ip.startsWith("10.")
+        || ip.startsWith("192.168.") || ip.equals("0:0:0:0:0:0:0:1");
   }
 
   private boolean isWhitelisted(String ip) {

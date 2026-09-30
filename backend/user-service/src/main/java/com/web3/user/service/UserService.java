@@ -462,6 +462,9 @@ public class UserService {
      * @return 分页结果 PageResult<UserVO>
      */
     public PageResult<UserVO> list(int page, int size, String keyword) {
+        // 分页 size 钳制：防止恶意超大 size 拖垮 DB（1..100）
+        page = Math.max(page, 1);
+        size = Math.min(Math.max(size, 1), 100);
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByDesc(User::getCreatedAt);
         if (keyword != null && !keyword.isBlank()) {

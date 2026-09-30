@@ -57,6 +57,9 @@ extends ServiceImpl<ArticleMapper, Article> {
      * @return 文章视图对象的分页结果
      */
     public Page<ArticleVO> page(int page, int size, String keyword, String category, String tag) {
+        // 分页 size 钳制：防止恶意超大 size 拖垮 DB（1..100）
+        page = Math.max(page, 1);
+        size = Math.min(Math.max(size, 1), 100);
         LambdaQueryWrapper<Article> wrapper = new LambdaQueryWrapper<Article>();
         if (StringUtils.hasText((String)keyword)) {
             wrapper.like(Article::getTitle, (Object)keyword);

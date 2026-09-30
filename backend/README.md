@@ -145,6 +145,92 @@ blog-service/src/main/java/.../
 - **管理员接口**：`@RequireAdmin` 注解 + 前端 `permissions` 字段（用户权限码）双重校验。
 - **公开接口**：各服务 `PublicSecurityConfig` 显式放行（如文章列表、媒体流等）。
 
+## 安全加固（2026-09-30）
+
+### DDoS 防护
+
+- **网关令牌桶限流**（[`gateway/.../RateLimitFilter.java`](gateway/src/main/java/com/web3/gateway/filter/RateLimitFilter.java)）：Redis Lua 脚本原子操作，全局 120/min + 路径 60/min，超限返回 `429` + `Retry-After`；白名单内网（127./192.168./10.）放行；Redis 故障 fail-open。
+- **XFF 信任加固**：`gateway.trusted-proxies` 配置可信代理，仅命中时才解析 `X-Forwarded-For`，从右向左取第一个非可信 IP，杜绝伪造 XFF 绕过限流。
+- **连接池/超时/请求体限制**（`gateway/application.yml`）：连接池 500、获取超时 2s、上游连接超时 3s、响应超时 30s、请求行/头/块 16KB/64KB/16KB、请求体上限 10MB。
+- **IP 黑名单**：[`IpBlocklistFilter.java`](gateway/src/main/java/com/web3/gateway/filter/IpBlocklistFilter.java)（Redis Set `ip:blocklist`，命中返回 403）+ [`admin-service/.../IpBlocklistController.java`](admin-service/src/main/java/com/web3/admin/controller/IpBlocklistController.java)（`POST/DELETE /admin/ip-blocklist/{ip}` + `GET /admin/ip-blocklist`，需管理员）。
+
+### SQL 注入防御
+
+- 全项目统一 MyBatis-Plus `LambdaQueryWrapper`（参数绑定，无 `${}` 拼接），无 Mapper.xml。
+- 所有 `page(page, size)` 的 `size` 统一钳制 `Math.min(Math.max(size, 1), 100)`，`limit` 参数同理钳制，防止恶意超大值拖垮 DB。
+
+### 文件上传
+
+- [`FileSecurityChecker.java`](common/common-core/src/main/java/com/web3/common/core/FileSecurityChecker.java) 提取到 `common-core` 共享：扩展名白名单 + 文件魔数校验 + 大小限制 + 路径穿越拦截。
+- `ChatUploadController`、`ResourceController`、`MediaController` 等上传入口均已接入。
+
+### 安全响应头
+
+- [`SecurityHeadersFilter.java`](gateway/src/main/java/com/web3/gateway/filter/SecurityHeadersFilter.java)（Order=-200，早于限流）：
+  - `Content-Security-Policy`、`X-Frame-Options: SAMEORIGIN`（marketingdashboard 同源 iframe 仍可加载）、`X-Content-Type-Options: nosniff`、`Strict-Transport-Security`、`Referrer-Policy`、`Permissions-Policy`。
+
+### 日志脱敏
+
+- [`LogMasker.java`](common/common-util/src/main/java/com/web3/common/util/LogMasker.java)：`maskPhone`/`maskEmail`/`maskToken`/`maskCode`/`maskPassword`。
+- `OtpService` 等敏感日志已替换，手机号/邮箱/令牌/验证码不落明文。
+
+### CORS
+
+- [`CorsConfig.java`](gateway/src/main/java/com/web3/gateway/config/CorsConfig.java)：白名单 `frp-six.com:44598` + `localhost:5173`，杜绝 `*` 通配，`allowCredentials=true`。
+
+## 音乐模块接口（media-service，2026-09-30 扩展）
+
+网关前缀 `/music/**` → media-service:8085。
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|---|---|---|---|
+| GET | `/music/list?page=&size=&keyword=` | 游客 | 分页列表（歌名/歌手筛选） |
+| GET | `/music/{id}` | 游客 | 详情（登录附带 `liked` 状态） |
+| POST | `/music` | upload:music | 创建（管理员/授权用户） |
+| PUT | `/music/{id}` | ADMIN | 更新 |
+| DELETE | `/music/{id}` | ADMIN | 删除 |
+| POST | `/music/{id}/like` | 登录 | 切换收藏，返回 `{liked:bool}` |
+| GET | `/music/{id}/like` | 登录 | 查询收藏态 |
+| GET | `/music/liked?page=&size=` | 登录 | 收藏列表 |
+| POST | `/music/{id}/play` | 游客 | 播放次数 +1（登录顺手写历史） |
+| GET | `/music/hot?limit=20` | 游客 | 热榜（按 play_count 倒序） |
+| GET | `/music/search?keyword=&page=&size=` | 游客 | 本地搜索（歌名/歌手） |
+| GET | `/music/{id}/stream` | 游客 | **Range 206 流式**，透传上游 `Content-Range`/`Accept-Ranges` |
+| POST | `/music/history` body `{musicId}` | 登录 | 记录播放历史 |
+| GET | `/music/history?page=&size=` | 登录 | 播放历史分页 |
+| DELETE | `/music/history` | 登录 | 清空历史 |
+
+> 评论复用 forum-service：`POST /comment` body `{targetType:'music', targetId, content}`、`GET /comment/list?targetType=music&targetId=`。
+
+## 环境变量清单
+
+| 变量 | 服务 | 说明 | 必填 |
+|---|---|---|---|
+| `JWT_SECRET` | 全部 | JWT 签名密钥（≥32 字符） | 是 |
+| `MYSQL_HOST` `MYSQL_PASSWORD` | 全部 | MySQL 地址/密码（本地 127.0.0.1，密码 root） | 是 |
+| `REDIS_HOST` `REDIS_PASSWORD` | 全部 | Redis 地址/密码（本地 127.0.0.1，无密码留空） | 是 |
+| `RABBITMQ_HOST` | 全部 | RabbitMQ 地址 | 是 |
+| `NACOS_SERVER` | 全部 | Nacos 地址（本地 127.0.0.1:8848） | 是 |
+| `J8Y_APP_KEY` | gateway | 网关 `AddRequestParameter` 占位符（可设 `not-configured`，不可空） | 是 |
+| `AI_PROXY_TOKEN_SECRET` `AI_PROXY_CHANNEL_KEY_SECRET` | ai-proxy | AI 代理密钥（≥32 字符） | ai-proxy 必填 |
+| `MAIL_ENABLED` `MAIL_HOST` `MAIL_USERNAME` `MAIL_PASSWORD` | user-service | 邮箱 OTP（true=走 SMTP；false=dev 回传 devCode） | 否 |
+| `SMS_ENABLED` `SMS_PROVIDER` | user-service | 短信 OTP（当前仅邮件 OTP 方案，短信网关未接入自动回退） | 否 |
+| `OPENROUTER_API_KEY` | quant-service | AI 观察面板（无则降级为空） | 否 |
+| `ARTIFICIAL_ANALYSIS_API_KEY` | quant-service | 大模型定价面板（无则降级为空） | 否 |
+
+## 测试
+
+- 测试框架：JUnit 5 + Mockito（`spring-boot-starter-test`）。
+- 现有测试：`OrderServiceTest`（取消订单回补库存）、`MusicServiceTest`（page 钳制/越权/play_count 自增，9 用例）、`ArticleServiceTest`（page 钳制/越权拒绝，6 用例）、`CommentServiceTest`（评论状态/越权拒绝，6 用例）。
+- 运行：
+
+```powershell
+$env:JAVA_HOME = "F:\tools\jdk17"
+F:\tools\apache-maven-3.9.6\bin\mvn.cmd -pl media-service,blog-service,forum-service,shop-service test -f backend/pom.xml
+```
+
+> CI 默认 `-DskipTests` 不跑；本地验证可按上述命令执行。
+
 ## 相关文档
 
 - 网关路由/端口全集：见根目录 `README.md` 端口清单

@@ -47,6 +47,9 @@ public class BookService extends ServiceImpl<BookMapper, Book> {
      * @return 书籍视图对象的分页结果
      */
     public PageResult<BookVO> page(int page, int size, String keyword) {
+        // 分页 size 钳制：防止恶意超大 size 拖垮 DB（1..100）
+        page = Math.max(page, 1);
+        size = Math.min(Math.max(size, 1), 100);
         LambdaQueryWrapper<Book> wrapper = new LambdaQueryWrapper<Book>();
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(Book::getTitle, keyword).or().like(Book::getAuthor, keyword).or().like(Book::getCategory, keyword));

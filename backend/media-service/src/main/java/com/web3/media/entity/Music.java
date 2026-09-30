@@ -32,6 +32,8 @@ public class Music {
     private Integer duration;
     private String album;
     private String tags;
+    /** 播放次数，累加字段，默认 0 */
+    private Long playCount;
     @TableField(fill=FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableLogic

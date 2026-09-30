@@ -60,6 +60,9 @@ extends ServiceImpl<VideoMapper, Video> {
      * @return 视频视图对象的分页结果
      */
     public PageResult<VideoVO> page(int page, int size, String keyword) {
+        // 分页 size 钳制：防止恶意超大 size 拖垮 DB（1..100）
+        page = Math.max(page, 1);
+        size = Math.min(Math.max(size, 1), 100);
         LambdaQueryWrapper<Video> wrapper = new LambdaQueryWrapper<Video>();
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.like(Video::getTitle, (Object)keyword).or().like(Video::getDescription, (Object)keyword);
