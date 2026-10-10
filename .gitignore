@@ -56,8 +56,18 @@ quant-py-service/test_error.txt
 quant-py-service/stderr.log
 quant-py-service/stdout.log
 
+# WiFi crack test data
+py-service/data/wifi/crack/
+
 # Debug/repro temp files
 _repro_*.txt
 _repro_*.png
 frontend/logs-*.txt
 *.log.*
+
+# Dev handoff/temp notes
+HANDOFF.md
+check-encoding.json
+frontend/PROJECT_HANDOFF.md
+frontend/REFACTOR-MEGA-COMPONENTS.md
+backend/DECOMPILED-SOURCES.md

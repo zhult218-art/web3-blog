@@ -347,6 +347,7 @@ const serviceGroups = [
     { path: '/software', label: '魔导工坊', sub: '软件中心', perm: 'software', svc: 'software-service', icon: '💾' },
     { path: '/resources', label: '宝物仓库', sub: '资源库', perm: 'resources', svc: 'resource-service', icon: '📦' },
     { path: '/upload', label: '星空仓库', sub: '资源上传', perm: 'home', icon: '☁️' },
+    { path: '/wifi', label: '信号侦测', sub: 'WiFi安全审计', perm: 'wifi', icon: '📶' },
   ]},
 ]
 

@@ -48,13 +48,14 @@ const items = [
 // 次级快捷入口
 const subs = [
   { label: '📷 相册', path: '/album' },
-  { label: '💅 美甲小铺', path: '/nail' },
+  { label: '💅 美甲小铺', path: '/nails' },
   { label: '🎵 音乐', path: '/music' },
   { label: '🎬 视频', path: '/media' },
   { label: '💻 软件中心', path: '/software' },
-  { label: '📊 资源库', path: '/resource' },
+  { label: '📊 资源库', path: '/resources' },
   { label: '🤖 AI 智能体', path: '/agent' },
   { label: '🌌 3D 星系', path: '/three' },
+  { label: '📶 WiFi 审计', path: '/wifi' },
 ]
 </script>
 

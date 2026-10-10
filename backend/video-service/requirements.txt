@@ -1,5 +1,0 @@
-fastapi>=0.110
-uvicorn[standard]>=0.29
-python-multipart>=0.0.9
-oss2>=2.18        # 阿里云 OSS SDK（未接 OSS 时可注释掉，服务自动降级本地存储）
-yt-dlp>=2024.1.1  # 网络视频下载（YouTube/B站/抖音等 1800+ 平台）

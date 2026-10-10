@@ -20,7 +20,7 @@ export const UPLOAD_PERMS = ['upload:photo', 'upload:music', 'upload:video', 'up
 export const REVOCABLE_PERMS = ACTION_PERMS
 
 // 服务权限码（需管理员在后台授权才可访问）
-export const SERVICE_PERMS = ['shop', 'quant', 'tools', 'software', 'qzone']
+export const SERVICE_PERMS = ['shop', 'quant', 'tools', 'software', 'qzone', 'wifi']
 
 // 权限分组定义（后台权限设置弹窗的数据源）
 export const PERMISSIONS = [
@@ -59,7 +59,7 @@ export const PERMISSIONS = [
     group: '服务（需管理员授权）',
     items: SERVICE_PERMS.map(code => ({
       code,
-      label: { shop: '商城', quant: '量化分析', tools: '实用工具', software: '软件中心', qzone: 'QQ空间备份' }[code] || code,
+      label: { shop: '商城', quant: '量化分析', tools: '实用工具', software: '软件中心', qzone: 'QQ空间备份', wifi: 'WiFi安全审计' }[code] || code,
     })),
   },
 ]

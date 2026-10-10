@@ -1,12 +1,11 @@
-﻿# ============================================================
+﻿﻿# ============================================================
 # Web3 Portal — 一键启动本地开发环境全部服务（Windows PowerShell）
 #
-# 2026-09-20 修订：
-#   1. 合并原先重复的 backend\start-all.ps1，成为全仓唯一启动入口；
-#   2. 移除硬编码的第三方 app_key（ak_xxx）与本机绝对路径（F:\tools、F:\project\...），
-#      密钥统一从环境变量或仓库根 .env 读取，缺失即报错退出；
-#   3. 覆盖完整栈：13 个 Java 微服务 + Whisper STT(9011) + 网易云音乐代理(3000)
-#      + 量化 Python 服务(9006) + Vibe-Research(8900) + QQ空间备份(9012)；
+# 2026-10-09 修订（一键启动全栈）：
+#   1. 全仓唯一启动入口：一个脚本拉起全部服务——MySQL / Redis / Nacos / 13 个 Java 微服务
+#      / 网易云音乐代理(node-service:3000) / 统一 py-service(9006) / Vibe-Research(8900) / 前端 Vite(5173)；
+#   2. 密钥统一从仓库根 .env 读取，缺失即报错退出，不入库不入脚本；
+#   3. 统一 py-service(9006) 单进程聚合 quant/qzone/video/whisper/wifi，作为一个服务注册 Nacos；
 #   4. 未构建 / 未安装的组件只跳过并给出提示，不中断其余服务启动。
 #
 # 用法：powershell -ExecutionPolicy Bypass -File start-all-services.ps1
@@ -88,10 +87,11 @@ foreach ($k in @("J8Y_APP_KEY", "SHOWAPI_APP_KEY")) {
     }
 }
 
-# ── 定位 python（Whisper / 量化服务共用） ──
+# ── 定位 python（统一 py-service 各模块共用） ──
 $py = $env:PYTHON_EXE
 if (-not $py) {
     foreach ($p in @(
+        (Join-Path $root "py-service\.venv\Scripts\python.exe"),
         (Join-Path $root "quant-py-service\.venv\Scripts\python.exe"),
         "$env:USERPROFILE\miniconda3\python.exe",
         "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe"
@@ -99,6 +99,22 @@ if (-not $py) {
         if (Test-Path $p) { $py = $p; break }
     }
     if (-not $py -and (Get-Command python -ErrorAction SilentlyContinue)) { $py = "python" }
+}
+
+# ── 定位 node（前端 Vite dev server + netease-music-api 共用） ──
+$node = $env:NODE_EXE
+if (-not $node) {
+    $cmd = Get-Command node -ErrorAction SilentlyContinue
+    if ($cmd) { $node = $cmd.Source }
+    if (-not $node) {
+        # 探测便携版 / 常见安装目录
+        $nodeCandidates = @(
+            "$env:LOCALAPPDATA\Temp\node-portable\node-v22.11.0-win-x64\node.exe",
+            "$env:ProgramFiles\nodejs\node.exe",
+            "$env:USERPROFILE\AppData\Roaming\nvm\v22\node.exe"
+        ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+        if ($nodeCandidates) { $node = $nodeCandidates }
+    }
 }
 
 # 在独立隐藏窗口中拉起一个进程，stdout/stderr 直接落盘到日志文件
@@ -122,7 +138,69 @@ function Start-HiddenProcess {
     }
 }
 
-# ── 0. Nacos 注册/配置中心（端口 8848，必须先于 Java 微服务启动） ──
+# ── 0a. MySQL（端口 3306，Java 微服务数据库依赖，最先启动） ──
+Write-Host "启动 MySQL（3306）..." -ForegroundColor Cyan
+$mysqld = $null
+if ($env:MYSQL_HOME -and (Test-Path (Join-Path $env:MYSQL_HOME "bin\mysqld.exe"))) {
+    $mysqld = Join-Path $env:MYSQL_HOME "bin\mysqld.exe"
+} else {
+    $mysqld = @("C:\tools\mysql\bin\mysqld.exe", "F:\tools\mysql\bin\mysqld.exe",
+        "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe") |
+        Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+if ($mysqld) {
+    $mysqlHome = Split-Path (Split-Path $mysqld -Parent) -Parent
+    $myini = Get-ChildItem $mysqlHome -Filter "my.ini" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $myini) { $myini = Get-ChildItem $mysqlHome -Filter "my.cnf" -ErrorAction SilentlyContinue | Select-Object -First 1 }
+    # 已在监听则跳过
+    $mysqlUp = netstat -ano | Select-String ":3306 " | Select-String "LISTENING"
+    if ($mysqlUp) {
+        Write-Host "  MySQL 已在运行，跳过" -ForegroundColor DarkGray
+    } else {
+        $mysqlArgs = if ($myini) { "--defaults-file=`"$($myini.FullName)`"" } else { "" }
+        Start-HiddenProcess -Name "mysql" -File $mysqld -Arguments $mysqlArgs `
+            -WorkDir $mysqlHome -LogDir (Join-Path $mysqlHome "logs") | Out-Null
+        Write-Host "  等待 MySQL 就绪（最多 15s）..." -ForegroundColor DarkGray
+        for ($i = 0; $i -lt 8; $i++) {
+            if (netstat -ano | Select-String ":3306 " | Select-String "LISTENING") { break }
+            Start-Sleep -Seconds 2
+        }
+    }
+    $mysqlUp = netstat -ano | Select-String ":3306 " | Select-String "LISTENING"
+    if ($mysqlUp) { Write-Host "  MySQL 已就绪" -ForegroundColor Green }
+    else { Write-Host "  警告：MySQL 未就绪，Java 服务数据库依赖将失败" -ForegroundColor Yellow }
+} else {
+    Write-Host "  跳过 MySQL：未找到 mysqld.exe" -ForegroundColor Yellow
+}
+
+# ── 0b. Redis（端口 6379，Java 微服务缓存依赖） ──
+Write-Host "启动 Redis（6379）..." -ForegroundColor Cyan
+$redisExe = $null
+if ($env:REDIS_HOME -and (Test-Path (Join-Path $env:REDIS_HOME "redis-server.exe"))) {
+    $redisExe = Join-Path $env:REDIS_HOME "redis-server.exe"
+} else {
+    $redisExe = @("C:\tools\redis\redis-server.exe", "F:\tools\redis\redis-server.exe",
+        "C:\Program Files\Redis\redis-server.exe") |
+        Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+if ($redisExe) {
+    $redisDir = Split-Path $redisExe -Parent
+    $redisUp = netstat -ano | Select-String ":6379 " | Select-String "LISTENING"
+    if ($redisUp) {
+        Write-Host "  Redis 已在运行，跳过" -ForegroundColor DarkGray
+    } else {
+        Start-HiddenProcess -Name "redis" -File $redisExe -Arguments "" `
+            -WorkDir $redisDir -LogDir $redisDir | Out-Null
+        Start-Sleep -Seconds 2
+    }
+    $redisUp = netstat -ano | Select-String ":6379 " | Select-String "LISTENING"
+    if ($redisUp) { Write-Host "  Redis 已就绪" -ForegroundColor Green }
+    else { Write-Host "  警告：Redis 未就绪，Java 服务缓存依赖将失败" -ForegroundColor Yellow }
+} else {
+    Write-Host "  跳过 Redis：未找到 redis-server.exe" -ForegroundColor Yellow
+}
+
+# ── 0c. Nacos 注册/配置中心（端口 8848，必须先于 Java 微服务启动） ──
 # 自动探测常见安装目录；startup.cmd 是 cmd 脚本，需 JAVA_HOME（已由上方探测回填到进程环境）。
 Write-Host "启动 Nacos 注册/配置中心（8848）..." -ForegroundColor Cyan
 $nacosCmd = $null
@@ -193,40 +271,32 @@ foreach ($svc in $services) {
     Start-Sleep -Milliseconds 400
 }
 
-# ── 2. Whisper 语音识别（Python / faster-whisper，端口 9011） ──
-Write-Host "启动 Whisper 语音识别（9011）..." -ForegroundColor Cyan
-$whisperDir = Join-Path $base "whisper-service"
-$whisperApp = Join-Path $whisperDir "app.py"
-if ($py -and (Test-Path $whisperApp)) {
-    Start-HiddenProcess -Name "whisper-stt" -File $py -Arguments "`"$whisperApp`"" `
-        -WorkDir $whisperDir -LogDir (Join-Path $whisperDir "logs") | Out-Null
-} else {
-    Write-Host "  跳过 whisper-stt：未找到 python 或 app.py" -ForegroundColor Yellow
-}
-
-# ── 3. 网易云音乐 API 代理（Node / NeteaseCloudMusicApi，端口 3000） ──
+# ── 2. 网易云音乐 API 代理（Node / NeteaseCloudMusicApi，端口 3000） ──
+# 已从 backend 移至根目录 node-service（后端 backend 保持纯 Java）。
 Write-Host "启动网易云音乐代理（3000）..." -ForegroundColor Cyan
-$ncmDir = Join-Path $base "netease-music-api"
+$ncmDir = Join-Path $root "node-service\netease-music-api"
 $ncmEntry = Join-Path $ncmDir "server.js"
-if ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $ncmEntry)) {
-    Start-HiddenProcess -Name "netease-music-api" -File "node" -Arguments "`"$ncmEntry`"" `
+if ($node -and (Test-Path $ncmEntry)) {
+    Start-HiddenProcess -Name "netease-music-api" -File $node -Arguments "`"$ncmEntry`"" `
         -WorkDir $ncmDir -LogDir $ncmDir | Out-Null
 } else {
     Write-Host "  跳过 netease-music-api：未找到 node 或 server.js（音乐馆仍可用 Audius / iTunes 免费源）" -ForegroundColor Yellow
 }
 
-# ── 4. 量化数据服务（Python FastAPI，端口 9006） ──
-Write-Host "启动量化 Python 服务（9006）..." -ForegroundColor Cyan
-$quantDir = Join-Path $root "quant-py-service"
-if ($py -and (Test-Path (Join-Path $quantDir "main.py"))) {
-    Start-HiddenProcess -Name "quant-py-service" -File $py `
-        -Arguments "-m uvicorn main:app --host 127.0.0.1 --port 9006" `
-        -WorkDir $quantDir -LogDir $quantDir | Out-Null
+# ── 3. 统一 Python 服务 py-service（FastAPI，单进程单端口 9006） ──
+# 一个进程聚合 quant / qzone / video / whisper / wifi 五个模块，作为「一个服务」
+# 注册到 Nacos；新增功能只需在 py-service\modules 下新建模块目录，无需改动启动脚本。
+Write-Host "启动统一 py-service（9006）..." -ForegroundColor Cyan
+$pySvcDir = Join-Path $root "py-service"
+if ($py -and (Test-Path (Join-Path $pySvcDir "main.py"))) {
+    Start-HiddenProcess -Name "py-service" -File $py `
+        -Arguments "-m uvicorn main:app --host 0.0.0.0 --port 9006" `
+        -WorkDir $pySvcDir -LogDir $pySvcDir | Out-Null
 } else {
-    Write-Host "  跳过 quant-py-service：未找到 python 或 main.py" -ForegroundColor Yellow
+    Write-Host "  跳过 py-service：未找到 python 或 main.py" -ForegroundColor Yellow
 }
 
-# ── 5. Vibe-Research A股扩展数据服务（Python FastAPI，端口 8900） ──
+# ── 4. Vibe-Research A股扩展数据服务（Python FastAPI，端口 8900，仓库外可选） ──
 # 该项目位于本仓库之外（同级 ..\..\Quant\Vibe-Research），为量化页提供
 # /vr 代理背后的指数/情绪/雷达/全球指数等扩展数据；缺失则仅对应面板不可用，不影响其它服务。
 Write-Host "启动 Vibe-Research 服务（8900）..." -ForegroundColor Cyan
@@ -240,27 +310,33 @@ if ((Test-Path $vibePy) -and (Test-Path (Join-Path $vibeDir "app.py"))) {
     Write-Host "  跳过 vibe-research：未找到 $vibeDir（其 .venv 或 app.py 缺失），量化页 /vr 面板将不可用" -ForegroundColor Yellow
 }
 
-# ── 6. 时光回溯 QQ 空间备份服务（Python FastAPI，端口 9012） ──
-# 由 GetQzonehistory 扫码登录 + emotion_cgi_msglist_v6 协议重写而来，
-# 为网站 /qzone 页面提供扫码会话、后台分页抓取与 JSON/HTML/CSV 临时导出。
-Write-Host "启动时光回溯 QQ 空间备份服务（9012）..." -ForegroundColor Cyan
-$qzoneDir = Join-Path $root "qzone-service"
-$qzonePy = Join-Path $qzoneDir ".venv\Scripts\python.exe"
-if ((Test-Path $qzonePy) -and (Test-Path (Join-Path $qzoneDir "app.py"))) {
-    Start-HiddenProcess -Name "qzone-service" -File $qzonePy `
-        -Arguments "-m uvicorn app:app --host 127.0.0.1 --port 9012" `
-        -WorkDir $qzoneDir -LogDir $qzoneDir | Out-Null
+# ── 5. 前端 Vite dev server（端口 5173） ──
+Write-Host "启动前端 Vite dev server（5173）..." -ForegroundColor Cyan
+$feDir = Join-Path $root "frontend"
+if ($node -and (Test-Path (Join-Path $feDir "node_modules"))) {
+    # node_modules/.bin/npx 不可靠，直接用 node 调 vite
+    $viteBin = Join-Path $feDir "node_modules\vite\bin\vite.js"
+    if (Test-Path $viteBin) {
+        Start-HiddenProcess -Name "vite-frontend" -File $node `
+            -Arguments "`"$viteBin`" --host" `
+            -WorkDir $feDir -LogDir (Join-Path $feDir "logs") | Out-Null
+    } else {
+        # 回退：npx vite
+        Start-HiddenProcess -Name "vite-frontend" -File $node `
+            -Arguments "node_modules\npx\bin\npx.js vite --host" `
+            -WorkDir $feDir -LogDir (Join-Path $feDir "logs") | Out-Null
+    }
 } else {
-    Write-Host "  跳过 qzone-service：未找到其 .venv 或 app.py（/qzone 页面将不可用）" -ForegroundColor Yellow
+    Write-Host "  跳过前端：未找到 node 或 frontend/node_modules（请先 cd frontend; npm install）" -ForegroundColor Yellow
 }
 
 # ── 端口自检 ──
 Write-Host "`n等待 20s 让服务完成启动..." -ForegroundColor Cyan
 Start-Sleep -Seconds 20
 Write-Host "`n=== 端口检查 ===" -ForegroundColor Cyan
-foreach ($p in @(8848,8080,8081,8082,8083,8084,8085,8086,8087,8088,8089,8093,9001,9002,3000,9006,8900,9011,9012)) {
+foreach ($p in @(3306,6379,8848,8080,8081,8082,8083,8084,8085,8086,8087,8088,8089,8093,9001,9002,3000,5173,9006,8900)) {
     $listening = netstat -ano | Select-String ":$p" | Select-String "LISTENING"
     if ($listening) { Write-Host "  :$p  OK" -ForegroundColor Green }
     else { Write-Host "  :$p  DOWN" -ForegroundColor Red }
 }
-Write-Host "`n前端：cd frontend; npm run dev  → http://localhost:5173" -ForegroundColor Yellow
+Write-Host "`n前端地址：http://localhost:5173" -ForegroundColor Cyan

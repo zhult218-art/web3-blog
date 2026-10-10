@@ -34,6 +34,9 @@ request.interceptors.request.use(
     if (uid != null) {
       config.headers['X-Blog-Uid'] = String(uid)
     }
+    // ngrok 免费版会对没有「Visit Site」Cookie 的访问方返回 HTML 警告页而非 JSON，
+    // 导致前端数据解析失败/误报网络不可达。该请求头可绕过此过渡页，对其他环境无副作用。
+    config.headers['ngrok-skip-browser-warning'] = 'true'
     return config
   },
   error => Promise.reject(error)
@@ -67,7 +70,7 @@ request.interceptors.response.use(
       }
       const message = isNetError
         ? '网络异常：服务未上线或不可达'
-        : (error.response?.data?.message || error.message || '请求失败')
+        : (error.response?.data?.message || error.response?.data?.detail || error.message || '请求失败')
       import('@/stores/modules/toast').then(({ useToastStore }) => {
         useToastStore().error(message)
       })

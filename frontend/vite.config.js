@@ -16,7 +16,7 @@ export default defineConfig({
     // SakuraFrp 等内网穿透以隧道域名（如 frp-six.com）回源，Vite 默认会
     // 拦截 Host 头不在白名单的请求（403 Blocked request）。放行 frp-six.com
     // 及其所有子域名；新增穿透域名时在此追加即可（true 可放开全部域名）。
-    allowedHosts: ['frp-six.com', '.frp-six.com'],
+    allowedHosts: ['frp-six.com', '.frp-six.com', '.ngrok-free.dev', '.ngrok-free.app', '.ngrok.app', '.ngrok.io'],
     proxy: {
       // 开发环境：本地网关。生产 Cloudflare Pages 部署时，前端会直接走绝对地址
       // （由 VITE_API_BASE 控制，在 Cloudflare Pages 控制台配环境变量即可切换后端）。
@@ -61,17 +61,27 @@ export default defineConfig({
         proxyTimeout: 120000
       },
       '/whisper': {
-        target: 'http://127.0.0.1:9011',
+        target: 'http://127.0.0.1:9006',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/whisper/, '')
+        rewrite: path => path.replace(/^\/whisper/, '/api/whisper')
       },
-      // 时光回溯 QQ 空间备份服务（qzone-service，端口 9012）
+      // 时光回溯 QQ 空间备份（已并入统一 py-service 9006 的 qzone 模块）
       // 注意：页面路由是 /qzone，故 API 代理前缀不能用 /qzone（会吞掉页面请求），
       // 使用 /qzapi → 后端 /api/qzone。
       '/qzapi': {
-        target: 'http://127.0.0.1:9012',
+        target: 'http://127.0.0.1:9006',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/qzapi/, '/api/qzone'),
+        timeout: 120000,
+        proxyTimeout: 120000
+      },
+      // WiFi 安全审计（统一 py-service 9006 的 wifi 模块）。
+      // 页面路由是 /wifi，故 API 前缀错开用 /wifiapi；开启 ws 以支持实时日志。
+      '/wifiapi': {
+        target: 'http://127.0.0.1:9006',
+        changeOrigin: true,
+        ws: true,
+        rewrite: path => path.replace(/^\/wifiapi/, '/api/wifi'),
         timeout: 120000,
         proxyTimeout: 120000
       },

@@ -134,6 +134,29 @@ spring:
           uri: http://${JARVIS_SERVICE_HOST:localhost}:9001
           predicates:
             - Path=/jarvis/**
+        # ============ 统一 Python 服务（py-service，单进程 9006） ============
+        # 一个进程聚合 quant/qzone/video/whisper/wifi 五个模块，作为单个服务注册 Nacos。
+        # 后端路径已含 /api/<module> 前缀，直接转发、不做 StripPrefix。
+        - id: pyservice-quant
+          uri: http://${PY_SERVICE_HOST:localhost}:9006
+          predicates:
+            - Path=/api/quant/**
+        - id: pyservice-qzone
+          uri: http://${PY_SERVICE_HOST:localhost}:9006
+          predicates:
+            - Path=/api/qzone/**
+        - id: pyservice-video
+          uri: http://${PY_SERVICE_HOST:localhost}:9006
+          predicates:
+            - Path=/api/video/**
+        - id: pyservice-whisper
+          uri: http://${PY_SERVICE_HOST:localhost}:9006
+          predicates:
+            - Path=/api/whisper/**
+        - id: pyservice-wifi
+          uri: http://${PY_SERVICE_HOST:localhost}:9006
+          predicates:
+            - Path=/api/wifi/**
         # ============ AI Token 中转站（ai-proxy-service 8093） ============
         # 注意：必须位于通配 /admin/** 之前，网关按定义顺序匹配
         - id: ai-proxy-admin

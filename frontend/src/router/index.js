@@ -64,6 +64,8 @@ const web3Routes = [
   { path: 'stock/:code', name: 'StockDetail', component: () => import('@/views/quant/StockDetail.vue'), meta: { requiresAuth: false, perm: 'quant', feature: 'quant' } },
   // 时光回溯 · QQ 空间说说备份（qzone-service 9012，经 /qzone 代理）
   { path: 'qzone', name: 'QzoneBackup', component: () => import('@/views/qzone/index.vue'), meta: { requiresAuth: false, perm: 'qzone' } },
+  // WiFi 安全审计（统一 py-service，经 /wifiapi 代理 → /api/wifi）
+  { path: 'wifi', name: 'WifiAudit', component: () => import('@/views/wifi/index.vue'), meta: { requiresAuth: false, perm: 'wifi' } },
   // 用户 / 支付
   { path: 'profile', name: 'Profile', component: () => import('@/views/profile/index.vue'), meta: { requiresAuth: true } },
   { path: 'profile/orders', name: 'ProfileOrders', component: () => import('@/views/profile/orders.vue'), meta: { requiresAuth: true } },
