@@ -353,8 +353,9 @@ public class UserController {
     /**
      * POST /user/email/code { email, captchaId, captchaCode } → 发送验证码
      *
-     * <p>2026-09-20 修订：dev 模式（mailEnabled=false）回传 devCode 字段方便本地测试；
-     * 生产模式（mailEnabled=true）走真实 SMTP，devCode 为 null 不回传。</p>
+     * <p>2026-10-10 安全修订：不再回传 devCode 字段。dev 模式（mailEnabled=false）验证码
+     * 由 OtpService 写入服务端日志（明文），请从控制台读取；生产模式走真实 SMTP。
+     * 移除响应体 devCode 可阻断「发码→取码→登录接管」链路。</p>
      */
     @PostMapping("/email/code")
     public ApiResponse<Map<String, String>> sendEmailCode(@RequestBody Map<String, String> body) {
@@ -366,16 +367,19 @@ public class UserController {
             if (captchaId == null || captchaCode == null) return ApiResponse.fail(400, "请完成图形验证码");
             if (!captchaService.verify(captchaId, captchaCode)) return ApiResponse.fail("验证码错误");
         }
-        String devCode = otpService.sendEmailCode(email);
+        otpService.sendEmailCode(email);
         Map<String, String> result = new HashMap<>();
         result.put("message", "验证码已发送");
-        if (devCode != null) {
-            result.put("devCode", devCode);
-        }
         return ApiResponse.ok(result);
     }
 
-    /** POST /user/email/login { email, code } → 邮箱验证码登录（成功自动注册） */
+    /**
+     * POST /user/email/login { email, code } → 邮箱验证码登录
+     *
+     * <p>2026-10-10 安全修订：是否自动注册未知邮箱受 {@code app.auth.auto-register} 开关控制，
+     * 默认 false（关闭）——未注册邮箱登录返回「邮箱未注册，请先注册」，
+     * 防止任意邮箱被自动创建账户接管。设为 true 时恢复自动注册（需配合真实 SMTP）。</p>
+     */
     @PostMapping("/email/login")
     public ApiResponse<JwtVO> emailLogin(@RequestBody Map<String, String> body, HttpServletResponse response) {
         String email = body.get("email");
@@ -393,8 +397,9 @@ public class UserController {
     /**
      * POST /user/phone/code { phone, captchaId, captchaCode } → 发送短信验证码
      *
-     * <p>2026-09-20 修订：dev 模式（smsEnabled=false）回传 devCode 方便本地测试；
-     * 生产模式（smsEnabled=true）走真实 SMS 网关（见 {@link com.web3.user.service.OtpService#sendSmsByGateway}），
+     * <p>2026-10-10 安全修订：不再回传 devCode 字段。dev 模式（smsEnabled=false）与网关未接入
+     * 的 fallback 路径均由 OtpService 写入服务端日志（明文），请从控制台读取；
+     * 生产模式走真实 SMS 网关（见 {@link com.web3.user.service.OtpService#sendSmsByGateway}），
      * 需配置 SMS_PROVIDER/SMS_KEY/SMS_SECRET/SMS_SIGN_NAME/SMS_TEMPLATE_CODE。</p>
      */
     @PostMapping("/phone/code")
@@ -407,16 +412,18 @@ public class UserController {
             if (captchaId == null || captchaCode == null) return ApiResponse.fail(400, "请完成图形验证码");
             if (!captchaService.verify(captchaId, captchaCode)) return ApiResponse.fail("验证码错误");
         }
-        String devCode = otpService.sendPhoneCode(phone);
+        otpService.sendPhoneCode(phone);
         Map<String, String> result = new HashMap<>();
         result.put("message", "验证码已发送");
-        if (devCode != null) {
-            result.put("devCode", devCode);
-        }
         return ApiResponse.ok(result);
     }
 
-    /** POST /user/phone/login { phone, code } → 手机验证码登录（成功自动注册） */
+    /**
+     * POST /user/phone/login { phone, code } → 手机验证码登录
+     *
+     * <p>2026-10-10 安全修订：是否自动注册未知手机号受 {@code app.auth.auto-register} 开关控制，
+     * 默认 false（关闭）——未注册手机号登录返回「手机号未注册，请先注册」。</p>
+     */
     @PostMapping("/phone/login")
     public ApiResponse<JwtVO> phoneLogin(@RequestBody Map<String, String> body, HttpServletResponse response) {
         String phone = body.get("phone");
@@ -444,7 +451,8 @@ public class UserController {
         }
         try {
             String email = supabaseAuthService.resolveEmail(accessToken);
-            ApiResponse<JwtVO> result = userService.emailLogin(email);
+            // supabase 已通过其服务端校验 access_token 确认邮箱所有权，走可信签发路径（允许自动注册）
+            ApiResponse<JwtVO> result = userService.emailLogin(email, true);
             this.setAuthCookie(response, result);
             return result;
         } catch (IllegalStateException e) {

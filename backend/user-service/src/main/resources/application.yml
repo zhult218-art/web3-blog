@@ -57,6 +57,11 @@ app:
     captcha-required: true
     mail-enabled: ${MAIL_ENABLED:false}
     sms-enabled: ${SMS_ENABLED:false}
+    # 邮箱/手机验证码登录遇到未知账号是否自动注册。默认 false（关闭）：
+    # 未注册账号验证码登录返回"未注册"错误，防止 devCode 泄露+自动注册构成的账户接管。
+    # 设为 true 恢复自动注册（务必先开启真实 SMTP/SMS，否则 dev 模式验证码仍只写日志）。
+    # 注意：Supabase 免密登录链路已由其服务端验证邮箱所有权，不受此开关限制。
+    auto-register: ${AUTH_AUTO_REGISTER:false}
     frontend-url: ${FRONTEND_URL:http://localhost:5173}
     google:
       enabled: ${GOOGLE_OAUTH_ENABLED:false}

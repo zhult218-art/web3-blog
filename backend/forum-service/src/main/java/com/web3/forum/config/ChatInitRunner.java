@@ -1,24 +1,28 @@
 package com.web3.forum.config;
 
 import com.web3.forum.service.ChatService;
+import com.web3.forum.service.ChatSwitchService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
  * 群聊模块启动初始化：
- * 1. 自动建表（chat_room / chat_room_member / chat_message）
+ * 1. 自动建表（chat_room / chat_room_member / chat_message / chat_config）
  * 2. 确保存在默认群"极光广场"
+ * 3. 加载聊天开关状态
  */
 @Component
 public class ChatInitRunner implements CommandLineRunner {
 
     private final JdbcTemplate jdbc;
     private final ChatService chatService;
+    private final ChatSwitchService chatSwitchService;
 
-    public ChatInitRunner(JdbcTemplate jdbc, ChatService chatService) {
+    public ChatInitRunner(JdbcTemplate jdbc, ChatService chatService, ChatSwitchService chatSwitchService) {
         this.jdbc = jdbc;
         this.chatService = chatService;
+        this.chatSwitchService = chatSwitchService;
     }
 
     @Override
@@ -68,6 +72,17 @@ public class ChatInitRunner implements CommandLineRunner {
         } catch (Exception e) {
             // 表已存在或无 DDL 权限时忽略
         }
+        // 聊天开关配置表（管理员可关闭群聊）
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS chat_config (
+                    `key` VARCHAR(50) PRIMARY KEY,
+                    `value` VARCHAR(200),
+                    updated_at DATETIME
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """);
+            jdbc.update("INSERT IGNORE INTO chat_config (`key`, `value`, updated_at) VALUES ('chatEnabled', '1', NOW())");
+        } catch (Exception ignored) {}
         try {
             chatService.ensureDefaultRoom();
         } catch (Exception ignored) {}
@@ -79,5 +94,7 @@ public class ChatInitRunner implements CommandLineRunner {
             jdbc.update("UPDATE chat_room SET require_approval = 0 WHERE id = (SELECT MIN(id) FROM (SELECT id FROM chat_room) t)");
             jdbc.update("UPDATE chat_room_member SET status = 'approved' WHERE status IN ('pending','rejected')");
         } catch (Exception ignored) {}
+        // 建表完成后加载聊天开关状态
+        try { chatSwitchService.load(); } catch (Exception ignored) {}
     }
 }

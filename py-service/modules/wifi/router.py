@@ -181,8 +181,11 @@ def crack_hashcat():
 class CrackJobRequest(BaseModel):
     hash_text: str = ""
     hash_path: str = ""
-    wordlist_path: str
+    wordlist_path: str = ""
     engine: str = "auto"
+    crack_mode: str = "dictionary"    # dictionary / rule / brute
+    rule_path: str = ""              # 规则文件路径（rule 模式）
+    mask: str = ""                   # hashcat 掩码（brute 模式）
 
 
 @router.post("/crack/jobs")
@@ -195,7 +198,10 @@ def crack_create(body: CrackJobRequest):
         except OSError as exc:
             raise HTTPException(400, f"哈希文件读取失败：{exc}")
     try:
-        job = wincrack.create_job(hash_text, body.wordlist_path, body.engine)
+        job = wincrack.create_job(
+            hash_text, body.wordlist_path, body.engine,
+            body.crack_mode, body.rule_path, body.mask,
+        )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     return job.to_dict()

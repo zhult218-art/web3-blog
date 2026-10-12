@@ -23,6 +23,13 @@ public class AuthProperties {
     /** 短信通道是否已配置可用（false 时验证码走开发模式） */
     private boolean smsEnabled = false;
 
+    /**
+     * 邮箱/手机验证码登录遇到未知账号时是否自动注册。
+     * 默认 false（关闭）：未注册账号验证码登录返回"未注册"错误，防止任意账号接管。
+     * 设为 true 时恢复自动注册行为（需配合真实 SMTP/SMS 网关，避免 devCode 泄露链路）。
+     */
+    private boolean autoRegister = false;
+
     /** 前端站点地址（Google 回调 302 重定向目标 {frontend-url}/login?access_token=...） */
     private String frontendUrl = "http://localhost:5173";
 
@@ -36,6 +43,9 @@ public class AuthProperties {
 
     public boolean isSmsEnabled() { return smsEnabled; }
     public void setSmsEnabled(boolean v) { this.smsEnabled = v; }
+
+    public boolean isAutoRegister() { return autoRegister; }
+    public void setAutoRegister(boolean v) { this.autoRegister = v; }
 
     public String getFrontendUrl() { return frontendUrl; }
     public void setFrontendUrl(String v) { this.frontendUrl = v; }

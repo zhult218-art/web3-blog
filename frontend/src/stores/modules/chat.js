@@ -9,7 +9,7 @@ import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
 import { useToastStore } from './toast'
 import { hasPerm } from '@/utils/permissions'
-import { getChatRooms, getChatMembers, getChatMessages, uploadChatImage } from '@/api/chat'
+import { getChatRooms, getChatMembers, getChatMessages, uploadChatImage, getChatEnabled, setChatEnabled as apiSetChatEnabled } from '@/api/chat'
 import { getUserInfo } from '@/api/user'
 
 export const useChatStore = defineStore('chat', () => {
@@ -26,12 +26,17 @@ export const useChatStore = defineStore('chat', () => {
   const loadError = ref('')
   const unread = ref(0)
   const roomEmoji = '🌌'
+  const chatClosed = ref(false)   // 管理员关闭群聊开关
 
   let ws = null
   let started = false
+  let initPromise = null   // in-flight 的 init Promise：并发调用共享同一次初始化，避免竞态误判
   let reconnectTimer = null
   let reconnectDelay = 3000
   let verifyTimer = null
+  let initRetryTimer = null
+  let initRetryCount = 0
+  const MAX_INIT_RETRIES = 3
 
   const myUserId = computed(() => auth.user?.id)
   const onlineCount = computed(() => members.value.filter(m => m.online).length)
@@ -65,25 +70,77 @@ export const useChatStore = defineStore('chat', () => {
   const closeDock = () => setDock('closed')
 
   // ---------- 初始化：登录后调用一次，全局常驻 ----------
-  async function init() {
-    if (started || !auth.isLoggedIn) return
+  // - 并发调用共享同一次 in-flight 初始化（页面进入时 init 可能仍在进行，不能立即判定失败）
+  // - 首次失败自动重试最多 3 次（间隔 3s/6s/9s），防止 forum-service 短暂不可用导致群聊永久不启动
+  function init() {
+    if (!auth.isLoggedIn) return Promise.resolve(false)
+    if (initPromise) return initPromise
+    initPromise = doInit().finally(() => { initPromise = null })
+    return initPromise
+  }
+
+  async function doInit() {
+    if (started) return true
     started = true
     loading.value = true
     loadError.value = ''
     try {
+      // 先检查管理员聊天开关（公开接口，关闭时不再初始化）
+      try {
+        const en = await getChatEnabled()
+        const enabled = (en?.data ?? en)?.enabled !== false
+        chatClosed.value = !enabled
+        if (!enabled) {
+          loadError.value = '管理员已关闭群聊'
+          started = false
+          return false
+        }
+      } catch { chatClosed.value = false }
       const res = await getChatRooms()
       const list = res?.data ?? res
       room.value = Array.isArray(list) ? list[0] : null
-      if (!room.value) { loadError.value = '群聊服务尚未就绪'; loading.value = false; started = false; return }
+      if (!room.value) { loadError.value = '群聊服务尚未就绪'; started = false; scheduleInitRetry(); return false }
       await Promise.all([loadMembers(), loadHistory()])
       connect()
       startVerifyWatcher()
+      initRetryCount = 0
+      return true
     } catch {
       loadError.value = '群聊连接失败'
       started = false
+      scheduleInitRetry()
+      return false
     } finally {
       loading.value = false
     }
+  }
+
+  function scheduleInitRetry() {
+    if (initRetryCount >= MAX_INIT_RETRIES || !auth.isLoggedIn) return
+    initRetryCount++
+    if (initRetryTimer) clearTimeout(initRetryTimer)
+    initRetryTimer = setTimeout(() => {
+      initRetryTimer = null
+      init()
+    }, 3000 * initRetryCount)
+  }
+
+  // ---------- 管理员聊天开关 ----------
+  /** 管理员一键关闭/恢复群聊：关闭立即断线，恢复后重新初始化 */
+  async function adminToggleChat(enabled) {
+    await apiSetChatEnabled(enabled)
+    chatClosed.value = !enabled
+    if (enabled) {
+      loadError.value = ''
+      initRetryCount = 0
+      started = false
+      init()
+    } else {
+      disconnect(true)
+      room.value = null
+      loadError.value = '管理员已关闭群聊'
+    }
+    return enabled
   }
 
   async function loadMembers() {
@@ -226,18 +283,21 @@ export const useChatStore = defineStore('chat', () => {
   function reset() {
     disconnect()
     if (verifyTimer) { clearInterval(verifyTimer); verifyTimer = null }
+    if (initRetryTimer) { clearTimeout(initRetryTimer); initRetryTimer = null }
+    initRetryCount = 0
     room.value = null
     members.value = []
     messages.value = []
     unread.value = 0
     loadError.value = ''
+    chatClosed.value = false
   }
 
   return {
-    dockState, room, members, messages, wsConnected, loading, loadError, unread, roomEmoji,
+    dockState, room, members, messages, wsConnected, loading, loadError, unread, roomEmoji, chatClosed,
     myUserId, onlineCount, canChat,
     setDock, openDock, miniDock, closeDock,
-    init, loadMembers, loadHistory, connect, disconnect, reset, syncVerified,
+    init, loadMembers, loadHistory, connect, disconnect, reset, syncVerified, adminToggleChat,
     sendText, sendEmoji, sendImage,
     nameOf, avatarOf,
   }

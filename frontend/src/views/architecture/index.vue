@@ -55,7 +55,7 @@
           <div class="node gateway">
             <div class="node-icon">🛡️</div>
             <div class="node-name">API 网关</div>
-            <div class="node-sub">Spring Cloud Gateway · :8080</div>
+            <div class="node-sub">Spring Cloud Gateway{{ isAdmin ? ' · :8080' : '' }}</div>
           </div>
         </div>
       </div>
@@ -69,8 +69,8 @@
           <div v-for="s in services" :key="s.name" class="node service" :data-cat="s.cat">
             <div class="node-icon">{{ s.icon }}</div>
             <div class="node-name">{{ s.name }}</div>
-            <div class="node-sub">:{{ s.port }}</div>
-            <div class="node-db">🗄️ {{ s.db }}</div>
+            <div class="node-sub">{{ s.port != null ? ':' + s.port : '微服务' }}</div>
+            <div class="node-db" v-if="isAdmin">🗄️ {{ s.db }}</div>
           </div>
         </div>
       </div>
@@ -84,7 +84,7 @@
           <div class="node infra">
             <div class="node-icon">🗄️</div>
             <div class="node-name">MySQL</div>
-            <div class="node-sub">14 业务库 · :3306</div>
+            <div class="node-sub">业务数据库{{ isAdmin ? ' · :3306' : '' }}</div>
           </div>
           <div class="node infra">
             <div class="node-icon">☁️</div>
@@ -94,7 +94,7 @@
           <div class="node infra">
             <div class="node-icon">⚡</div>
             <div class="node-name">Redis</div>
-            <div class="node-sub">缓存 · 会话 · :6379</div>
+            <div class="node-sub">缓存 · 会话{{ isAdmin ? ' · :6379' : '' }}</div>
           </div>
           <div class="node infra">
             <div class="node-icon">📡</div>
@@ -104,7 +104,7 @@
           <div class="node infra">
             <div class="node-icon">🔁</div>
             <div class="node-name">RabbitMQ</div>
-            <div class="node-sub">异步解耦 · :5672</div>
+            <div class="node-sub">异步解耦{{ isAdmin ? ' · :5672' : '' }}</div>
           </div>
           <div class="node infra">
             <div class="node-icon">🪣</div>
@@ -124,12 +124,12 @@
       </div>
       <div class="svc-table">
         <div class="svc-th">
-          <span>服务</span><span>端口</span><span>数据库</span><span>职责</span>
+          <span>服务</span><span v-if="isAdmin">端口</span><span v-if="isAdmin">数据库</span><span>职责</span>
         </div>
         <div v-for="s in services" :key="s.name" class="svc-tr">
           <span class="svc-name"><i>{{ s.icon }}</i>{{ s.name }}</span>
-          <span class="mono">:{{ s.port }}</span>
-          <span class="db-tag">{{ s.db }}</span>
+          <span v-if="isAdmin" class="mono">:{{ s.port }}</span>
+          <span v-if="isAdmin" class="db-tag">{{ s.db }}</span>
           <span class="svc-desc">{{ s.desc }}</span>
         </div>
       </div>
@@ -144,19 +144,20 @@
       </div>
       <div class="dm-grid">
         <!-- MySQL -->
-        <div class="dm-card mysql">
-          <div class="dm-head">
-            <span class="dm-icon">🗄️</span>
-            <h3>MySQL（本地 · 14 库）</h3>
-            <span class="dm-tag">主存储</span>
+          <div class="dm-card mysql">
+            <div class="dm-head">
+              <span class="dm-icon">🗄️</span>
+              <h3>MySQL（本地）</h3>
+              <span class="dm-tag">主存储</span>
+            </div>
+            <ul class="dm-list" v-if="isAdmin">
+              <li v-for="db in mysqlDbs" :key="db.name">
+                <strong>{{ db.name }}</strong>
+                <span class="dm-tables">{{ db.tables }}</span>
+              </li>
+            </ul>
+            <p v-else class="dm-note">数据库与表结构详情仅管理员可见</p>
           </div>
-          <ul class="dm-list">
-            <li v-for="db in mysqlDbs" :key="db.name">
-              <strong>{{ db.name }}</strong>
-              <span class="dm-tables">{{ db.tables }}</span>
-            </li>
-          </ul>
-        </div>
         <!-- Supabase -->
         <div class="dm-card supabase">
           <div class="dm-head">
@@ -245,17 +246,22 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount, computed } from 'vue'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import PageBack from '@/components/PageBack.vue'
+import { useAuthStore } from '@/stores/modules/auth'
 
 gsap.registerPlugin(ScrollTrigger)
+
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
 
 const heroTags = ['Spring Cloud', 'Nacos', 'Gateway', 'Sentinel', 'RabbitMQ', 'Redis', 'Supabase', 'SkyWalking']
 
 // 13 个业务服务（含网关外的全部）
-const services = [
+// 非管理员隐藏端口和数据库名
+const servicesRaw = [
   { icon: '👤', name: 'user-service', port: 8081, db: 'web3_user', cat: 'core', desc: '用户注册登录、鉴权、权限、公会' },
   { icon: '📝', name: 'blog-service', port: 8082, db: 'web3_blog', cat: 'content', desc: '博客文章、分类、标签、友链、公告' },
   { icon: '💬', name: 'forum-service', port: 8083, db: 'web3_forum', cat: 'content', desc: '社区帖子、评论、点赞' },
@@ -271,8 +277,14 @@ const services = [
   { icon: '🛡️', name: 'gateway', port: 8080, db: '—', cat: 'core', desc: '统一入口、路由、鉴权、限流熔断' },
 ]
 
-// MySQL 14 库及主要表
-const mysqlDbs = [
+const services = computed(() =>
+  isAdmin.value
+    ? servicesRaw
+    : servicesRaw.map(s => ({ ...s, port: null, db: '—' }))
+)
+
+// MySQL 14 库及主要表（非管理员不显示表名详情）
+const mysqlDbsRaw = [
   { name: 'web3_user', tables: 'user · guild · guild_member' },
   { name: 'web3_blog', tables: 'article · blog_setting · friend_link · site_notice' },
   { name: 'web3_forum', tables: 'post · comment · like_record' },
@@ -285,6 +297,12 @@ const mysqlDbs = [
   { name: 'web3_admin', tables: 'visit_log · proxy_* · admin_*' },
   { name: 'web3_jarvis', tables: 'voice_command · voice_session' },
 ]
+
+const mysqlDbs = computed(() =>
+  isAdmin.value
+    ? mysqlDbsRaw
+    : mysqlDbsRaw.map(d => ({ name: d.name, tables: '（需管理员权限）' }))
+)
 
 // 请求流转
 const flowSteps = [
@@ -390,6 +408,8 @@ onBeforeUnmount(() => { if (ctx) ctx.revert() })
 .svc-list { padding: 4rem 2rem; }
 .svc-table { max-width: 1080px; margin: 0 auto; border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: rgba(12, 12, 28, 0.5); }
 .svc-th, .svc-tr { display: grid; grid-template-columns: 1.4fr 0.7fr 1.2fr 2.5fr; gap: 1rem; padding: 0.85rem 1.3rem; align-items: center; }
+/* 非管理员隐藏端口/数据库列后 grid 变 2 列 */
+.svc-th:not(:has(span:nth-child(2))), .svc-tr:not(:has(span.mono)) { grid-template-columns: 1.4fr 2.5fr; }
 .svc-th { background: rgba(0, 229, 255, 0.08); font-size: 0.72rem; letter-spacing: 0.12em; color: #7fd9ff; font-family: monospace; border-bottom: 1px solid rgba(0, 229, 255, 0.2); }
 .svc-tr { font-size: 0.82rem; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s; }
 .svc-tr:hover { background: rgba(192, 38, 211, 0.06); }

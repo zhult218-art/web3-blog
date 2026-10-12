@@ -7,12 +7,14 @@ import com.web3.common.security.JwtUtil;
 import com.web3.forum.entity.ChatMessage;
 import com.web3.forum.entity.ChatRoomMember;
 import com.web3.forum.service.ChatService;
+import com.web3.forum.service.ChatSwitchService;
 import io.jsonwebtoken.Claims;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 群聊 REST 接口：房间列表、加入申请、审批、消息历史、成员列表
+ * 群聊 REST 接口：房间列表、加入申请、审批、消息历史、成员列表、聊天开关
  * 实时消息走 WebSocket（/chat/ws/{roomId}）
  */
 @RestController
@@ -28,11 +30,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChatController {
 
     private final ChatService chatService;
+    private final ChatSwitchService chatSwitchService;
     private final JwtUtil jwtUtil;
     private final JwtProperties jwtProperties;
 
-    public ChatController(ChatService chatService, JwtUtil jwtUtil, JwtProperties jwtProperties) {
+    public ChatController(ChatService chatService, ChatSwitchService chatSwitchService,
+                          JwtUtil jwtUtil, JwtProperties jwtProperties) {
         this.chatService = chatService;
+        this.chatSwitchService = chatSwitchService;
         this.jwtUtil = jwtUtil;
         this.jwtProperties = jwtProperties;
     }
@@ -124,6 +129,26 @@ public class ChatController {
                                                 @RequestHeader("Authorization") String auth) {
         AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
         return ApiResponse.ok(chatService.rejectApplication(id));
+    }
+
+    // ========== 聊天开关（管理员可一键关闭/恢复群聊） ==========
+
+    /** 查询聊天开关状态（公开：前端据此显隐聊天入口） */
+    @GetMapping("/enabled")
+    public ApiResponse<Map<String, Object>> chatEnabled() {
+        return ApiResponse.ok(Map.of("enabled", chatSwitchService.isEnabled()));
+    }
+
+    /** 设置聊天开关（仅管理员）：body { "enabled": true/false } */
+    @PutMapping("/enabled")
+    public ApiResponse<Map<String, Object>> setChatEnabled(@RequestBody Map<String, Object> body,
+                                                           @RequestHeader("Authorization") String auth) {
+        AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
+        boolean value = Boolean.TRUE.equals(body.get("enabled"))
+                || "true".equals(String.valueOf(body.get("enabled")))
+                || "1".equals(String.valueOf(body.get("enabled")));
+        chatSwitchService.setEnabled(value);
+        return ApiResponse.ok(Map.of("enabled", chatSwitchService.isEnabled()));
     }
 
     // ========== 服务间内部接口（注册后自动入群） ==========

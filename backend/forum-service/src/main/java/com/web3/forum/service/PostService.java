@@ -14,9 +14,11 @@ import com.web3.forum.mapper.CommentMapper;
 import com.web3.forum.mapper.LikeRecordMapper;
 import com.web3.forum.mapper.PostMapper;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.beans.BeanUtils;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,10 +43,13 @@ extends ServiceImpl<PostMapper, Post> {
     private final LikeRecordMapper likeRecordMapper;
     /** 评论 Mapper（统计数据用） */
     private final CommentMapper commentMapper;
+    /** JDBC 模板（跨库补全作者昵称：web3_forum 与 web3_user 同 MySQL 实例） */
+    private final JdbcTemplate jdbcTemplate;
 
-    public PostService(LikeRecordMapper likeRecordMapper, CommentMapper commentMapper) {
+    public PostService(LikeRecordMapper likeRecordMapper, CommentMapper commentMapper, JdbcTemplate jdbcTemplate) {
         this.likeRecordMapper = likeRecordMapper;
         this.commentMapper = commentMapper;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
@@ -72,7 +77,9 @@ extends ServiceImpl<PostMapper, Post> {
         Page<Post> postPage = new Page<Post>((long)page, (long)size);
         Page<Post> result = this.baseMapper.selectPage(postPage, wrapper);
         Page<PostVO> voPage = new Page<PostVO>((long)page, (long)size, result.getTotal());
-        voPage.setRecords(result.getRecords().stream().map(this::toVO).toList());
+        java.util.List<PostVO> vos = result.getRecords().stream().map(this::toVO).toList();
+        fillAuthorNames(vos);
+        voPage.setRecords(vos);
         return voPage;
     }
 
@@ -89,25 +96,33 @@ extends ServiceImpl<PostMapper, Post> {
         }
         this.baseMapper.incrViewCount(id);
         post.setViewCount((post.getViewCount() == null ? 0L : post.getViewCount()) + 1L);
-        return this.toVO(post);
+        PostVO vo = this.toVO(post);
+        fillAuthorNames(java.util.List.of(vo));
+        return vo;
     }
 
     /**
      * 创建帖子，初始化点赞数/回复数/浏览量为 0、非置顶。
-     * 管理员发帖直接 published；普通用户发帖进入 pending 待审核
+     * 管理员发帖直接 published；普通用户发帖进入 pending 待审核。
+     * 作者名取自客户端提交，缺失时回退 JWT 中的昵称，保证列表不显示「匿名用户」。
      *
      * @param dto      帖子创建参数
      * @param authorId 作者用户 ID（取自登录令牌）
+     * @param nickname 作者昵称（取自登录令牌，authorName 缺失时的回退值）
      * @param admin    作者是否为管理员
      * @return 创建成功后的帖子视图对象
      */
-    public PostVO create(PostCreateDTO dto, Long authorId, boolean admin) {
+    public PostVO create(PostCreateDTO dto, Long authorId, String nickname, boolean admin) {
         Post post = new Post();
         post.setTitle(dto.getTitle());
         post.setContent(dto.getContent());
         post.setCategory(dto.getCategory());
         post.setAuthorId(authorId);
-        post.setAuthorName(dto.getAuthorName());
+        String authorName = dto.getAuthorName();
+        if (authorName == null || authorName.isBlank()) {
+            authorName = nickname;
+        }
+        post.setAuthorName(authorName);
         post.setMediaUrl(dto.getMediaUrl());
         post.setMediaType(dto.getMediaType());
         post.setLikeCount(0);
@@ -116,6 +131,7 @@ extends ServiceImpl<PostMapper, Post> {
         post.setIsPinned(0);
         post.setStatus(admin ? "published" : "pending");
         this.baseMapper.insert(post);
+        invalidateStatsCache();
         return this.toVO(post);
     }
 
@@ -164,15 +180,26 @@ extends ServiceImpl<PostMapper, Post> {
             throw new com.web3.common.core.UnauthorizedException(403, "\u65e0\u6743\u5220\u9664\u8be5\u5e16\u5b50");
         }
         this.baseMapper.deleteById(id);
+        invalidateStatsCache();
     }
+
+    /** 统计数据内存缓存（60s TTL，避免每次加载社区页面都跑 5 次 DB 聚合查询） */
+    private volatile Map<String, Object> statsCache;
+    private volatile long statsCacheAt = 0;
+    private static final long STATS_CACHE_TTL_MS = 60_000;
 
     /**
      * 论坛统计数据聚合
-     * 返回帖子总数、评论总数、今日发帖数、发帖最多的作者 TOP6、最热门的分类 TOP10
+     * 返回帖子总数、评论总数、今日发帖数、发帖最多的作者 TOP6、最热门的分类 TOP10。
+     * 结果缓存 60 秒，减轻社区页面首屏的 DB 压力。
      *
      * @return 包含各项统计数据的 Map
      */
     public Map<String, Object> stats() {
+        long now = System.currentTimeMillis();
+        if (statsCache != null && (now - statsCacheAt) < STATS_CACHE_TTL_MS) {
+            return statsCache;
+        }
         Map<String, Object> stats = new LinkedHashMap<String, Object>();
         stats.put("totalPosts", this.baseMapper.selectCount(new LambdaQueryWrapper<Post>()));
         stats.put("totalComments", this.commentMapper.selectCount(new LambdaQueryWrapper<Comment>()));
@@ -191,7 +218,15 @@ extends ServiceImpl<PostMapper, Post> {
             .groupBy("category")
             .orderByDesc("cnt")
             .last("LIMIT 10")));
+        statsCache = stats;
+        statsCacheAt = now;
         return stats;
+    }
+
+    /** 帖子新增/删除/审核后调用，使下次 stats() 重新查库 */
+    public void invalidateStatsCache() {
+        statsCache = null;
+        statsCacheAt = 0;
     }
 
     /**
@@ -245,7 +280,9 @@ extends ServiceImpl<PostMapper, Post> {
         Page<Post> postPage = new Page<Post>((long) page, (long) size);
         Page<Post> result = this.baseMapper.selectPage(postPage, wrapper);
         Page<PostVO> voPage = new Page<PostVO>((long) page, (long) size, result.getTotal());
-        voPage.setRecords(result.getRecords().stream().map(this::toVO).toList());
+        java.util.List<PostVO> vos = result.getRecords().stream().map(this::toVO).toList();
+        fillAuthorNames(vos);
+        voPage.setRecords(vos);
         return voPage;
     }
 
@@ -333,5 +370,51 @@ extends ServiceImpl<PostMapper, Post> {
         PostVO vo = new PostVO();
         BeanUtils.copyProperties((Object)post, (Object)vo);
         return vo;
+    }
+
+    /**
+     * 批量补全作者名：历史帖子/未携带 author_name 的记录按 author_id 跨库查询
+     * web3_user.user 表（web3_forum 与 web3_user 同 MySQL 实例），用昵称或用户名回填。
+     * 查询失败静默跳过（不影响列表主流程），已携带作者名的记录不覆盖。
+     *
+     * @param vos 帖子视图对象列表（原地回填 authorName）
+     */
+    private void fillAuthorNames(java.util.List<PostVO> vos) {
+        if (vos == null || vos.isEmpty()) {
+            return;
+        }
+        java.util.Set<Long> missing = new java.util.HashSet<>();
+        for (PostVO vo : vos) {
+            if ((vo.getAuthorName() == null || vo.getAuthorName().isBlank()) && vo.getAuthorId() != null) {
+                missing.add(vo.getAuthorId());
+            }
+        }
+        if (missing.isEmpty()) {
+            return;
+        }
+        String idList = missing.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        try {
+            Map<Long, String> nameById = new HashMap<>();
+            this.jdbcTemplate.query(
+                    "SELECT id, nickname, username FROM web3_user.`user` WHERE id IN (" + idList + ")",
+                    rs -> {
+                        while (rs.next()) {
+                            String nickname = rs.getString("nickname");
+                            String username = rs.getString("username");
+                            String name = (nickname != null && !nickname.isBlank()) ? nickname : username;
+                            nameById.put(rs.getLong("id"), name);
+                        }
+                    });
+            for (PostVO vo : vos) {
+                if (vo.getAuthorName() == null || vo.getAuthorName().isBlank()) {
+                    String name = vo.getAuthorId() != null ? nameById.get(vo.getAuthorId()) : null;
+                    if (name != null && !name.isBlank()) {
+                        vo.setAuthorName(name);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // user 库不可达或权限不足时静默跳过，列表仍正常返回
+        }
     }
 }

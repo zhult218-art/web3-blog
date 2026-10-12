@@ -22,22 +22,6 @@ if (-not (Test-Path $base)) {
     exit 1
 }
 
-# ── 加载仓库根 .env，仅填充尚未设置的环境变量 ──
-$envFile = Join-Path $root ".env"
-if (Test-Path $envFile) {
-    Get-Content $envFile | ForEach-Object {
-        $line = $_.Trim()
-        if ($line -eq "" -or $line.StartsWith("#")) { return }
-        $idx = $line.IndexOf("=")
-        if ($idx -lt 1) { return }
-        $key = $line.Substring(0, $idx).Trim()
-        $val = $line.Substring($idx + 1).Trim().Trim('"').Trim("'")
-        if (-not [Environment]::GetEnvironmentVariable($key)) {
-            [Environment]::SetEnvironmentVariable($key, $val)
-        }
-    }
-}
-
 # ── 定位 java（JAVA_HOME → PATH → 常见安装目录自动探测） ──
 if ($env:JAVA_HOME) {
     $java = Join-Path $env:JAVA_HOME "bin\java.exe"
@@ -126,9 +110,17 @@ function Start-HiddenProcess {
     $outLog = Join-Path $LogDir "$Name-$stamp.out.log"
     $errLog = Join-Path $LogDir "$Name-$stamp.err.log"
     try {
-        $proc = Start-Process -FilePath $File -ArgumentList $Arguments -WorkingDirectory $WorkDir `
-            -RedirectStandardOutput $outLog -RedirectStandardError $errLog `
-            -WindowStyle Hidden -PassThru
+        # PowerShell 5.1 中 ArgumentList 传空字符串会报错，需条件传参
+        $params = @{
+            FilePath               = $File
+            WorkingDirectory       = $WorkDir
+            RedirectStandardOutput = $outLog
+            RedirectStandardError  = $errLog
+            WindowStyle            = 'Hidden'
+            PassThru               = $true
+        }
+        if ($Arguments) { $params.ArgumentList = $Arguments }
+        $proc = Start-Process @params
         Write-Host "  $Name 已启动 (PID $($proc.Id))" -ForegroundColor Green
         Write-Host "    日志: $outLog" -ForegroundColor DarkGray
         return $proc
@@ -260,10 +252,14 @@ foreach ($svc in $services) {
     $svcDir = Split-Path $jarPath -Parent
     # 2026-09-20：user-service 需要访问 Google OAuth API（token 交换），
     # 本地直连不通，必须走系统代理（Clash 默认 7892）。其他服务不受影响。
+    # 2026-10-10：software-service 默认端口 8088 被腾讯更新代理占用，改用 8090。
     if ($svc.name -eq "user-service") {
         Start-HiddenProcess -Name $svc.name -File $java `
             -Arguments "-Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7892 -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=7892 -jar `"$jarPath`"" `
             -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
+    } elseif ($svc.name -eq "software-service") {
+        Start-HiddenProcess -Name $svc.name -File $java `
+            -Arguments "-jar `"$jarPath`" --server.port=8090" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
     } else {
         Start-HiddenProcess -Name $svc.name -File $java `
             -Arguments "-jar `"$jarPath`"" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
@@ -334,7 +330,7 @@ if ($node -and (Test-Path (Join-Path $feDir "node_modules"))) {
 Write-Host "`n等待 20s 让服务完成启动..." -ForegroundColor Cyan
 Start-Sleep -Seconds 20
 Write-Host "`n=== 端口检查 ===" -ForegroundColor Cyan
-foreach ($p in @(3306,6379,8848,8080,8081,8082,8083,8084,8085,8086,8087,8088,8089,8093,9001,9002,3000,5173,9006,8900)) {
+foreach ($p in @(3306,6379,8848,8080,8081,8082,8083,8084,8085,8086,8087,8089,8090,8093,9001,9002,3000,5173,9006,8900)) {
     $listening = netstat -ano | Select-String ":$p" | Select-String "LISTENING"
     if ($listening) { Write-Host "  :$p  OK" -ForegroundColor Green }
     else { Write-Host "  :$p  DOWN" -ForegroundColor Red }

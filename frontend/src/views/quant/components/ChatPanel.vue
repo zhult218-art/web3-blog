@@ -64,7 +64,11 @@ async function sendChat() {
   try {
     const resp = await fetch('/vr/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // ngrok 免费版会返回 HTML 过渡页，导致流式解析失败
+        'ngrok-skip-browser-warning': 'true',
+      },
       body: JSON.stringify({
         messages: [{ role: 'user', content: msg }],
         context: '当前页面: 量化交易平台。请用中文回答，关注A股行情与量化分析。',

@@ -54,11 +54,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 密码登录（支持图形验证码）
+  // 后端 issueToken 返回的 JwtVO 已含完整 user 对象，无需再发一次 /user/profile
   async function login(username, password, captchaId, captchaCode) {
     const res = await apiLogin(username, password, captchaId, captchaCode)
     const payload = extractData(res)
     setSession(payload)
-    try { await fetchProfile() } catch {}
     return res
   }
 
@@ -67,7 +67,6 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await apiEmailLogin({ email, code })
     const payload = extractData(res)
     setSession(payload)
-    try { await fetchProfile() } catch {}
     return res
   }
 
@@ -76,7 +75,6 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await apiPhoneLogin({ phone, code })
     const payload = extractData(res)
     setSession(payload)
-    try { await fetchProfile() } catch {}
     return res
   }
 
@@ -85,7 +83,6 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await apiRegister(username, password, nickname, email)
     const payload = extractData(res)
     setSession(payload)
-    try { await fetchProfile() } catch {}
     return res
   }
 

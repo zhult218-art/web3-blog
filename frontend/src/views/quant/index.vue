@@ -1791,6 +1791,21 @@
 // 量化模拟盘大屏：指数/全球市场/情绪/板块/行情列表/
 // 策略/新闻/回测/持仓组合/AI 深度分析 一站式页面，
 // 行情与回测对接 pyquant(9006) 与 Vibe 服务(8900)
+//
+// 文件结构（~4000 行）：
+//   <template> L1-1787：10 个 Tab 面板，各 Tab 以「===== TAB: xxx =====」分隔
+//     · dashboard（智能看板）L1225-1787 是最大 Tab，含 9 个 ECharts 图表
+//     · 其余 Tab 均在 400 行以内
+//   <script setup> L1789+：
+//     · 导入与公共状态 L1795-1957
+//     · 智能看板数据/图表 L1930-3110（loadDashboardData / renderDashExtraCharts 等）
+//     · 行情/策略/回测/组合/新闻 L3115-3801
+//     · 生命周期 onMounted / watch / onBeforeUnmount L3804-3897
+//
+// ⚠ 重构建议：dashboard Tab（L1225-1787，562 行模板 + 9 个 ECharts 实例 + ~15 个
+//   共享状态变量）与父脚本深度耦合（图表 ID 初始化、跨 Tab 共享 stockList /
+//   selectStock 等），无测试覆盖下提取风险高。建议作为独立重构任务，先补测试
+//   再拆分。当前仅修 resize 监听泄漏，不强行拆分。
 // ====================================================
 import { ref, reactive, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue'
 import { getQuantList, getStockKlineVR, getIndices, getMarketEmotion, getConceptHot, getIndustryList, getRadarData, getGlobalIndices, getPortfolioData, createStrategy, runStrategy, runPyBacktest, getPyBacktestStatus, getPyBacktestResult, getPyQuotes, getPyQuote, getPyKline, getPySearch, getPyStockInfo, getPySectors, getPySparklines, getPyAiAnalyze, getPyLlmProviders, getPyModels, getPyNews, getPyDashboard, getPyPortfolio, getPyLimitPools, getPyBoardProgress, getPySectorTrends, getPyFundFlow, getPyReportsLatest, getPyReports, getPyRecommend, getPyRecommendStrategies, getPyScreenStrategy, getPyScreenCustom, getPyLlmStatus, getPyStrategies, startPyBackfill, getPyBackfillStatus, getMyHoldings, saveHolding, deleteHolding } from '@/api/quant'
@@ -3863,7 +3878,7 @@ watch(activeTab, async (tab) => {
 
 let chartInstances = []
 let dashSectorChart = null
-window.addEventListener('resize', () => {
+function handleResize() {
   chartInstances.forEach(c => c?.resize())
   dashSectorChart?.resize()
   dashBreadthChart?.resize()
@@ -3876,10 +3891,12 @@ window.addEventListener('resize', () => {
   dashScatterChart?.resize()
   dashEmotionGauge?.resize()
   klineChart?.resize()
-})
+}
+window.addEventListener('resize', handleResize)
 
 // Cleanup charts on unmount
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
   if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null }
   if (backfillTimer) { clearTimeout(backfillTimer); backfillTimer = null }
   chartInstances.forEach(c => { try { c?.dispose() } catch {} })

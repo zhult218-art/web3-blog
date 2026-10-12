@@ -65,6 +65,13 @@ public class ChatWebSocket {
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") Long roomId) {
         this.roomId = roomId;
+        // 管理员关闭群聊时拒绝一切新连接
+        com.web3.forum.service.ChatSwitchService chatSwitch = applicationContext.getBean(com.web3.forum.service.ChatSwitchService.class);
+        if (!chatSwitch.isEnabled()) {
+            log.info("[chat-ws] close: chat disabled by admin");
+            try { session.close(); } catch (IOException ignored) {}
+            return;
+        }
         // 从 query 参数解析 token
         String token = null;
         String query = session.getQueryString();
@@ -161,6 +168,13 @@ public class ChatWebSocket {
     @OnMessage
     public void onMessage(Session session, String message) {
         try {
+            // 管理员关闭群聊后，存量连接也不允许再发言
+            com.web3.forum.service.ChatSwitchService chatSwitch = applicationContext.getBean(com.web3.forum.service.ChatSwitchService.class);
+            if (!chatSwitch.isEnabled()) {
+                session.getBasicRemote().sendText(MAPPER.writeValueAsString(
+                        Map.of("type", "error", "content", "管理员已关闭群聊")));
+                return;
+            }
             // 实名认证检查：未认证(verified!=2) 的用户只能只读，不能发消息
             if (!admin && (verified == null || verified != 2)) {
                 session.getBasicRemote().sendText(MAPPER.writeValueAsString(

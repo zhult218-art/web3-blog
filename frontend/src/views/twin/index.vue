@@ -29,9 +29,10 @@
       <div class="stage-head">
         <div>
           <h2>实时拓扑</h2>
-          <p>数据来源 <code>/admin/services/status</code> · 30 秒轮询 · 最后更新 {{ lastRefresh }}</p>
+          <p v-if="isAdmin">数据来源 <code>/admin/services/status</code> · 30 秒轮询 · 最后更新 {{ lastRefresh }}</p>
+          <p v-else>30 秒轮询 · 最后更新 {{ lastRefresh }}</p>
         </div>
-        <button class="refresh" :disabled="loading" @click="doRefresh">
+        <button v-if="isAdmin" class="refresh" :disabled="loading" @click="doRefresh">
           {{ loading ? '探测中...' : '立即探测' }}
         </button>
       </div>

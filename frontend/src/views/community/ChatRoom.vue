@@ -38,6 +38,19 @@
           <button class="icon-btn" :class="{active: drawerOpen && drawerTab==='members'}" @click="openDrawer('members')" title="群成员">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
           </button>
+          <button v-if="auth.user?.role === 'ADMIN'" class="icon-btn"
+                  :class="{ active: !chat.chatClosed }" :disabled="chatToggling"
+                  @click="toggleChat(!chat.chatClosed)"
+                  :title="chat.chatClosed ? '开启群聊' : '关闭群聊'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <template v-if="!chat.chatClosed">
+                <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>
+              </template>
+              <template v-else>
+                <circle cx="12" cy="12" r="3"/><path d="M6.3 6.3l11.4 11.4M4 4l2 2M20 4l-2 2M4 20l2-2M20 20l-2-2"/>
+              </template>
+            </svg>
+          </button>
           <span :class="['ws-pill', wsConnected ? 'on' : 'off']">
             <i></i>{{ wsConnected ? '在线' : '连接中' }}
           </span>
@@ -271,6 +284,13 @@
       <input ref="albumFileRef" type="file" accept="image/*" multiple class="hidden-file" @change="onAlbumFiles" />
     </template>
 
+    <!-- 管理员关闭群聊 -->
+    <div v-else-if="loadError && chat.chatClosed" class="chat2-state">
+      <div class="state-emoji">🚫</div>
+      <p class="state-title">管理员已关闭群聊</p>
+      <button v-if="auth.user?.role === 'ADMIN'" class="c-btn primary" :disabled="chatToggling" @click="toggleChat(true)">恢复群聊</button>
+    </div>
+
     <!-- 加载失败 -->
     <div v-else-if="loadError" class="chat2-state">
       <div class="state-emoji">📡</div>
@@ -332,15 +352,15 @@ function fmtTime(t) {
 function fmtDate(t) { return t ? String(t).slice(0,10) : '' }
 function goBack() { router.push('/community') }
 
-// ========== 初始化（store.init 幂等：已在别页连过则直接复用） ==========
+// ========== 初始化（store.init 幂等且共享 in-flight promise：已在别页连过/正在连接则直接复用） ==========
 async function init() {
   if (!auth.isLoggedIn) return
   loadError.value = ''
   loadingHistory.value = true
-  await chat.init()
-  if (!chat.room) {
+  const ok = await chat.init()
+  if (!ok && !chat.room) {
     loadingHistory.value = false
-    loadError.value = chat.loadError || '群聊服务尚未启动，请稍后再试'
+    loadError.value = chat.loadError || '群聊连接失败，请点击重新连接'
     return
   }
   notifySeenAt.value = Number(localStorage.getItem(seenKey.value) || 0)
@@ -354,6 +374,22 @@ function sendText() {
   const text = inputText.value.trim()
   if (!text) return
   if (chat.sendText(text)) inputText.value = ''
+}
+
+// ========== 管理员聊天开关 ==========
+const chatToggling = ref(false)
+async function toggleChat(enabled) {
+  if (chatToggling.value) return
+  chatToggling.value = true
+  try {
+    await chat.adminToggleChat(enabled)
+    toast.success(enabled ? '群聊已开启' : '群聊已关闭')
+    if (enabled) await init()
+  } catch (e) {
+    toast.error(e?.response?.data?.message || e?.message || '操作失败')
+  } finally {
+    chatToggling.value = false
+  }
 }
 function scrollBottom() {
   nextTick(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight })

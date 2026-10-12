@@ -225,6 +225,33 @@
               <button :class="{active: crackMode==='path'}" @click="crackMode='path'">服务器路径</button>
             </div>
 
+            <!-- 破解模式：字典 / 规则 / 暴力 -->
+            <div class="form-row" style="margin-bottom: .8rem;">
+              <label>破解模式</label>
+              <div class="attack-mode-row">
+                <label class="radio-chip" :class="{active: crackAttackMode==='dictionary'}">
+                  <input type="radio" v-model="crackAttackMode" value="dictionary"> 📖 字典
+                </label>
+                <label class="radio-chip" :class="{active: crackAttackMode==='rule'}">
+                  <input type="radio" v-model="crackAttackMode" value="rule"> 📋 规则
+                </label>
+                <label class="radio-chip" :class="{active: crackAttackMode==='brute'}">
+                  <input type="radio" v-model="crackAttackMode" value="brute"> 🔨 暴力
+                </label>
+              </div>
+            </div>
+            <!-- 规则模式：规则文件路径 -->
+            <div v-if="crackAttackMode==='rule'" class="form-row">
+              <label>规则文件（hashcat -r）</label>
+              <input v-model="crackForm.rulePath" placeholder="Z:\rules\best64.rule">
+            </div>
+            <!-- 暴力模式：掩码 -->
+            <div v-if="crackAttackMode==='brute'" class="form-row">
+              <label>掩码（hashcat -a 3）</label>
+              <input v-model="crackForm.mask" placeholder="?d?d?d?d?d?d?d?d（8位纯数字）">
+              <small class="hint">?d=数字 ?l=小写 ?u=大写 ?s=特殊 ?a=全部 ?h=十六进制</small>
+            </div>
+
             <!-- 粘贴 -->
             <template v-if="crackMode==='paste'">
               <textarea v-model="crackForm.hash" rows="4"
@@ -398,7 +425,8 @@ const rogueForm = reactive({ ssid: '', key: '', template: 'wifi_login' })
 // ── Crack ──
 const hashcatInfo = ref('')
 const crackMode = ref('paste')
-const crackForm = reactive({ hash: '', wordlistPath: '', hashPath: '' })
+const crackAttackMode = ref('dictionary')
+const crackForm = reactive({ hash: '', wordlistPath: '', hashPath: '', rulePath: '', mask: '' })
 const files = reactive({ hash: null, wordlist: null })
 const crackJobs = ref([])
 const consoleJob = ref(null)
@@ -554,7 +582,8 @@ function onWordlist(e) { files.wordlist = e.target.files[0] }
 
 async function startCrackPaste() {
   if (!crackForm.hash.trim() || !crackForm.wordlistPath.trim()) return
-  const j = await createCrackJob(crackForm.hash, crackForm.wordlistPath)
+  const j = await createCrackJob(crackForm.hash, crackForm.wordlistPath, 'auto', '',
+    crackAttackMode.value, crackForm.rulePath, crackForm.mask)
   crackJobs.value.push(j)
   openCrackConsole(j)
 }
@@ -562,7 +591,8 @@ async function startCrackPaste() {
 async function startCrackFromPath() {
   if (!crackForm.hashPath.trim() || !crackForm.wordlistPath.trim()) return
   // 哈希文件由后端按服务器路径读取（hash_path），浏览器无需访问本地文件
-  const j = await createCrackJob('', crackForm.wordlistPath, 'auto', crackForm.hashPath)
+  const j = await createCrackJob('', crackForm.wordlistPath, 'auto', crackForm.hashPath,
+    crackAttackMode.value, crackForm.rulePath, crackForm.mask)
   crackJobs.value.push(j)
   openCrackConsole(j)
 }
@@ -813,6 +843,11 @@ textarea { width: 100%; resize: vertical; margin-bottom: .9rem; font-family: inh
   background: rgba(30,41,59,.8); border: 1px solid rgba(148,163,184,.25); color: #94a3b8;
 }
 .crack-tabs button.active { color: #fff; border-color: rgba(103,232,249,.6); background: rgba(34,211,238,.15); }
+.attack-mode-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.radio-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .7rem; font-size: .8rem; cursor: pointer; border-radius: 8px; border: 1px solid rgba(148,163,184,.2); background: rgba(30,41,59,.5); color: #94a3b8; transition: all .15s; }
+.radio-chip input { display: none; }
+.radio-chip.active { color: #fff; border-color: rgba(103,232,249,.6); background: rgba(34,211,238,.15); }
+.hint { display: block; margin-top: .2rem; font-size: .7rem; color: #64748b; }
 .up-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .up-row > div { flex: 1; min-width: 200px; }
 .up-row label { font-size: .76rem; color: #94a3b8; display: block; margin-bottom: .4rem; }

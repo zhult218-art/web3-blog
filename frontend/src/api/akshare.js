@@ -1,80 +1,78 @@
-﻿// Akshare A鑲℃暟鎹湇鍔?// 缁熶竴閫氳繃 Vite 浠ｇ悊 (/vr 鈫?Vibe-Research 8900 /api) 鑾峰彇鐪熷疄琛屾儏鏁版嵁
-// 鍙傝€? https://akshare.akfamily.xyz/
+// AkShare A股数据服务
+// 统一通过 Vite 代理 (/vr → Vibe-Research 8900 /api) 获取真实行情数据
+// 参考: https://akshare.akfamily.xyz/
+import request from '@/api/request'
 
 const BASE_URL = '/vr'
 
-// 璇锋眰宸ュ叿
-async function request(url, params = {}) {
-  const query = new URLSearchParams(params).toString()
-  const response = await fetch(`${BASE_URL}${url}?${query}`)
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-  }
-  return response.json()
+// 请求工具：复用统一 axios 实例（含 token 注入 / 401 续期 / 错误兜底）
+// 通过 per-request baseURL 覆盖默认的 '/api'，指向 '/vr'
+// suppressError: 行情接口失败不应弹 toast 刷屏，由调用方自行处理
+async function call(url, params = {}) {
+  const data = await request.get(url, {
+    baseURL: BASE_URL,
+    params,
+    suppressError: true,
+    timeout: 20000,
+  })
+  return data?.data ?? null
 }
 
 // ============================================================
-// 鎸囨暟鏁版嵁 (涓婅瘉銆佹繁璇併€佸垱涓氭澘銆佺鍒?0) 鈥?鐪熷疄鏉ユ簮 /vr/indices
+// 指数数据 (上证、深证、创业板、科创板) → 真实来源 /vr/indices
 // ============================================================
 export async function getIndexQuotes() {
-  const data = await request('/indices')
-  return data?.data || []
+  return (await call('/indices')) || []
 }
 
 // ============================================================
-// A鑲″疄鏃惰鎯?(鍏ㄩ儴鑲＄エ) 鈥?鐪熷疄鏉ユ簮 /vr/market/turnover-top
+// A股实时行情 (全部股票) → 真实来源 /vr/market/turnover-top
 // ============================================================
 export async function getStockList(page = 1, size = 50) {
-  const data = await request('/market/turnover-top', { limit: size })
-  return data?.data || []
+  return (await call('/market/turnover-top', { limit: size })) || []
 }
 
 // ============================================================
-// 涓偂璇︽儏 鈥?鐪熷疄鏉ユ簮 /vr/quote?codes=
+// 个股详情 → 真实来源 /vr/quote?codes=
 // ============================================================
 export async function getStockQuote(code) {
-  const data = await request('/quote', { codes: code })
-  return data?.data?.[code] || null
+  const data = await call('/quote', { codes: code })
+  return data?.[code] || null
 }
 
 // ============================================================
-// K绾挎暟鎹?鈥?鐪熷疄鏉ユ簮 /vr/kline (category=4 鏃ョ嚎)
+// K线数据 → 真实来源 /vr/kline (category=4 日线)
 // ============================================================
 export async function getKlineData(code, period = 'daily', count = 100) {
   const category = { daily: 4, weekly: 5, monthly: 6 }[period] || 4
-  const data = await request('/kline', { code, category, offset: count })
-  return data?.data || []
+  return (await call('/kline', { code, category, offset: count })) || []
 }
 
 // ============================================================
-// 鍏ㄧ悆甯傚満鎸囨暟 鈥?鐪熷疄鏉ユ簮 /vr/global/indices
+// 全球市场指数 → 真实来源 /vr/global/indices
 // ============================================================
 export async function getGlobalIndices() {
-  const data = await request('/global/indices')
-  return data?.data || []
+  return (await call('/global/indices')) || []
 }
 
 // ============================================================
-// 甯傚満鎯呯华 鈥?鐪熷疄鏉ユ簮 /vr/market/emotion
+// 市场情绪 → 真实来源 /vr/market/emotion
 // ============================================================
 export async function getMarketEmotion() {
-  const data = await request('/market/emotion')
-  return data?.data || null
+  return await call('/market/emotion')
 }
 
 // ============================================================
-// 鐑棬姒傚康鏉垮潡 鈥?鐪熷疄鏉ユ簮 /vr/hot-concepts
+// 热门概念板块 → 真实来源 /vr/hot-concepts
 // ============================================================
 export async function getHotConcepts() {
-  const data = await request('/hot-concepts', { code: '000001' })
-  return data?.data || []
+  return (await call('/hot-concepts', { code: '000001' })) || []
 }
 
 // ============================================================
-// 琛屼笟鏉垮潡鎺掕 鈥?鐪熷疄鏉ユ簮 /vr/industry
+// 行业板块排行 → 真实来源 /vr/industry
 // ============================================================
 export async function getIndustryList() {
-  const data = await request('/industry', { top: 10 })
-  return data?.data?.top || []
+  const data = await call('/industry', { top: 10 })
+  return data?.top || []
 }
-

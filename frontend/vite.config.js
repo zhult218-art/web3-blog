@@ -85,6 +85,16 @@ export default defineConfig({
         timeout: 120000,
         proxyTimeout: 120000
       },
+      // OSINT 信息收集（统一 py-service 9006 的 osint 模块）。
+      // 页面路由是 /osint，故 API 前缀用 /osintapi；开启 ws 支持实时扫描日志。
+      '/osintapi': {
+        target: 'http://127.0.0.1:9006',
+        changeOrigin: true,
+        ws: true,
+        rewrite: path => path.replace(/^\/osintapi/, '/api/osint'),
+        timeout: 120000,
+        proxyTimeout: 120000
+      },
       // 60s API 公共实例（github-myblog/60s-main 同款服务）
       // 浏览器虽可直连，但部分图片/二级路由 CORS 不稳定，统一走代理同源
       '/sixty': {

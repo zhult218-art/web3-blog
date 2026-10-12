@@ -20,7 +20,7 @@ spring:
     username: ${MYSQL_USERNAME:root}
     password: ${MYSQL_PASSWORD:root}
 server:
-  port: 8088
+  port: ${SOFTWARE_SERVICE_PORT:8090}
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

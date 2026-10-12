@@ -51,15 +51,16 @@ public class OtpService {
     /**
      * 发送邮箱验证码。
      *
-     * <p>2026-09-20 修订：恢复 dev 模式回传 devCode，但仅在登录路径（{@code /user/email/code}）
-     * 由 Controller 写入响应体；绑定邮箱路径（{@code /user/bind/email/code}）忽略返回值。
-     * 这样本地开发能立即测试验证码登录，而绑定路径不会被利用来账户接管。</p>
+     * <p>2026-10-10 安全修订：dev 模式（mailEnabled=false）验证码不再回传 HTTP 响应体，
+     * 只写入服务端日志（明文，便于本地开发从控制台读取）。原先 dev 模式会把 devCode 写入
+     * 响应体，配合 emailLogin 的未知邮箱自动注册，构成「对任意邮箱发码→从响应取码→登录即接管」
+     * 的账户接管链路；现 dev 模式与生产模式统一返回 null，由日志承担开发可见性。</p>
      *
      * <p>生产部署：设置 {@code MAIL_ENABLED=true} 并配置 {@code MAIL_HOST/MAIL_USERNAME/MAIL_PASSWORD}，
-     * 验证码走真实 SMTP，返回值为 null（不回传）。</p>
+     * 验证码走真实 SMTP。</p>
      *
      * @param email 邮箱
-     * @return dev 模式返回明文验证码（供 Controller 写入响应体 devCode 字段）；生产模式返回 null
+     * @return 始终返回 null（验证码不再回传响应体；dev 模式请查服务端日志）
      */
     public String sendEmailCode(String email) {
         rateLimit(email, EMAIL_RATE_PREFIX);
@@ -67,10 +68,9 @@ public class OtpService {
         String key = EMAIL_CODE_PREFIX + email.toLowerCase();
         redis.opsForValue().set(key, code, CODE_TTL_MINUTES, TimeUnit.MINUTES);
         if (!props.isMailEnabled()) {
-            // dev 模式：验证码回传给 Controller，由 Controller 决定是否写入响应体
-            // 登录路径会回传（方便本地测试），绑定路径不回传（防账户接管）
-            log.warn("[OtpService] mailDisabled, code returned for local dev. email={} code={}", LogMasker.maskEmail(email), LogMasker.maskCode(code));
-            return code;
+            // dev 模式：验证码只写日志，不再回传响应体（防账户接管）
+            log.warn("[OtpService] mailDisabled, code logged for local dev. email={} code={}", LogMasker.maskEmail(email), code);
+            return null;
         }
         log.info("[OtpService] email code sent. email={}", LogMasker.maskEmail(email));
         sendMail(email, code);
@@ -91,15 +91,16 @@ public class OtpService {
     /**
      * 发送短信验证码。
      *
-     * <p>2026-09-20 修订：dev 模式（smsEnabled=false）回传 devCode 供登录路径写入响应体，
-     * 绑定路径忽略；生产模式（smsEnabled=true）调用 {@link #sendSmsByGateway} 真实下发。</p>
+     * <p>2026-10-10 安全修订：dev 模式（smsEnabled=false）与网关未接入的 fallback 路径
+     * 均不再回传 devCode，只写服务端日志（明文）。原先 dev/fallback 回传 devCode 配合
+     * phoneLogin 自动注册构成账户接管链路，现统一返回 null。</p>
      *
      * <p>真实 SMS 网关接入：设置 {@code SMS_ENABLED=true} + {@code SMS_PROVIDER=aliyun|tencent}
      * + {@code SMS_KEY/SMS_SECRET/SMS_SIGN_NAME/SMS_TEMPLATE_CODE}，然后在
      * {@link #sendSmsByGateway} 填具体实现（阿里云 SDK / 腾讯云 SDK / HTTP 调用均可）。</p>
      *
      * @param phone 手机号
-     * @return dev 模式返回明文验证码；生产模式返回 null
+     * @return 始终返回 null（验证码不再回传响应体；dev/fallback 模式请查服务端日志）
      */
     public String sendPhoneCode(String phone) {
         rateLimit(phone, PHONE_RATE_PREFIX);
@@ -107,18 +108,18 @@ public class OtpService {
         String key = PHONE_CODE_PREFIX + phone;
         redis.opsForValue().set(key, code, CODE_TTL_MINUTES, TimeUnit.MINUTES);
         if (!props.isSmsEnabled()) {
-            // dev 模式：回传给 Controller，由 Controller 决定是否写入响应体
-            log.warn("[OtpService] smsDisabled, code returned for local dev. phone={} code={}", LogMasker.maskPhone(phone), LogMasker.maskCode(code));
-            return code;
+            // dev 模式：验证码只写日志，不再回传响应体（防账户接管）
+            log.warn("[OtpService] smsDisabled, code logged for local dev. phone={} code={}", LogMasker.maskPhone(phone), code);
+            return null;
         }
-        // 生产模式：尝试调网关；网关未接入时回退 dev 模式（回传 devCode 让 Controller 提示用户改用邮箱）
+        // 生产模式：尝试调网关；网关未接入时回退日志模式（不回传 devCode，提示用户改用邮箱）
         boolean sent = sendSmsByGateway(phone, code);
         if (sent) {
             log.info("[OtpService] sms code sent. phone={}", LogMasker.maskPhone(phone));
             return null;
         }
-        log.warn("[OtpService] sms gateway unavailable, code returned as fallback. phone={} code={}", LogMasker.maskPhone(phone), LogMasker.maskCode(code));
-        return code;
+        log.warn("[OtpService] sms gateway unavailable, code logged as fallback. phone={} code={}", LogMasker.maskPhone(phone), code);
+        return null;
     }
 
     /**

@@ -30,8 +30,8 @@
   <ExternalLinkGuard />
   <XingTuAssistant v-if="jarvisOn" />
   <GlobalPlayer />
-  <!-- 极光广场聊天 Dock：登录后全局常驻左侧栏（可展开/缩窄/关闭），路由切换不断线 -->
-  <ChatDock v-if="auth.isLoggedIn" />
+  <!-- 极光广场聊天 Dock：登录后全局常驻左侧栏（可展开/缩窄/关闭），路由切换不断线；管理员关闭群聊时隐藏 -->
+  <ChatDock v-if="auth.isLoggedIn && !chat.chatClosed" />
   <NoticePanel />
   <SearchPanel />
   <Shortcuts />
@@ -166,7 +166,11 @@ async function reportVisit() {
       const ctrl = new AbortController()
       const timer = setTimeout(() => ctrl.abort(), 5000) // 5s 超时，避免挂起
       try {
-        geo = await fetch('https://ipwho.is/', { signal: ctrl.signal }).then(r => r.json())
+        const r = await fetch('https://ipwho.is/', { signal: ctrl.signal })
+        if (!r.ok) throw new Error(`ipwho ${r.status}`)
+        geo = await r.json()
+        // ipwho.is 失败时返回 { success: false, error: { ... } }
+        if (geo && geo.success === false) geo = null
       } catch {
         ipwhoFailed = true // 失败后本次会话不再请求 ipwho.is
       } finally {

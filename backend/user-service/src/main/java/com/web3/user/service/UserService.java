@@ -9,6 +9,7 @@ import com.web3.common.core.BusinessException;
 import com.web3.common.core.PageResult;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
+import com.web3.user.config.AuthProperties;
 import com.web3.user.dto.LoginDTO;
 import com.web3.user.dto.UserRegisterDTO;
 import com.web3.user.entity.User;
@@ -46,10 +47,12 @@ public class UserService {
     private final CaptchaService captchaService;
     private final OtpService otpService;
     private final GoogleOAuthService googleOAuthService;
+    private final AuthProperties authProperties;
     private final RestTemplate restTemplate = new RestTemplate();
 
     public UserService(UserMapper userMapper, StringRedisTemplate redisTemplate, JwtUtil jwtUtil, JwtProperties jwtProperties, PasswordEncoder passwordEncoder,
-                       CaptchaService captchaService, OtpService otpService, GoogleOAuthService googleOAuthService) {
+                       CaptchaService captchaService, OtpService otpService, GoogleOAuthService googleOAuthService,
+                       AuthProperties authProperties) {
         this.userMapper = userMapper;
         this.redisTemplate = redisTemplate;
         this.jwtUtil = jwtUtil;
@@ -58,6 +61,7 @@ public class UserService {
         this.captchaService = captchaService;
         this.otpService = otpService;
         this.googleOAuthService = googleOAuthService;
+        this.authProperties = authProperties;
     }
 
     private void autoJoinChatRooms(Long userId, String username, String nickname) {
@@ -156,11 +160,32 @@ public class UserService {
         return issueToken(user);
     }
 
-    /** 邮箱验证码登录（验证码已由 Controller 层校验通过） */
+    /**
+     * 邮箱验证码登录（验证码已由 Controller 层校验通过）。
+     *
+     * <p>2026-10-10 安全修订：未知邮箱是否自动注册受 {@link AuthProperties#isAutoRegister()} 控制，
+     * 默认 false（关闭）——未注册邮箱返回「邮箱未注册，请先注册」，防止任意邮箱被自动创建账户。
+     * 显式设为 true 时恢复自动注册（需配合真实 SMTP，避免 devCode 泄露链路）。</p>
+     */
     public ApiResponse<JwtVO> emailLogin(String email) {
+        return emailLogin(email, false);
+    }
+
+    /**
+     * 邮箱登录（验证码链路与可信第三方签发链路共用）。
+     *
+     * @param email          邮箱
+     * @param trustedIssuer  true 表示邮箱所有权已由可信第三方（如 Supabase 服务端校验 access_token）
+     *                       验证，无视 auto-register 开关强制允许自动注册；
+     *                       false 表示走验证码登录链路，按 auto-register 开关决定是否自动注册
+     */
+    public ApiResponse<JwtVO> emailLogin(String email, boolean trustedIssuer) {
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getEmail, email));
         if (user == null) {
-            // 自动注册
+            if (!trustedIssuer && !authProperties.isAutoRegister()) {
+                return ApiResponse.fail("邮箱未注册，请先注册");
+            }
+            // 自动注册（开关已开启，或由可信第三方签发）
             user = new User();
             String localPart = email.split("@")[0];
             String username = "e_" + localPart.replaceAll("[^a-zA-Z0-9_]", "_");
@@ -181,10 +206,18 @@ public class UserService {
         return issueToken(user);
     }
 
-    /** 手机验证码登录（验证码已由 Controller 层校验通过） */
+    /**
+     * 手机验证码登录（验证码已由 Controller 层校验通过）。
+     *
+     * <p>2026-10-10 安全修订：未知手机号是否自动注册受 {@link AuthProperties#isAutoRegister()} 控制，
+     * 默认 false（关闭）——未注册手机号返回「手机号未注册，请先注册」。</p>
+     */
     public ApiResponse<JwtVO> phoneLogin(String phone) {
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getPhone, phone));
         if (user == null) {
+            if (!authProperties.isAutoRegister()) {
+                return ApiResponse.fail("手机号未注册，请先注册");
+            }
             user = new User();
             String username = "p_" + phone.substring(Math.max(0, phone.length() - 6));
             String base = username;

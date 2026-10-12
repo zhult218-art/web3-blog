@@ -123,7 +123,7 @@ spring:
           predicates:
             - Path=/site/**
         - id: software
-          uri: http://${SOFTWARE_SERVICE_HOST:localhost}:8088
+          uri: http://${SOFTWARE_SERVICE_HOST:localhost}:${SOFTWARE_SERVICE_PORT:8090}
           predicates:
             - Path=/software/**
         - id: resource
@@ -157,6 +157,10 @@ spring:
           uri: http://${PY_SERVICE_HOST:localhost}:9006
           predicates:
             - Path=/api/wifi/**
+        - id: pyservice-osint
+          uri: http://${PY_SERVICE_HOST:localhost}:9006
+          predicates:
+            - Path=/api/osint/**
         # ============ AI Token 中转站（ai-proxy-service 8093） ============
         # 注意：必须位于通配 /admin/** 之前，网关按定义顺序匹配
         - id: ai-proxy-admin

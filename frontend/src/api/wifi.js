@@ -50,7 +50,8 @@ export const stopRogue = () => wf('/rogue/stop', { method: 'post', timeout: 3000
 
 // ── WPA 离线破解 ──
 export const getHashcatInfo = () => wf('/crack/hashcat')
-export const createCrackJob = (hashText, wordlistPath, engine = 'auto', hashPath = '') =>
+export const createCrackJob = (hashText, wordlistPath, engine = 'auto', hashPath = '',
+  crackMode = 'dictionary', rulePath = '', mask = '') =>
   wf('/crack/jobs', {
     method: 'post',
     data: {
@@ -58,6 +59,9 @@ export const createCrackJob = (hashText, wordlistPath, engine = 'auto', hashPath
       hash_path: hashPath,
       wordlist_path: wordlistPath,
       engine,
+      crack_mode: crackMode,
+      rule_path: rulePath,
+      mask,
     },
     timeout: 30000,
   })

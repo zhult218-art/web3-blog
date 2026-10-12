@@ -1,5 +1,10 @@
 import request from './request'
 
+// 聊天开关状态（公开：{ enabled: true/false }）
+export const getChatEnabled = () => request.get('/chat/enabled', { suppressError: true })
+// 管理员设置聊天开关
+export const setChatEnabled = enabled => request.put('/chat/enabled', { enabled })
+
 // 群列表（含当前用户加入状态）
 export const getChatRooms = () => request.get('/chat/rooms')
 // 申请加入群

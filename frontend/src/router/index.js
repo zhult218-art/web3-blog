@@ -66,6 +66,8 @@ const web3Routes = [
   { path: 'qzone', name: 'QzoneBackup', component: () => import('@/views/qzone/index.vue'), meta: { requiresAuth: false, perm: 'qzone' } },
   // WiFi 安全审计（统一 py-service，经 /wifiapi 代理 → /api/wifi）
   { path: 'wifi', name: 'WifiAudit', component: () => import('@/views/wifi/index.vue'), meta: { requiresAuth: false, perm: 'wifi' } },
+  // OSINT 信息收集（统一 py-service，经 /osintapi 代理 → /api/osint）
+  { path: 'osint', name: 'OsintScan', component: () => import('@/views/osint/index.vue'), meta: { requiresAuth: false, perm: 'osint' } },
   // 用户 / 支付
   { path: 'profile', name: 'Profile', component: () => import('@/views/profile/index.vue'), meta: { requiresAuth: true } },
   { path: 'profile/orders', name: 'ProfileOrders', component: () => import('@/views/profile/orders.vue'), meta: { requiresAuth: true } },

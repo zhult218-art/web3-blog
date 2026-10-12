@@ -120,6 +120,24 @@ public class PostController {
     }
 
     /**
+     * 从请求头令牌解析昵称（authorName 缺失时发帖回退使用）
+     *
+     * @param auth Authorization 请求头原始值（Bearer token）
+     * @return 昵称；令牌无效时返回 null
+     */
+    private String resolveNickname(String auth) {
+        try {
+            String token = AuthUtils.resolveToken(auth, this.jwtProperties);
+            if (!this.jwtUtil.validate(token)) {
+                return null;
+            }
+            return this.jwtUtil.parseClaims(token).get("nickname", String.class);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
      * 创建帖子（前端路由：POST /post，需登录）
      * 从请求头令牌解析出作者 ID 后创建帖子
      * 权限：需未被收回 post 权限（互动类，默认拥有，管理员可收回）
@@ -132,7 +150,7 @@ public class PostController {
     public ApiResponse<PostVO> create(@RequestBody PostCreateDTO dto, @RequestHeader(value = "Authorization") String token) {
         Long authorId = AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         AuthUtils.requirePerm(token, this.jwtUtil, this.jwtProperties, "post", true);
-        PostVO vo = this.postService.create(dto, authorId, this.isAdmin(token));
+        PostVO vo = this.postService.create(dto, authorId, resolveNickname(token), this.isAdmin(token));
         return ApiResponse.ok(vo);
     }
 

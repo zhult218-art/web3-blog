@@ -12,6 +12,12 @@
           <div class="hud-status">
             <span class="status-indicator"></span>
             <span class="status-text">ONLINE</span>
+            <button class="hud-refresh-btn" @click="hardRefresh" title="清除缓存并重新加载">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.5 2.6L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -150,6 +156,40 @@ const heroCanvas = ref(null)
 const bgField = ref(null)
 const currentTime = ref('')
 const showBackTop = ref(false)
+
+// 清除缓存并重新加载（localStorage + sessionStorage + cookies + Cache Storage）
+const hardRefresh = async () => {
+  try {
+    // 1. 清除 localStorage 和 sessionStorage
+    localStorage.clear()
+    sessionStorage.clear()
+
+    // 2. 清除所有 cookies（当前域）
+    document.cookie.split(';').forEach(c => {
+      const eq = c.indexOf('=')
+      const name = eq > -1 ? c.slice(0, eq).trim() : c.trim()
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${location.hostname}`
+    })
+
+    // 3. 清除 Service Worker Cache Storage（如有）
+    if (window.caches) {
+      const keys = await caches.keys()
+      await Promise.all(keys.map(k => caches.delete(k)))
+    }
+
+    // 4. 注销 Service Worker（如有）
+    if (navigator.serviceWorker) {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(regs.map(r => r.unregister()))
+    }
+  } catch (e) {
+    // 忽略清除失败，继续重载
+  } finally {
+    // 5. 强制重新加载（绕过缓存）
+    location.href = location.pathname + '?_t=' + Date.now()
+  }
+}
 
 let scene, camera, renderer, clock
 let headGroup, particles
@@ -544,6 +584,28 @@ onBeforeRouteLeave(() => {
   border-radius: 50%;
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
   animation: statusPulse 2s ease-in-out infinite;
+}
+
+.hud-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  margin-left: 0.3rem;
+  color: rgba(16, 185, 129, 0.7);
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.hud-refresh-btn:hover {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  transform: rotate(180deg);
+}
+.hud-refresh-btn:active {
+  transform: rotate(360deg);
 }
 
 @keyframes statusPulse {

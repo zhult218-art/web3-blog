@@ -1,8 +1,8 @@
 // ============================================================
 // 博客文章接口
 // 读取类（列表/详情/分类/标签/归档/统计/随机/相关/热门）优先从
-// Supabase 读取（blog_articles，配合 RLS 只读已发布），失败或为空时
-// 回退到 blog-service（走网关 /api）。
+// blog-service（走网关 /api，本地 MySQL，毫秒级）读取，失败或为空时
+// 回退到 Supabase（blog_articles，云端镜像；国内网络可达性差，仅兜底）。
 // 管理/写操作（增删改、点赞、收藏、设置、公告、友链）仍走后端。
 // ============================================================
 import request from './request'
@@ -132,8 +132,18 @@ const kw = v => String(v || '').replace(/[%']/g, '')
 const LIST_COLS = 'id,title,slug,summary,category,tags,cover_url,author_name,created_at,updated_at,views,likes,is_top'
 
 // 分页查询文章列表（支持 page/size/keyword/category/tag/month）
+// 后端优先；请求失败或返回空列表时回退 Supabase 云端镜像
 const fetchBlogList = async params => {
   const p = { ...(params || {}) }
+  try {
+    const res = await request.get('/article/list', { params: p })
+    if (!res?.data?.records?.length) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogList 后端不可用，回退 Supabase', be?.message || be)
+  }
+  const page = Number(p.page) || 1
+  const size = Number(p.size) || 10
   try {
     let q = supabase.from('blog_articles').select(LIST_COLS, { count: 'exact' }).eq('published', true)
     if (p.keyword) {
@@ -149,17 +159,13 @@ const fetchBlogList = async params => {
         q = q.lt('created_at', new Date(Date.UTC(Number(y), Number(m), 1)).toISOString())
       }
     }
-    const page = Number(p.page) || 1
-    const size = Number(p.size) || 10
     q = q.order('created_at', { ascending: false }).range((page - 1) * size, page * size - 1)
     const { data, count, error } = await q
     if (error) throw error
-    const records = (data || []).map(mapArticle)
-    if (!records.length) throw new Error('empty')
-    return ok({ records, total: count ?? records.length, page, size })
+    return ok({ records: (data || []).map(mapArticle), total: count ?? (data || []).length, page, size })
   } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogList supabase 不可用，回退后端', e?.message || e)
-    return request.get('/article/list', { params: p })
+    if (import.meta.env.DEV) console.warn('[blog] getBlogList supabase 也不可用', e?.message || e)
+    return ok({ records: [], total: 0, page, size })
   }
 }
 
@@ -179,243 +185,266 @@ export const getBlogList = (params) => {
 }
 
 // 查询文章详情（返回 { article, prevArticle, nextArticle }，与后端一致）
+// 后端优先；失败或文章不存在时回退 Supabase
 export const getBlogDetail = async id => {
   try {
-    const { data: a, error } = await supabase
-      .from('blog_articles')
-      .select('*')
-      .eq('published', true)
-      .eq('id', Number(id))
-      .limit(1)
-      .maybeSingle()
-    if (error) throw error
-    if (!a) throw new Error('empty')
-    const article = mapArticle(a)
-    const [prev, next] = await Promise.all([
-      supabase
-        .from('blog_articles')
-        .select('id, title')
-        .eq('published', true)
-        .lt('created_at', a.created_at)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('blog_articles')
-        .select('id, title')
-        .eq('published', true)
-        .gt('created_at', a.created_at)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-    ])
-    return ok({
-      article,
-      prevArticle: prev.data || null,
-      nextArticle: next.data || null,
-    })
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogDetail supabase 不可用，回退后端', e?.message || e)
-    return request.get(`/article/${id}`)
+    const res = await request.get(`/article/${id}`)
+    if (!res?.data?.article) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogDetail 后端不可用，回退 Supabase', be?.message || be)
   }
+  const { data: a, error } = await supabase
+    .from('blog_articles')
+    .select('*')
+    .eq('published', true)
+    .eq('id', Number(id))
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  if (!a) throw new Error('empty')
+  const article = mapArticle(a)
+  const [prev, next] = await Promise.all([
+    supabase
+      .from('blog_articles')
+      .select('id, title')
+      .eq('published', true)
+      .lt('created_at', a.created_at)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('blog_articles')
+      .select('id, title')
+      .eq('published', true)
+      .gt('created_at', a.created_at)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ])
+  return ok({
+    article,
+    prevArticle: prev.data || null,
+    nextArticle: next.data || null,
+  })
 }
 
 // 相关推荐（同分类、浏览量优先）
+// 后端优先；失败或无结果时回退 Supabase
 export const getBlogRelated = async (id, limit = 5) => {
   try {
-    const { data: self, error: e1 } = await supabase
-      .from('blog_articles')
-      .select('category')
-      .eq('id', Number(id))
-      .limit(1)
-      .maybeSingle()
-    if (e1) throw e1
-    let target = { category: '' }
-    if (self?.category) {
-      const { data: same } = await supabase
-        .from('blog_articles')
-        .select('*')
-        .eq('published', true)
-        .eq('category', self.category)
-        .neq('id', Number(id))
-        .order('views', { ascending: false })
-        .limit(Number(limit) || 5)
-      if (same?.length) target = same
-      else target = { related: 'empty', rows: [] }
-    }
-    const rows = Array.isArray(target) ? target : []
-    if (!rows.length) throw new Error('empty')
-    return ok(rows.map(mapArticle))
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogRelated supabase 不可用，回退后端', e?.message || e)
-    return request.get(`/article/${id}/related`, { params: { limit } })
+    const res = await request.get(`/article/${id}/related`, { params: { limit } })
+    const rows = res?.data
+    if (!Array.isArray(rows) || !rows.length) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogRelated 后端不可用，回退 Supabase', be?.message || be)
   }
+  const { data: self, error: e1 } = await supabase
+    .from('blog_articles')
+    .select('category')
+    .eq('id', Number(id))
+    .limit(1)
+    .maybeSingle()
+  if (e1) throw e1
+  let target = { category: '' }
+  if (self?.category) {
+    const { data: same } = await supabase
+      .from('blog_articles')
+      .select('*')
+      .eq('published', true)
+      .eq('category', self.category)
+      .neq('id', Number(id))
+      .order('views', { ascending: false })
+      .limit(Number(limit) || 5)
+    if (same?.length) target = same
+    else target = { related: 'empty', rows: [] }
+  }
+  const rows = Array.isArray(target) ? target : []
+  return ok(rows.map(mapArticle))
 }
 
 // 随机一篇（保证返回的顶层带 id，供 layout/右键/控制台跳转）
+// 后端优先；失败时回退 Supabase
 export const getBlogRandom = async () => {
   try {
-    const { data: ids, error } = await supabase
-      .from('blog_articles')
-      .select('id')
-      .eq('published', true)
-    if (error) throw error
-    if (!ids?.length) throw new Error('empty')
-    const pick = ids[Math.floor(Math.random() * ids.length)]
-    const { data: a, error: e2 } = await supabase
-      .from('blog_articles')
-      .select('*')
-      .eq('id', pick.id)
-      .single()
-    if (e2) throw e2
-    return ok(mapArticle(a))
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogRandom supabase 不可用，回退后端', e?.message || e)
-    return request.get('/article/random')
+    const res = await request.get('/article/random')
+    if (!res?.data?.id) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogRandom 后端不可用，回退 Supabase', be?.message || be)
   }
+  const { data: ids, error } = await supabase
+    .from('blog_articles')
+    .select('id')
+    .eq('published', true)
+  if (error) throw error
+  if (!ids?.length) throw new Error('empty')
+  const pick = ids[Math.floor(Math.random() * ids.length)]
+  const { data: a, error: e2 } = await supabase
+    .from('blog_articles')
+    .select('*')
+    .eq('id', pick.id)
+    .single()
+  if (e2) throw e2
+  return ok(mapArticle(a))
 }
 
 // 归档（按年月分组，倒序）
+// 后端优先；失败或为空时回退 Supabase
 const fetchArchives = async () => {
   try {
-    const { data, error } = await supabase
-      .from('blog_articles')
-      .select('created_at')
-      .eq('published', true)
-    if (error) throw error
-    const counts = {}
-    ;(data || []).forEach(r => {
-      const month = String(r.created_at || '').slice(0, 7)
-      if (month) counts[month] = (counts[month] || 0) + 1
-    })
-    const rows = Object.entries(counts)
+    const res = await request.get('/article/archives')
+    if (!res?.data?.length) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogArchives 后端不可用，回退 Supabase', be?.message || be)
+  }
+  const { data, error } = await supabase
+    .from('blog_articles')
+    .select('created_at')
+    .eq('published', true)
+  if (error) throw error
+  const counts = {}
+  ;(data || []).forEach(r => {
+    const month = String(r.created_at || '').slice(0, 7)
+    if (month) counts[month] = (counts[month] || 0) + 1
+  })
+  return ok(
+    Object.entries(counts)
       .map(([month, count]) => ({ month, count }))
       .sort((x, y) => y.month.localeCompare(x.month))
-    if (!rows.length) throw new Error('empty')
-    return ok(rows)
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogArchives supabase 不可用，回退后端', e?.message || e)
-    return request.get('/article/archives')
-  }
+  )
 }
 
 // 分类列表 [{ name, count }]
+// 后端优先；失败或为空时回退 Supabase
 const fetchCategories = async () => {
   try {
-    const { data, error } = await supabase
-      .from('blog_articles')
-      .select('category')
-      .eq('published', true)
-    if (error) throw error
-    const counts = {}
-    ;(data || []).forEach(r => {
-      if (r.category) counts[r.category] = (counts[r.category] || 0) + 1
-    })
-    const rows = Object.entries(counts)
+    const res = await request.get('/article/categories')
+    if (!res?.data?.length) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogCategories 后端不可用，回退 Supabase', be?.message || be)
+  }
+  const { data, error } = await supabase
+    .from('blog_articles')
+    .select('category')
+    .eq('published', true)
+  if (error) throw error
+  const counts = {}
+  ;(data || []).forEach(r => {
+    if (r.category) counts[r.category] = (counts[r.category] || 0) + 1
+  })
+  return ok(
+    Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((x, y) => y.count - x.count || x.name.localeCompare(y.name))
-    if (!rows.length) throw new Error('empty')
-    return ok(rows)
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogCategories supabase 不可用，回退后端', e?.message || e)
-    return request.get('/article/categories')
-  }
+  )
 }
 
 // 标签列表（含出现次数）
+// 后端优先；失败或为空时回退 Supabase
 const fetchTags = async () => {
   try {
-    const { data, error } = await supabase
-      .from('blog_articles')
-      .select('tags')
-      .eq('published', true)
-    if (error) throw error
-    const counts = {}
-    ;(data || []).forEach(r => {
-      if (Array.isArray(r.tags)) {
-        r.tags.forEach(t => { if (t) counts[String(t)] = (counts[String(t)] || 0) + 1 })
-      }
-    })
-    const rows = Object.entries(counts)
+    const res = await request.get('/article/tags')
+    if (!res?.data?.length) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogTags 后端不可用，回退 Supabase', be?.message || be)
+  }
+  const { data, error } = await supabase
+    .from('blog_articles')
+    .select('tags')
+    .eq('published', true)
+  if (error) throw error
+  const counts = {}
+  ;(data || []).forEach(r => {
+    if (Array.isArray(r.tags)) {
+      r.tags.forEach(t => { if (t) counts[String(t)] = (counts[String(t)] || 0) + 1 })
+    }
+  })
+  return ok(
+    Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((x, y) => y.count - x.count || x.name.localeCompare(y.name))
-    if (!rows.length) throw new Error('empty')
-    return ok(rows)
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogTags supabase 不可用，回退后端', e?.message || e)
-    return request.get('/article/tags')
-  }
+  )
 }
 
 // 站点资讯（文章总数/全站字数/最后更新）
+// 后端优先；失败时回退 Supabase
 const fetchStats = async () => {
   try {
-    const { data, error } = await supabase
-      .from('blog_articles')
-      .select('content, updated_at, created_at')
-      .eq('published', true)
-    if (error) throw error
-    const rows = data || []
-    const totalArticles = rows.length
-    const totalWords = rows.reduce((s, r) => s + (r.content?.length || 0), 0)
-    const lastUpdated = rows.reduce((m, r) => {
-      const t = r.updated_at || r.created_at
-      return t && (!m || t > m) ? t : m
-    }, null)
-    return ok({
-      totalArticles,
-      totalPosts: totalArticles,
-      totalWords,
-      lastUpdated,
-      lastUpdate: lastUpdated,
-    })
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogStats supabase 不可用，回退后端', e?.message || e)
-    return request.get('/article/stats')
+    const res = await request.get('/article/stats')
+    if (!res?.data || res.data.totalArticles == null) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogStats 后端不可用，回退 Supabase', be?.message || be)
   }
+  const { data, error } = await supabase
+    .from('blog_articles')
+    .select('content, updated_at, created_at')
+    .eq('published', true)
+  if (error) throw error
+  const rows = data || []
+  const totalArticles = rows.length
+  const totalWords = rows.reduce((s, r) => s + (r.content?.length || 0), 0)
+  const lastUpdated = rows.reduce((m, r) => {
+    const t = r.updated_at || r.created_at
+    return t && (!m || t > m) ? t : m
+  }, null)
+  return ok({
+    totalArticles,
+    totalPosts: totalArticles,
+    totalWords,
+    lastUpdated,
+    lastUpdate: lastUpdated,
+  })
 }
 
 // 最近更新
+// 后端优先；失败或为空时回退 Supabase
 const fetchRecent = async (limit = 5) => {
   try {
-    const { data, error } = await supabase
-      .from('blog_articles')
-      .select('id, title, updated_at, created_at')
-      .eq('published', true)
-      .order('updated_at', { ascending: false })
-      .limit(Number(limit) || 5)
-    if (error) throw error
-    const rows = (data || []).map(r => ({
-      id: Number(r.id),
-      title: r.title,
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
-    }))
-    if (!rows.length) throw new Error('empty')
-    return ok(rows)
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getBlogRecent supabase 不可用，回退后端', e?.message || e)
-    return request.get('/article/recent', { params: { limit } })
+    const res = await request.get('/article/recent', { params: { limit } })
+    if (!res?.data?.length) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getBlogRecent 后端不可用，回退 Supabase', be?.message || be)
   }
+  const { data, error } = await supabase
+    .from('blog_articles')
+    .select('id, title, updated_at, created_at')
+    .eq('published', true)
+    .order('updated_at', { ascending: false })
+    .limit(Number(limit) || 5)
+  if (error) throw error
+  return ok((data || []).map(r => ({
+    id: Number(r.id),
+    title: r.title,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  })))
 }
 
 // 热门文章榜（首页使用）
+// 后端优先；失败或为空时回退 Supabase
 export const getHotArticles = async (limit = 5) => {
   try {
-    const { data, error } = await supabase
-      .from('blog_articles')
-      .select('*')
-      .eq('published', true)
-      .order('views', { ascending: false })
-      .limit(Number(limit) || 5)
-    if (error) throw error
-    const rows = (data || []).map(mapArticle)
-    if (!rows.length) throw new Error('empty')
-    return ok(rows.map(({ content, ...rest }) => rest))
-  } catch (e) {
-    if (import.meta.env.DEV) console.warn('[blog] getHotArticles supabase 不可用，回退后端', e?.message || e)
-    return request.get('/article/hot', { params: { limit } })
+    const res = await request.get('/article/hot', { params: { limit } })
+    if (!res?.data?.length) throw new Error('empty')
+    return res
+  } catch (be) {
+    if (import.meta.env.DEV) console.warn('[blog] getHotArticles 后端不可用，回退 Supabase', be?.message || be)
   }
+  const { data, error } = await supabase
+    .from('blog_articles')
+    .select('*')
+    .eq('published', true)
+    .order('views', { ascending: false })
+    .limit(Number(limit) || 5)
+  if (error) throw error
+  return ok((data || []).map(mapArticle).map(({ content, ...rest }) => rest))
 }
 
 // ============================================================

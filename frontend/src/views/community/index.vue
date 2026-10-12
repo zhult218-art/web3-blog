@@ -244,7 +244,7 @@
 // 社区广场页：聚合博客文章、论坛讨论与视频内容，
 // 支持 tab/排序切换、点赞、收藏、标签搜索与分页加载
 // ====================================================
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getForumList, likePost, getPostStats } from '@/api/forum'
 import { getOnlineCount } from '@/api/admin'
@@ -297,29 +297,39 @@ function formatDate(d) {
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 
-// 按当前 tab/排序请求论坛帖子（web3_forum），社区与博客分库，互不混用
-async function fetch() {
-  loading.value = true
+// 按当前 tab/排序请求论坛帖子（web3_forum），社区与博客分库，互不混用。
+// 一次拉取 size*3 条做客户端 tab 过滤缓冲；loadMore 追加下一页而非替换列表
+async function fetch({ append = false } = {}) {
+  if (append) loadingMore.value = true
+  else loading.value = true
   try {
     const res = await getForumList({ page: page.value, size: size.value * 3 }).catch(() => ({ data: { records: [] } }))
-    const records = (res.data?.records || res.data || [])
-    const combined = []
-    records.forEach(r => {
-      if (activeTab.value === 'discussion' && r.mediaType === 'video') return
-      if (activeTab.value === 'video' && r.mediaType !== 'video') return
-      combined.push({ ...r, type: r.mediaType === 'video' ? 'video' : 'discussion' })
-    })
+    const data = res?.data || {}
+    const records = data.records || data || []
+    const filtered = records
+      .filter(r => {
+        if (activeTab.value === 'discussion' && r.mediaType === 'video') return false
+        if (activeTab.value === 'video' && r.mediaType !== 'video') return false
+        return true
+      })
+      .map(r => ({ ...r, type: r.mediaType === 'video' ? 'video' : 'discussion' }))
 
-    // Sort
     if (sort.value === 'hot') {
-      combined.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
+      filtered.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
     }
-    list.value = combined.slice(0, size.value)
-    total.value = combined.length * 3
+    // 追加模式：拼接下一页并按 id 去重；否则整页替换（切 tab/排序时）
+    if (append) {
+      const seen = new Set(list.value.map(i => i.id))
+      list.value = [...list.value, ...filtered.filter(i => !seen.has(i.id))]
+    } else {
+      list.value = filtered.slice(0, size.value)
+    }
+    total.value = Number(data.total) || filtered.length
   } catch (e) {
     console.warn('fetch fail', e)
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
 
@@ -369,14 +379,11 @@ function searchTag(tag) {
   toast.info(`搜索标签: ${tag}`)
 }
 
-// 滚动到底部加载下一页数据
-function loadMore() {
-  loadingMore.value = true
+// 滚动到底部加载下一页数据（追加，不清空已有列表）
+async function loadMore() {
+  if (loadingMore.value) return
   page.value++
-  setTimeout(() => {
-    fetch()
-    loadingMore.value = false
-  }, 800)
+  await fetch({ append: true })
 }
 
 // 加载真实在线人数（admin-service 实时统计，近 10 分钟去重 IP）
@@ -388,11 +395,21 @@ async function loadOnlineCount() {
   } catch {}
 }
 
+// 在线人数轮询定时器：组件卸载时必须清理，避免离开页面后仍持续请求
+let onlineTimer = null
+
 onMounted(() => {
   fetch()
   loadStats()
   loadOnlineCount()
-  setInterval(loadOnlineCount, 30000)
+  onlineTimer = setInterval(loadOnlineCount, 30000)
+})
+
+onUnmounted(() => {
+  if (onlineTimer) {
+    clearInterval(onlineTimer)
+    onlineTimer = null
+  }
 })
 </script>
 

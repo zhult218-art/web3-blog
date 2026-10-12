@@ -8,10 +8,6 @@
 //   - 发布到博客：站主可把 kb_entry 直接写入 blog_articles 表
 // ============================================================
 import { supabase } from '@/lib/supabase/client'
-// 初始化 SQL（Vite ?raw 把文件内容作为字符串导入，供一键复制）
-import initSqlRaw from '../../../supabase/0001_knowledge_and_blog_seed.sql?raw'
-
-export const INIT_SQL = initSqlRaw
 
 const TABLE = 'kb_entries'
 

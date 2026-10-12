@@ -34,7 +34,7 @@ DATA_DIR = os.path.join(
 # ============================================================
 class WpaTarget:
     def __init__(self, kind: str, **kw):
-        self.kind = kind           # "pmkid" / "mic"
+        self.kind = kind           # "pmkid" / "mic" / "wep"
         self.essid: bytes = b""
         self.mic: bytes = b""
         self.mac_ap: bytes = b""
@@ -45,6 +45,10 @@ class WpaTarget:
         self.mic_off = 0
         self.keyver = 2
         self.hash_line = ""
+        # WEP 专用字段
+        self.wep_iv: bytes = b""
+        self.wep_key_data: bytes = b""  # 加密数据（含 ICV）
+        self.wep_keyid: int = 0
         for k, v in kw.items():
             setattr(self, k, v)
 
@@ -59,6 +63,27 @@ class WpaTarget:
 
 def parse_22000(line: str) -> WpaTarget | None:
     line = line.strip()
+
+    # WEP 格式：WEP*<essid_hex>*<mac_ap_hex>*<mac_sta_hex>*<iv_hex>*<keyid>*<encrypted_data_hex>
+    if line.startswith("WEP*"):
+        f = line.split("*")
+        if len(f) < 7:
+            return None
+        try:
+            t = WpaTarget(
+                "wep",
+                essid=bytes.fromhex(f[1]) if f[1] else b"",
+                mac_ap=bytes.fromhex(f[2]) if f[2] else b"",
+                mac_sta=bytes.fromhex(f[3]) if f[3] else b"",
+                wep_iv=bytes.fromhex(f[4]) if f[4] else b"",
+                wep_keyid=int(f[5]) if f[5] else 0,
+                wep_key_data=bytes.fromhex(f[6]) if f[6] else b"",
+                hash_line=line,
+            )
+            return t if len(t.mac_ap) == 6 and len(t.mac_sta) == 6 else None
+        except (ValueError, IndexError):
+            return None
+
     if not line.startswith("WPA*"):
         return None
     f = line.split("*")
@@ -210,11 +235,15 @@ def find_hashcat() -> str:
 # 破解任务管理
 # ============================================================
 class CrackJob:
-    def __init__(self, targets: list[WpaTarget], wordlist_path: str, engine: str):
+    def __init__(self, targets: list[WpaTarget], wordlist_path: str, engine: str,
+                 crack_mode: str = "dictionary", rule_path: str = "", mask: str = ""):
         self.jid = uuid.uuid4().hex
         self.targets = targets
         self.wordlist = wordlist_path
         self.engine = engine                      # "python" / "hashcat"
+        self.crack_mode = crack_mode              # "dictionary" / "rule" / "brute"
+        self.rule_path = rule_path                # hashcat -r 规则文件路径
+        self.mask = mask                          # hashcat -a 3 掩码（如 ?d?d?d?d?d?d?d?d）
         self.status = "running"
         self.logs: list[str] = []
         self.tried = 0
@@ -241,9 +270,12 @@ class CrackJob:
         return {
             "jid": self.jid,
             "engine": self.engine,
+            "crack_mode": self.crack_mode,
             "status": self.status,
             "targets": [t.label for t in self.targets],
             "wordlist": self.wordlist,
+            "rule_path": self.rule_path,
+            "mask": self.mask,
             "tried": self.tried,
             "speed": self.speed,
             "found": self.found,
@@ -312,10 +344,24 @@ def _run_hashcat(job: CrackJob, hashcat_bin: str, hash_file: str) -> None:
     import sys
 
     job._log(f"hashcat: {hashcat_bin}")
-    argv = [
-        hashcat_bin, "-m", "22000", hash_file, job.wordlist,
-        "--quiet", "--status", "--status-timer", "5", "-O",
-    ]
+    argv = [hashcat_bin, "-m", "22000", hash_file]
+
+    # 破解模式选择
+    if job.crack_mode == "brute" and job.mask:
+        # 暴力破解：hashcat -a 3 <mask>
+        argv += ["-a", "3", job.mask]
+        job._log(f"模式：暴力破解（mask={job.mask}）")
+    elif job.crack_mode == "rule" and job.wordlist and job.rule_path:
+        # 规则破解：hashcat <wordlist> -r <rulefile>
+        argv += [job.wordlist, "-r", job.rule_path]
+        job._log(f"模式：规则破解（rule={job.rule_path}）")
+    else:
+        # 字典破解：hashcat <wordlist>
+        argv += [job.wordlist]
+        job._log("模式：字典破解")
+
+    argv += ["--quiet", "--status", "--status-timer", "5", "-O"]
+
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         job._proc = subprocess.Popen(
@@ -351,24 +397,32 @@ def _run_hashcat(job: CrackJob, hashcat_bin: str, hash_file: str) -> None:
     job._log(f"hashcat 退出码 {rc}，状态 {job.status}")
 
 
-def create_job(hash_text: str, wordlist_path: str, engine: str = "auto") -> CrackJob:
+def create_job(hash_text: str, wordlist_path: str, engine: str = "auto",
+               crack_mode: str = "dictionary", rule_path: str = "", mask: str = "") -> CrackJob:
     targets = []
     for line in hash_text.splitlines():
         t = parse_22000(line)
         if t is not None and not any(x.hash_line == t.hash_line for x in targets):
             targets.append(t)
     if not targets:
-        raise ValueError("未解析到有效的 22000 哈希（PMKID 或 EAPOL-MIC）")
-    if not wordlist_path or not os.path.exists(wordlist_path):
-        raise ValueError(f"字典文件不存在：{wordlist_path}")
+        raise ValueError("未解析到有效的 22000 哈希（PMKID / EAPOL-MIC / WEP）")
+
+    # 暴力破解模式不需要字典文件
+    if crack_mode != "brute":
+        if not wordlist_path or not os.path.exists(wordlist_path):
+            raise ValueError(f"字典文件不存在：{wordlist_path}")
 
     hashcat_bin = find_hashcat()
     if engine == "auto":
-        engine = "hashcat" if hashcat_bin else "python"
+        # 暴力破解和规则破解必须用 hashcat
+        if crack_mode in ("brute", "rule"):
+            engine = "hashcat" if hashcat_bin else "python"
+        else:
+            engine = "hashcat" if hashcat_bin else "python"
     if engine == "hashcat" and not hashcat_bin:
         engine = "python"
 
-    job = CrackJob(targets, wordlist_path, engine)
+    job = CrackJob(targets, wordlist_path, engine, crack_mode, rule_path, mask)
     with _jobs_lock:
         _jobs[job.jid] = job
 

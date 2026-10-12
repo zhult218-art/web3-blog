@@ -309,7 +309,7 @@ import { confirm as dlgConfirm } from '@/composables/useDialog'
 import { renderMarkdown } from '@/utils/markdown'
 import { KB_TAXONOMY as taxonomy, STAGES as stages, stageMeta } from '@/data/knowledgeTaxonomy'
 import {
-  listEntries, getGrowthStats, getDueCount, isTableReady, INIT_SQL,
+  listEntries, getGrowthStats, getDueCount, isTableReady,
   ownerLogin, ownerLogout, onAuthChange,
   createEntry, updateEntry, deleteEntry, advanceStage,
   scheduleReview, publishToBlog, entryToMarkdown, exportAllToMarkdown,
@@ -334,14 +334,10 @@ const activeStage = ref('')
 
 const stageFilters = stages
 
-async function copyInitSql() {
-  try {
-    await navigator.clipboard.writeText(INIT_SQL)
-    sqlCopied.value = true
-    setTimeout(() => (sqlCopied.value = false), 4000)
-  } catch {
-    toast.error('复制失败，请手动打开项目 supabase/0001_knowledge_and_blog_seed.sql')
-  }
+// 初始化 SQL 已随 supabase/ 目录移除（云端 Supabase 已建表并有数据），
+// 表缺失时提示直接在 Supabase 控制台重建
+function copyInitSql() {
+  toast.info('请在 Supabase 控制台 SQL Editor 中创建 kb_entries 表（云端已初始化过则直接点右侧重试）')
 }
 const growingCount = computed(() => {
   let n = 0
