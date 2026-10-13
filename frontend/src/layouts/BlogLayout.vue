@@ -9,10 +9,14 @@
         <!-- 主内容 -->
         <main class="min-w-0">
           <router-view v-slot="{ Component }">
+            <!-- Suspense > keep-alive > component（无 transition、无 v-if）。
+                 此前 <Suspense> 外包 <transition mode="out-in">，导航时离场与挂起互相阻塞，
+                 导致博客页"返回后内容区空白、需刷新才恢复"。
+                 keep-alive 缓存 BlogHome 列表页，避免返回后重新挂载+重新拉取数据（加载慢）。 -->
             <Suspense :timeout="0">
-              <transition name="page" mode="out-in">
-                <component :is="Component" v-if="Component" />
-              </transition>
+              <keep-alive :include="['BlogHome']">
+                <component :is="Component" />
+              </keep-alive>
               <template #fallback>
                 <div class="flex items-center justify-center min-h-[50vh]">
                   <div class="h-10 w-10 rounded-full border-2 border-white/15 border-t-cyan-400 animate-spin"></div>

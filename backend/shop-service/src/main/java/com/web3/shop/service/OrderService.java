@@ -112,6 +112,32 @@ public class OrderService {
     }
 
     /**
+     * 支付回调通知：第三方支付平台（支付宝/微信）异步回调验签通过后调用此方法，
+     * 原子地将订单从 PENDING 转为 PAID 并回填第三方交易号。
+     * <p>
+     * 无需归属校验（回调无用户上下文，但已通过第三方签名验证）；幂等——
+     * 已 PAID 的订单 markPaidWithTradeNo 返回 0，调用方直接返回 success 即可。
+     *
+     * @param id      订单 ID（对应支付宝 out_trade_no / 微信 out_trade_no）
+     * @param channel 支付渠道（alipay/wechat）
+     * @param tradeNo 第三方交易号（支付宝 trade_no / 微信 transaction_id）
+     * @return 受影响行数（1=本次回调完成 PAID 转换；0=订单已支付/已取消/不存在，幂等忽略）
+     */
+    public int markPaidByNotify(Long id, String channel, String tradeNo) {
+        return this.orderMapper.markPaidWithTradeNo(id, channel, tradeNo);
+    }
+
+    /**
+     * 根据订单 ID 查询订单实体（回调处理用，无归属校验）
+     *
+     * @param id 订单 ID
+     * @return 订单实体，不存在返回 null
+     */
+    public Order getById(Long id) {
+        return (Order) this.orderMapper.selectById(id);
+    }
+
+    /**
      * 用户取消订单：归属校验 + 原子 PENDING→CANCELLED 转换 + 回补库存
      *
      * @param id     订单 ID

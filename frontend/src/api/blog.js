@@ -503,7 +503,18 @@ export const applyBlogLink = data => request.post('/blog/links/apply', data)
 // 当前公告
 export const getBlogNotice = () => request.get('/blog/notice')
 // 公开公告列表（历史公告，启用中倒序）
-export const getBlogNotices = () => request.get('/blog/notice/list')
+// trae-preview 环境 axios XHR 在页面加载爆发期会被挤占挂起，NoticePanel 全局轮询改用原生 fetch；
+// 中止定时器覆盖到响应体读完，防止 body 卡住导致 res.json() 永久挂起
+export const getBlogNotices = async () => {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 15000)
+  try {
+    const res = await fetch('/api/blog/notice/list', { signal: ctrl.signal })
+    return await res.json()
+  } finally {
+    clearTimeout(timer)
+  }
+}
 // 站点公开配置（作者/打赏/页脚友链/ICP）
 const fetchSettings = () => request.get('/blog/settings')
 // 管理端：友链全部列表（含待审核）

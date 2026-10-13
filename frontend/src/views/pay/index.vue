@@ -3,10 +3,10 @@
     <div class="mx-auto max-w-5xl">
       <PageBack label="返回商城" to="/shop" class="mb-5" />
       <h1 class="text-3xl font-bold mb-2 text-gradient-cyber">支付收银台</h1>
-      <p class="text-sm text-gray-500 matrix-text mb-8">Sandbox Payment Testing · Alipay · WeChat Pay</p>
+      <p class="text-sm text-gray-500 matrix-text mb-8">官方支付 · Alipay · WeChat Pay</p>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <!-- Order Info Card -->
+        <!-- 订单信息 -->
         <div class="glass-panel p-6 cyber-scanline relative overflow-hidden">
           <h3 class="text-lg font-semibold text-white flex items-center gap-2"><span>📋</span>订单信息</h3>
           <div class="holo-bar mt-4 mb-5"></div>
@@ -27,11 +27,12 @@
                 <span :class="['text-sm font-semibold', statusClass(orderInfo.status)]">{{ statusLabels[orderInfo.status] || orderInfo.status }}</span>
               </div>
               <p v-if="orderInfo.paidAt" class="text-xs text-gray-500">支付时间：{{ formatTime(orderInfo.paidAt) }}</p>
+              <p v-if="orderInfo.tradeNo" class="text-xs text-gray-500 truncate">交易号：{{ orderInfo.tradeNo }}</p>
             </div>
           </div>
         </div>
 
-        <!-- 商品选择 + 创建订单 -->
+        <!-- 商品选择 + 创建订单 + 支付 -->
         <div class="glass-panel p-6">
           <h3 class="text-lg font-semibold text-white flex items-center gap-2"><span>🛒</span>选择商品创建订单</h3>
           <div class="holo-bar mt-4 mb-5"></div>
@@ -65,7 +66,7 @@
             </button>
 
             <div v-if="orderId" class="border-t border-gray-700/30 pt-4 space-y-2">
-              <p class="text-xs text-gray-400 text-center">订单已创建，点击下方按钮支付</p>
+              <p class="text-xs text-gray-400 text-center">订单已创建，点击下方按钮发起支付</p>
               <div class="grid grid-cols-2 gap-2">
                 <button class="web3-btn-sm py-2 bg-blue-500/20 hover:bg-blue-500/30" :disabled="paying || !payable" @click="alipay">💙 支付宝</button>
                 <button class="web3-btn-sm py-2 bg-green-500/20 hover:bg-green-500/30" :disabled="paying || !payable" @click="wechat">💚 微信支付</button>
@@ -79,9 +80,31 @@
         </div>
       </div>
 
-      <!-- Result panel -->
+      <!-- 微信支付收款码弹层：展示个人收款码 + 引导添加联系方式 -->
+      <div v-if="wechatQrVisible" class="mt-6 glass-panel p-6 neon-border relative">
+        <button class="absolute top-3 right-3 text-gray-400 hover:text-white text-xl" @click="closeWechatQr" aria-label="关闭">×</button>
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2"><span>💚</span>微信扫码支付</h3>
+        <div class="flex flex-col items-center gap-4">
+          <div class="bg-white rounded-2xl p-3 shadow-lg">
+            <img src="/images/pay-wechat.jpg" alt="微信收款码" class="w-64 h-64 object-contain rounded-xl" />
+          </div>
+          <div class="text-center space-y-1.5 max-w-sm">
+            <p class="text-sm text-white font-semibold">请用微信扫描上方收款码完成付款</p>
+            <p class="text-xs text-gray-400">付款金额：¥{{ wechatPayAmount }}</p>
+            <div class="mt-3 p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/30">
+              <p class="text-xs text-cyan-300 font-semibold mb-1">付款完成后，请添加以下联系方式进行后续操作</p>
+              <p class="text-sm text-white font-mono select-all">微信：zlt194253038</p>
+              <p class="text-[11px] text-gray-400 mt-1">添加后告知订单号 {{ orderId || '（请先创建订单）' }} 即可完成核销</p>
+            </div>
+            <p class="text-[11px] text-gray-500 mt-2">人工核销模式：付款后联系商家确认，订单状态将在确认后更新为「已支付」</p>
+          </div>
+          <button class="web3-btn-sm px-6 py-2 mt-1" @click="closeWechatQr">我已完成付款</button>
+        </div>
+      </div>
+
+      <!-- 支付结果 -->
       <div v-if="payResult" class="mt-6 glass-panel p-6 neon-border">
-        <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2"><span>✅</span>支付结果</h3>
+        <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2"><span>📋</span>下单响应</h3>
         <pre class="text-xs text-gray-300 bg-black/40 rounded-xl p-5 overflow-x-auto max-h-80 font-mono leading-relaxed">{{ typeof payResult === 'string' ? payResult : JSON.stringify(payResult, null, 2) }}</pre>
       </div>
     </div>
@@ -90,13 +113,14 @@
 
 <script setup>
 // ====================================================
-// 支付收银台页：沙箱模拟支付宝/微信支付
-// 支持 /pay?orderId=xxx 直达（购物车结算/我的订单跳转），
-// 支付后重新拉取订单状态；仅 PENDING 状态可发起支付
+// 支付收银台页：
+// - 支付宝：对接官方 SDK，后端返回 form HTML，新窗口自动提交跳转支付宝收银台
+// - 微信：个人收款码模式（无商户号），展示本地收款码图片 + 引导添加联系方式
+//         付款后人工核销，商家确认后通过后台改订单状态为 PAID
 // ====================================================
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getOrderDetail, createAlipay, createWechatPay, getProductList, createOrder } from '@/api/shop'
+import { getOrderDetail, createAlipay, getProductList, createOrder, getPayStatus } from '@/api/shop'
 import { useToastStore } from '@/stores/modules/toast'
 import PageBack from '@/components/PageBack.vue'
 
@@ -113,6 +137,13 @@ const selectedProduct = ref(null)
 const orderQuantity = ref(1)
 const creatingOrder = ref(false)
 
+// 微信收款码弹层状态
+const wechatQrVisible = ref(false)
+const wechatPayAmount = ref('0.00')
+// 支付宝轮询（支付宝仍走 SDK，支付后轮询订单状态）
+let pollTimer = null
+let pollStart = 0
+
 const statusLabels = {
   'PENDING': '待支付',
   'PAID': '已支付',
@@ -121,7 +152,6 @@ const statusLabels = {
   'CANCELLED': '已取消'
 }
 
-// 仅待支付订单允许发起支付
 const payable = computed(() => !orderInfo.value || orderInfo.value.status === 'PENDING')
 
 function statusClass(s) {
@@ -133,7 +163,7 @@ function statusClass(s) {
 
 function formatTime(d) { return d ? new Date(d).toLocaleString('zh-CN') : '' }
 
-// 拉取订单详情（含金额与归属校验，后端仅允许查自己的订单）
+// 拉取订单详情
 async function loadStatus(id = orderId.value) {
   const target = String(id || '').trim()
   if (!target) { toast.warning('请输入订单ID'); return }
@@ -150,26 +180,90 @@ async function loadStatus(id = orderId.value) {
   }
 }
 
-async function pay(channel) {
+// 发起支付宝支付：后端返回完整 form HTML，新窗口自动提交跳转
+async function alipay() {
   if (!orderId.value) { toast.warning('请先输入订单ID'); return }
   if (!payable.value) { toast.warning('当前订单状态不可支付'); return }
   paying.value = true
   try {
-    const res = channel === 'alipay' ? await createAlipay(orderId.value) : await createWechatPay(orderId.value)
-    payResult.value = res?.data || res
-    toast.success(channel === 'alipay' ? '支付宝支付成功' : '微信支付成功')
-    await loadStatus()
-  } catch {
-    /* 失败原因由全局拦截器 Toast 提示（已支付/已取消/无权限等） */
+    const res = await createAlipay(orderId.value)
+    const d = res?.data || res
+    payResult.value = d
+    const formHtml = d?.formHtml
+    if (!formHtml) {
+      toast.error('支付宝下单失败：未返回支付表单')
+      return
+    }
+    // 新窗口写入 form HTML，自动 submit 跳转到支付宝收银台
+    const w = window.open('', '_blank')
+    if (!w) {
+      // 浏览器拦截了新窗口，降级为当前页 document.write
+      toast.warning('新窗口被拦截，将在当前页跳转')
+      document.open()
+      document.write(formHtml)
+      document.close()
+      return
+    }
+    w.document.open()
+    w.document.write(formHtml)
+    w.document.close()
+    toast.success('已打开支付宝收银台，完成支付后请回到本页')
+    // 支付宝同步 return_url 跳回后，前端会重新加载；这里也开始轮询以防 return_url 未配置
+    startPolling()
+  } catch (e) {
+    /* 失败原因由全局拦截器 Toast 提示 */
   } finally {
     paying.value = false
   }
 }
 
-const alipay = () => pay('alipay')
-const wechat = () => pay('wechat')
+// 发起微信支付：展示个人收款码图片 + 引导联系方式（无商户号，人工核销模式）
+async function wechat() {
+  if (!orderId.value) { toast.warning('请先输入订单ID'); return }
+  if (!payable.value) { toast.warning('当前订单状态不可支付'); return }
+  // 先拉取订单金额用于展示
+  const amount = orderInfo.value?.amount
+    ? Number(orderInfo.value.amount).toFixed(2)
+    : (selectedProduct.value
+        ? (Number(selectedProduct.value.price) * orderQuantity.value).toFixed(2)
+        : '0.00')
+  wechatPayAmount.value = amount
+  wechatQrVisible.value = true
+  toast.info('请扫码付款后添加微信 zlt194253038 完成核销')
+}
 
-// 拉取商品列表（右侧面板商品选择使用）
+// 关闭微信收款码弹层
+function closeWechatQr() {
+  wechatQrVisible.value = false
+}
+
+// 轮询订单状态，PAID 即停止并提示（仅支付宝使用，微信走人工核销）
+function startPolling() {
+  stopPolling()
+  pollStart = Date.now()
+  pollTimer = setInterval(async () => {
+    // 超过 10 分钟停止轮询
+    if (Date.now() - pollStart > 10 * 60 * 1000) {
+      stopPolling()
+      return
+    }
+    try {
+      const res = await getPayStatus(orderId.value)
+      const d = res?.data || res
+      if (d?.status === 'PAID') {
+        stopPolling()
+        toast.success('支付成功！订单已完成')
+        await loadStatus()
+      }
+    } catch { /* 忽略单次失败，继续轮询 */ }
+  }, 2000)
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+}
+
+// 拉取商品列表
 async function loadProducts() {
   productsLoading.value = true
   try {
@@ -183,7 +277,7 @@ async function loadProducts() {
   }
 }
 
-// 选择商品后创建订单，成功后自动填入 orderId 并拉取订单详情
+// 选择商品后创建订单
 async function createOrderFromProduct() {
   if (!selectedProduct.value) { toast.warning('请先选择商品'); return }
   creatingOrder.value = true
@@ -206,16 +300,18 @@ async function createOrderFromProduct() {
   }
 }
 
-// 进入收银台：加载商品列表；若携带 orderId 路由参数则直达订单状态
 onMounted(() => {
   loadProducts()
   const qid = route.query.orderId
   if (qid) loadStatus(qid)
 })
+
+onUnmounted(() => {
+  stopPolling()
+})
 </script>
 
 <style scoped>
-/* 收银台右侧支付按钮：保持与 web3-btn 一致的玻璃拟态风格 */
 .web3-btn-sm {
   border-radius: 8px;
   font-size: 12px;

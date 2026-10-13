@@ -52,13 +52,22 @@ export default defineConfig({
       // Vibe-Research A 股扩展数据服务（端口 8900）
       // 修复：此前缺少 /vr 代理导致"市场概览/热点"等 Tab 的请求全部 404/超时；
       // 8900 端全部接口带 /api 前缀，故 /vr/xxx -> /api/xxx
+      // 当 Vibe-Research 未部署时，代理 error 事件返回空 JSON，避免前端 500 刷屏
       '/vr': {
         target: 'http://127.0.0.1:8900',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/vr/, '/api'),
         // 行情聚合接口偶发较慢，代理层不设超时限制
         timeout: 120000,
-        proxyTimeout: 120000
+        proxyTimeout: 120000,
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            if (res && !res.headersSent) {
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ code: 200, data: null, message: 'Vibe-Research offline' }))
+            }
+          })
+        }
       },
       '/whisper': {
         target: 'http://127.0.0.1:9006',
@@ -121,18 +130,17 @@ export default defineConfig({
         timeout: 30000,
         proxyTimeout: 30000
       },
-      // 市场研究驾驶舱（marketingdashboard）：同源代理其 Node 服务（端口 3030）。
+      // 市场驾驶舱（tick-stock-panel）：代码级移植到 py-service（端口 9006）。
       // 前端通过 iframe 加载 /cockpit/，React 应用内 API 调用走 /cockpit/api/*。
-      // 此代理统一转发静态资源与 /api 数据接口，剥离 /cockpit 前缀后回源到 3030。
+      // 此代理统一转发静态资源与 API 接口到 py-service（不剥离前缀，路由在 py-service 侧匹配）。
       '/cockpit': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:9006',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/cockpit/, ''),
         // 行情聚合接口偶发较慢，代理层不设超时限制
         timeout: 120000,
         proxyTimeout: 120000,
-        // 覆盖上游 Host 头，避免 marketingdashboard 服务器因 Host 校验误拒同源请求
-        headers: { Host: 'localhost:3030' }
+        // WebSocket 支持（SSE 流式复盘等）
+        ws: true
       }
     }
   },

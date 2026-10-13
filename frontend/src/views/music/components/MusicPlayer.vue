@@ -21,19 +21,13 @@
         </div>
       </div>
 
-      <!-- 滚动歌词 -->
-      <div class="lyrics-wrap" ref="lyricsWrap">
-        <div class="lyrics-inner" :style="{ transform: `translateY(${lyricsOffset}px)` }">
-          <div
-            v-for="(line, i) in lyricLines"
-            :key="i"
-            class="lyric-line"
-            :class="{ 'lyric-active': i === lyricIndex }"
-          >
-            {{ line.text }}
-          </div>
+      <!-- 当前歌词：仅显示当前唱的两行（当前行 + 下一行），居中 -->
+      <div class="lyrics-wrap" ref="lyricsWrap" @click="toggleLyricsView">
+        <div v-if="lyricLines.length" class="lyrics-current">
+          <p class="lyric-now" :key="lyricIndex">{{ currentLyricText || '♪' }}</p>
+          <p class="lyric-next">{{ nextLyricText || ' ' }}</p>
         </div>
-        <div v-if="!lyricLines.length" class="lyrics-empty">
+        <div v-else class="lyrics-empty">
           <span class="empty-note">NO LYRICS</span>
           暂无歌词，静心聆听
         </div>
@@ -657,13 +651,23 @@ const labelStyle = computed(() => {
 const lyricLines = computed(() => player.lyrics && player.lyrics.length ? player.lyrics : [])
 const lyricIndex = computed(() => player.currentLyricIndex)
 
-const lyricsOffset = computed(() => {
-  const wrapH = lyricsWrap.value?.clientHeight || 320
-  const lineH = 46
+// 当前行歌词文本（点击歌词区后显示在播放框中间）
+const currentLyricText = computed(() => {
   const idx = lyricIndex.value
-  if (idx < 0) return lineH
-  return wrapH / 2 - lineH / 2 - idx * lineH
+  if (idx < 0 || !lyricLines.value.length) return ''
+  return lyricLines.value[idx]?.text || ''
 })
+// 下一行歌词文本
+const nextLyricText = computed(() => {
+  const idx = lyricIndex.value
+  if (idx < 0 || !lyricLines.value.length) return ''
+  return lyricLines.value[idx + 1]?.text || ''
+})
+
+// 点击歌词区切换展开/收起（预留交互入口，当前始终显示两行模式）
+function toggleLyricsView() {
+  /* 预留：后续可做展开全量歌词切换 */
+}
 
 const progressPct = computed(() => {
   if (!ui.duration) return 0
@@ -909,42 +913,58 @@ defineExpose({ focusSearchInput, toggleLike, refreshLikeStatus })
 
 @keyframes dotPulse { 50% { opacity: 0.4; } }
 
-/* ---- 歌词 ---- */
+/* ---- 歌词：只显示当前两行，居中，渐变高亮 ---- */
 .lyrics-wrap {
   position: relative;
   height: 320px;
   overflow: hidden;
-  padding: 0 0.4rem 0 1rem;
+  padding: 0 1.5rem;
   border-left: 1px solid rgba(148, 163, 184, 0.14);
-}
-
-.lyrics-inner {
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
-}
-
-.lyric-line {
   display: flex;
   align-items: center;
-  height: 46px;
-  font-size: 1.02rem;
-  color: rgba(203, 213, 225, 0.32);
-  letter-spacing: 0.08em;
-  transition: color 0.45s ease, transform 0.45s ease, opacity 0.45s ease;
-  transform: scale(1);
-  opacity: 0.55;
+  justify-content: center;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.04) 0%, rgba(168, 85, 247, 0.06) 50%, rgba(34, 211, 238, 0.04) 100%);
+  border-radius: 16px;
+  transition: background 0.4s ease;
+}
+.lyrics-wrap:hover {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.08) 0%, rgba(168, 85, 247, 0.1) 50%, rgba(34, 211, 238, 0.08) 100%);
 }
 
-.lyric-active {
-  color: #f1f5ff;
-  text-shadow: 0 0 18px rgba(165, 243, 252, 0.35);
-  transform: scale(1.06);
-  opacity: 1;
+.lyrics-current {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  width: 100%;
+}
+
+.lyric-now {
+  margin: 0;
+  font-size: 1.2rem;
   font-weight: 700;
+  color: #f1f5ff;
+  text-shadow: 0 0 18px rgba(165, 243, 252, 0.4);
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
+.lyric-next {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: rgba(203, 213, 225, 0.5);
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  transition: opacity 0.35s ease;
 }
 
 .lyrics-empty {
-  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -967,11 +987,22 @@ defineExpose({ focusSearchInput, toggleLike, refreshLikeStatus })
   position: relative;
   padding: 1.1rem 1.6rem 1rem;
   border-radius: 20px;
-  background: rgba(10, 12, 32, 0.72);
+  background: linear-gradient(180deg, rgba(10, 12, 32, 0.82) 0%, rgba(14, 14, 38, 0.72) 100%);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid rgba(148, 163, 184, 0.14);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(148, 163, 184, 0.12);
+}
+@media (max-width: 768px) {
+  .player-bar { padding: 0.9rem 0.8rem 0.8rem; border-radius: 14px; }
+  .bar-progress { gap: 0.5rem; margin-bottom: 0.6rem; }
+  .bar-time { min-width: 36px; font-size: 0.62rem; }
+  .vinyl { width: 240px; height: 240px; }
+  .vinyl-label { width: 96px; height: 96px; }
+  .play-btn { width: 44px; height: 44px; }
+  .icon { width: 17px; height: 17px; }
+  .quality-select { font-size: 0.55rem; padding: 0.25rem 0.5rem; }
+  .vol-slider { width: 48px; }
 }
 
 .bar-progress {
@@ -1044,9 +1075,13 @@ defineExpose({ focusSearchInput, toggleLike, refreshLikeStatus })
 .bar-controls {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.9rem;
+  justify-content: space-between;
+  gap: 0.6rem;
   flex-wrap: wrap;
+}
+/* 小屏改为居中 */
+@media (max-width: 768px) {
+  .bar-controls { justify-content: center; gap: 0.4rem; }
 }
 
 /* 音质下拉 */

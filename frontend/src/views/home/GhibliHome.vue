@@ -12,7 +12,7 @@
           <div class="hud-status">
             <span class="status-indicator"></span>
             <span class="status-text">ONLINE</span>
-            <button class="hud-refresh-btn" @click="hardRefresh" title="清除缓存并重新加载">
+            <button class="hud-refresh-btn" @click="onHardRefresh" title="清除缓存并重新加载">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.5 2.6L21 8" />
                 <path d="M21 3v5h-5" />
@@ -138,6 +138,7 @@ import HomeQuickNav from '@/components/home/HomeQuickNav.vue'
 import DailyQuote from '@/components/home/DailyQuote.vue'
 import WelcomeGreeting from '@/components/home/WelcomeGreeting.vue'
 import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
+import { hardRefresh } from '@/utils/hardRefresh'
 
 // 页脚品牌 / 社交 / 版权均来自系统设置（blog_setting）
 const site = useSiteSettingsStore()
@@ -157,39 +158,9 @@ const bgField = ref(null)
 const currentTime = ref('')
 const showBackTop = ref(false)
 
-// 清除缓存并重新加载（localStorage + sessionStorage + cookies + Cache Storage）
-const hardRefresh = async () => {
-  try {
-    // 1. 清除 localStorage 和 sessionStorage
-    localStorage.clear()
-    sessionStorage.clear()
-
-    // 2. 清除所有 cookies（当前域）
-    document.cookie.split(';').forEach(c => {
-      const eq = c.indexOf('=')
-      const name = eq > -1 ? c.slice(0, eq).trim() : c.trim()
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${location.hostname}`
-    })
-
-    // 3. 清除 Service Worker Cache Storage（如有）
-    if (window.caches) {
-      const keys = await caches.keys()
-      await Promise.all(keys.map(k => caches.delete(k)))
-    }
-
-    // 4. 注销 Service Worker（如有）
-    if (navigator.serviceWorker) {
-      const regs = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(regs.map(r => r.unregister()))
-    }
-  } catch (e) {
-    // 忽略清除失败，继续重载
-  } finally {
-    // 5. 强制重新加载（绕过缓存）
-    location.href = location.pathname + '?_t=' + Date.now()
-  }
-}
+// 清除缓存并重新加载（localStorage + sessionStorage + cookies + Cache Storage + IndexedDB + SW）
+// 具体实现见 utils/hardRefresh.js，首页刷新按钮与右键菜单共用
+const onHardRefresh = () => { hardRefresh() }
 
 let scene, camera, renderer, clock
 let headGroup, particles
@@ -348,7 +319,8 @@ function initThreeScene() {
   // 2026-09-23：移除星球外围的 3 个 torus 大光环，
   // hero-canvas 除转动星球外保持 100% 透明
 
-  clock = new THREE.Clock()
+  // 简易时钟（避免 THREE.Clock 弃用警告）
+  clock = (() => { const s = performance.now(); let l = s; return { getDelta() { const n = performance.now(); const d = (n - l) / 1000; l = n; return d; }, getElapsedTime() { return (performance.now() - s) / 1000; } } })()
   animate()
 }
 

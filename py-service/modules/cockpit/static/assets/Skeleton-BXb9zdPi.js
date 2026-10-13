@@ -1,0 +1,1 @@
+import{l}from"./index-D2GBK9jb.js";function o({w:e="w-full",h:s="h-3.5",rounded:t="rounded-sm",className:a=""}){return l.jsx("div",{className:`${e} ${s} ${t} bg-elevated/60 animate-pulse ${a}`})}export{o as S};

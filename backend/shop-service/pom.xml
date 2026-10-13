@@ -60,6 +60,18 @@
       <artifactId>common-security</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- 支付宝官方 SDK（电脑网站支付 page.pay + 异步回调验签） -->
+    <dependency>
+      <groupId>com.alipay.sdk</groupId>
+      <artifactId>alipay-sdk-java</artifactId>
+      <version>4.40.918.ALL</version>
+    </dependency>
+    <!-- 微信支付官方新一代 SDK（Native 扫码下单 + 回调验签，自动引入 wechatpay-apache-httpclient） -->
+    <dependency>
+      <groupId>com.github.wechatpay-apiv3</groupId>
+      <artifactId>wechatpay-java</artifactId>
+      <version>0.2.17</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

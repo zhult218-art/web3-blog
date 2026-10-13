@@ -86,55 +86,8 @@
         </div>
       </div>
 
-      <!-- 我的音乐 + 精选歌单 并排 -->
-      <section class="grid gap-6 lg:grid-cols-2">
-        <!-- 我的音乐 -->
-        <div class="glass-panel p-6 min-w-0">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-bold text-white flex items-center gap-2">
-              <span class="text-[color:var(--color-primary)]">💿</span> 我的音乐
-              <span class="text-[11px] text-gray-600 font-normal">共 {{ myMusic.length }} 首</span>
-              <span v-if="musicSource === 'supabase'" class="text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-400/30 text-emerald-300">Supabase</span>
-            </h2>
-            <button @click="playAllMyMusic" :disabled="!playableMyMusic.length" class="s-mini-btn" title="按列表顺序播放全部">▶ 播放全部</button>
-          </div>
-          <div v-if="listLoading" class="py-12 text-center text-xs text-gray-600">加载中...</div>
-          <div v-else-if="myMusic.length" class="space-y-1 max-h-[500px] overflow-y-auto pr-1 music-scroll">
-            <div v-for="(item, i) in myMusic" :key="item.id"
-              class="group flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all duration-200 border border-transparent hover:bg-[#0e0e26] hover:border-purple-400/15"
-              @click="openPlayer(item)">
-              <span class="w-7 text-center text-sm text-gray-600 group-hover:hidden font-mono">{{ String(i + 1).padStart(2, '0') }}</span>
-              <span class="w-7 text-center hidden group-hover:block text-purple-300">
-                <svg class="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-              </span>
-              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/30 to-cyan-500/30 flex-shrink-0 overflow-hidden border border-white/10 relative">
-                <img v-if="item.cover" :src="item.cover" class="w-full h-full object-cover" alt="" />
-                <span v-else class="w-full h-full flex items-center justify-center text-lg text-white/70">{{ (item.title || '♪')[0] }}</span>
-                <span v-if="isCurrent(item)" class="absolute inset-0 flex items-center justify-center bg-black/50 text-cyan-300 text-lg">♪</span>
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm text-white truncate flex items-center" :class="{ 'text-cyan-300': isCurrent(item) }">
-                  <span class="truncate">{{ item.title }}</span>
-                  <span v-if="isCurrent(item)" class="s-eq" :class="{ 's-eq-paused': !player.isPlaying }" aria-hidden="true"><i></i><i></i><i></i></span>
-                </p>
-                <p class="text-[11px] text-gray-500 mt-0.5 truncate">
-                  {{ item.artist || '未知艺术家' }}
-                  <span v-if="item.album"> · {{ item.album }}</span>
-                  <span v-if="item.category" class="text-gray-600"> · {{ item.category }}</span>
-                </p>
-              </div>
-              <span class="text-[11px] text-gray-600 font-mono hidden sm:inline">{{ formatDuration(item.duration) }}</span>
-              <span class="text-purple-300/70 text-xs transition-transform duration-200 group-hover:translate-x-1">→</span>
-            </div>
-          </div>
-          <div v-else class="py-12 text-center">
-            <div class="text-4xl mb-3 opacity-15">💿</div>
-            <p class="text-xs text-gray-600">{{ localError ? '列表加载失败' : '暂无音乐数据' }}</p>
-            <button v-if="localError" @click="loadLocalMusic" class="s-mini-btn mt-3">↻ 重试</button>
-          </div>
-        </div>
-
-        <!-- 云上曲库：Audius 全曲 / iTunes 试听 / 网易云（可选） -->
+      <!-- 云上曲库（全宽，默认八九十年代金曲） -->
+      <section>
         <div class="glass-panel p-6 min-w-0">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm font-bold text-white flex items-center gap-2">
@@ -146,7 +99,7 @@
               <button @click="playAllCloud" :disabled="!cloudTracks.length" class="s-mini-btn" title="按列表顺序播放全部">▶ 播放全部</button>
             </div>
           </div>
-          <!-- 分区 chips：Audius 流派 / iTunes 精选歌单 -->
+          <!-- 分区 chips：Audius 流派 / iTunes 八九十年代歌单 -->
           <div v-if="chips.length" class="flex flex-wrap gap-2 mb-3">
             <button v-for="c in chips" :key="c.key" @click="loadChip(c)" :disabled="cloudLoading"
               class="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50"
@@ -157,7 +110,7 @@
             </button>
           </div>
           <div v-if="cloudLoading" class="py-12 text-center text-xs text-gray-600">加载中...</div>
-          <div v-else-if="cloudTracks.length" class="space-y-1 max-h-[460px] overflow-y-auto pr-1 music-scroll">
+          <div v-else-if="cloudTracks.length" class="grid grid-cols-1 md:grid-cols-2 gap-1 max-h-[640px] overflow-y-auto pr-1 music-scroll">
             <div v-for="(t, i) in displayTracks" :key="t.id"
               class="group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-200 border border-transparent hover:bg-[#0e0e26] hover:border-cyan-400/15"
               @click="playCloud(t)">
@@ -186,7 +139,7 @@
             <div class="text-4xl mb-3 opacity-15">🎵</div>
             <p class="text-xs text-gray-600">{{ cloudError ? '曲库加载失败' : '暂无歌曲' }}</p>
             <p v-if="source === 'netease' && serviceDown" class="text-[11px] text-amber-300/80 mt-1">
-              网易云服务未启动（backend/netease-music-api，端口3000），可改用「全曲库 / 试听精选」免费源
+              网易云服务未启动（backend/netease-music-api，端口3000），可改用「试听精选 / 全曲库」免费源
             </p>
             <button v-if="cloudError" @click="loadCloud" class="s-mini-btn mt-3" :disabled="cloudLoading">↻ 重试</button>
           </div>
@@ -199,47 +152,55 @@
 <script setup>
 // ============================================================
 // 音乐馆（媒体页内的音乐模块）
-// 曲库来源可切换：全曲库(Audius 免费免 Key) / 试听精选(iTunes) / 网易云(需自建服务)
+// 曲库来源可切换：试听精选(iTunes 八九十年代金曲 默认) / 全曲库(Audius) / 网易云(需自建服务)
 // 顶部搜索栏按当前来源搜索 → 结果一键全局播放；搜索历史本地持久化（最多 10 条）
-// 下方双栏并排：我的音乐 / 云上曲库，均支持播放全部；卡片按流派/主题分区切换
+// 下方全宽云上曲库，支持播放全部；卡片按流派/主题分区切换
 // 正在播放的歌曲自动置顶并带 EQ 高亮；全局播放条由 App.vue 级 GlobalPlayer 承载
 // ============================================================
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getMusicList } from '@/api/media'
-import { getNeteasePlaylist, getNeteaseSongUrl, searchNetease, isMusicServiceDown } from '@/api/music'
+import { getNeteaseSongUrl, searchNetease, isMusicServiceDown } from '@/api/music'
 import { searchAudius, getAudiusTrending, AUDIUS_PRESET } from '@/api/audius'
 import { ITUNES_PRESET, getItunesPlaylist, searchItunes } from '@/api/itunes'
 import { usePlayerStore } from '@/stores/modules/player'
-import { useSupabase } from '@/composables/useSupabase'
-import { fixNeteaseId } from '@/config/musicFixes'
 
 const router = useRouter()
-const musicList = ref([])
-const listLoading = ref(true)
-const localError = ref(false)
-const musicSource = ref('backend')
-
 const player = usePlayerStore()
 
-// ---- 曲库来源（默认 Audius：免费完整曲目，开箱即用、无需任何后端服务）----
+// ---- 曲库来源（默认网易云：完整播放+歌词，八九十年代金曲搜索预设）----
 const SOURCES = [
-  { key: 'audius', icon: '🌐', label: '全曲库', panel: '云上全曲' },
+  { key: 'netease', icon: '🎧', label: '八九十年代', panel: '八九十年代金曲' },
   { key: 'itunes', icon: '✧', label: '试听精选', panel: '试听精选' },
-  { key: 'netease', icon: '🎧', label: '网易云', panel: '网易云歌单' },
+  { key: 'audius', icon: '🌐', label: '全曲库', panel: '云上全曲' },
 ]
 const SOURCE_HINT = {
-  audius: '免费完整曲目 · 无需登录 · 点开即播',
+  netease: '八九十年代金曲 · 完整播放 · 含歌词',
   itunes: '官方 30 秒试听 · 免 Key 全球曲库',
-  netease: '需本地启动 backend/netease-music-api（端口 3000）',
+  audius: '免费完整曲目 · 无需登录 · 点开即播',
 }
-const source = ref('audius')
+const source = ref('netease')
 const activeSource = computed(() => SOURCES.find(s => s.key === source.value) || SOURCES[0])
 const searchPlaceholder = computed(() => ({
-  audius: '搜索完整曲目 / 音乐人，如：lofi / electronic',
+  netease: '搜索八九十年代金曲 / 歌手，如：邓丽君 / beyond / 80年代',
   itunes: '搜索试听曲目，如：夜曲 / piano',
-  netease: '搜索网易云歌曲 / 歌手 / 专辑，如：周杰伦',
+  audius: '搜索完整曲目 / 音乐人，如：lofi / electronic',
 }[source.value]))
+
+// 网易云八九十年代搜索预设歌单（按关键词搜索，完整播放+歌词）
+const NETEASE_PRESET = [
+  { label: '80年代经典', term: '80年代经典' },
+  { label: '90年代金曲', term: '90年代金曲' },
+  { label: '邓丽君', term: '邓丽君' },
+  { label: '张国荣', term: '张国荣' },
+  { label: 'Beyond', term: 'beyond' },
+  { label: '谭咏麟', term: '谭咏麟' },
+  { label: '罗大佑', term: '罗大佑' },
+  { label: '李宗盛', term: '李宗盛' },
+  { label: '凤飞飞', term: '凤飞飞' },
+  { label: '蔡琴', term: '蔡琴' },
+  { label: '刘文正', term: '刘文正' },
+  { label: '80英文金曲', term: '80s english pop' },
+]
 
 // 云上曲库列表（三个来源共用一个列表 + 加载态）
 const cloudTracks = ref([])
@@ -288,8 +249,6 @@ function searchFromHistory(kw) {
   doSearch()
 }
 
-const NETEASE_PLAYLIST_ID = 652135520
-
 // 当前播放曲目置顶排序
 function sortPlayingFirst(list) {
   const curId = player.currentTrack?.id
@@ -303,19 +262,15 @@ function sortPlayingFirst(list) {
 
 const isCurrent = t => player.currentTrack?.id === t.id
 
-const myMusic = computed(() => sortPlayingFirst(musicList.value))
 const displayTracks = computed(() => sortPlayingFirst(cloudTracks.value))
 
-// 分区 chips：Audius 流派榜单 / iTunes 精选主题
+// 分区 chips：网易云八九十年代搜索 / iTunes 精选 / Audius 流派
 const chips = computed(() => {
-  if (source.value === 'audius') return AUDIUS_PRESET.map(p => ({ key: p.genre || 'hot', label: p.label, genre: p.genre }))
+  if (source.value === 'netease') return NETEASE_PRESET.map(p => ({ key: p.term, label: p.label, term: p.term }))
   if (source.value === 'itunes') return ITUNES_PRESET.map(p => ({ key: p.term, label: p.label, term: p.term }))
+  if (source.value === 'audius') return AUDIUS_PRESET.map(p => ({ key: p.genre || 'hot', label: p.label, genre: p.genre }))
   return []
 })
-
-// 可播放的本地曲目（有音频地址，或可凭 neteaseId 在线取流）
-const playableMyMusic = computed(() =>
-  musicList.value.filter(t => t.url || /^\d+$/.test(String(t.neteaseId || ''))))
 
 // ---- 播放模式（顺序 / 随机 / 单曲循环，与 store、GlobalPlayer 保持一致）----
 const MODES = ['order', 'shuffle', 'loop-one']
@@ -333,16 +288,7 @@ function cycleMode() {
   player.setMode(MODES[(idx + 1) % MODES.length])
 }
 
-// ---- 播放全部 ----
-// 我的音乐：整体替换播放列表并从第一首开始
-function playAllMyMusic() {
-  const list = playableMyMusic.value
-  if (!list.length) return
-  player.setPlaylist(list)
-  player.play({ ...list[0] })
-}
-
-// 云上曲库：只把有播放地址的曲目进列表（Audius / iTunes 已带地址）
+// 云上曲库：只把有播放地址的曲目进列表（iTunes / Audius 已带地址）
 function playAllCloud() {
   const list = cloudTracks.value.filter(t => t.url)
   if (!list.length) return
@@ -450,7 +396,10 @@ async function loadCloud() {
       cloudTracks.value = list
       cloudTitle.value = `「${p.label}」共 ${list.length} 首`
     } else {
-      await loadNetease()
+      // 网易云：默认加载第一个八九十年代预设搜索
+      const p = NETEASE_PRESET[0]
+      activeChipKey.value = p.term
+      await loadNeteaseSearch(p.term, p.label)
     }
   } catch (e) {
     cloudTracks.value = []
@@ -462,16 +411,23 @@ async function loadCloud() {
   }
 }
 
-// 切换分区 chips（Audius 流派榜单 / iTunes 精选主题）
+// 切换分区 chips
 async function loadChip(c) {
   if (cloudLoading.value) return
   activeChipKey.value = c.key
   cloudLoading.value = true
   cloudError.value = false
   try {
-    const list = source.value === 'audius'
-      ? await getAudiusTrending(30, c.genre)
-      : await getItunesPlaylist({ term: c.term }, 24)
+    let list = []
+    if (source.value === 'audius') {
+      list = await getAudiusTrending(30, c.genre)
+    } else if (source.value === 'itunes') {
+      list = await getItunesPlaylist({ term: c.term }, 24)
+    } else {
+      // 网易云按关键词搜索
+      list = await loadNeteaseSearch(c.term, c.label)
+      return
+    }
     cloudTracks.value = list
     cloudTitle.value = `「${c.label}」共 ${list.length} 首`
   } catch {
@@ -482,21 +438,20 @@ async function loadChip(c) {
   }
 }
 
-// ---- 网易云歌单（需自建 backend/netease-music-api）----
-async function loadNetease() {
-  const res = await getNeteasePlaylist(NETEASE_PLAYLIST_ID, 60)
-  const pl = res?.playlist
-  if (!pl?.tracks?.length) { cloudTracks.value = []; cloudTitle.value = ''; cloudError.value = true; return }
-  const tracks = pl.tracks.slice(0, 60).map(t => ({
-    id: t.id,
-    title: t.name,
-    artist: (t.ar || []).map(a => a.name).join(' / ') || '未知歌手',
-    cover: t.al?.picUrl || '',
-    duration: Math.round((t.dt || 0) / 1000),
+// 网易云按关键词搜索（完整播放+歌词）
+async function loadNeteaseSearch(term, label) {
+  const res = await searchNetease(term, 30)
+  const songs = res?.result?.songs || []
+  const tracks = songs.map(s => ({
+    id: s.id,
+    title: s.name,
+    artist: (s.artists || []).map(a => a.name).join(' / ') || '未知歌手',
+    cover: s.album?.picUrl || '',
+    duration: Math.round((s.duration || 0) / 1000),
     url: '',
   }))
   cloudTracks.value = tracks
-  cloudTitle.value = `「${pl.name}」共 ${tracks.length} 首`
+  cloudTitle.value = `「${label}」共 ${tracks.length} 首`
   serviceDown.value = false
   void preloadUrls(tracks)
 }
@@ -514,9 +469,6 @@ async function playCloud(track) {
   player.play(withNeteaseId(track))
 }
 
-// ---- 本地音乐 ----
-const DEFAULT_CATS = ['电子', '流行', '古典', '嘻哈', '摇滚', '轻音乐', '纯音乐']
-
 function formatDuration(secs) {
   if (!secs) return '--:--'
   const n = Number(secs)
@@ -526,68 +478,8 @@ function formatDuration(secs) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-function parseCategory(t, i) {
-  if (t.category) return t.category
-  const tags = (t.tags || '').split(',').map(s => s.trim()).filter(Boolean)
-  const hit = tags.find(tag => DEFAULT_CATS.includes(tag))
-  if (hit) return hit
-  if (tags.length) return tags[0]
-  return DEFAULT_CATS[i % DEFAULT_CATS.length]
-}
-
-function openPlayer(item) {
-  // 有音频或可凭 neteaseId 在线解析的都进全局播放条（store 会按需取流），再进详情页同步展示
-  if (item.url || /^\d+$/.test(String(item.neteaseId || ''))) {
-    player.setPlaylist(musicList.value.filter(t => t.url || /^\d+$/.test(String(t.neteaseId || ''))))
-    player.play(item)
-  }
-  router.push(`/music/player/${item.id}`)
-}
-
-const { fetchMusic, supabase } = useSupabase()
-
-// 优先读取 Supabase 本地曲库（music_tracks 表），失败/为空再退回后端媒体接口
-async function loadLocalMusic() {
-  listLoading.value = true
-  localError.value = false
-  try {
-    const { data, error } = await fetchMusic(100)
-    if (!error && data?.length) {
-      musicList.value = data.map((t, i) => ({
-        ...t,
-        id: t.id ?? i + 1,
-        neteaseId: fixNeteaseId(t),
-        duration: t.duration_seconds || t.duration || 0,
-        category: parseCategory(t, i),
-        url: t.audio_url || t.url || '',
-        cover: t.cover_url || t.cover || '',
-        artist: t.artist || '未知艺术家',
-        album: t.album || '',
-        source: 'supabase',
-      }))
-      musicSource.value = 'supabase'
-      listLoading.value = false
-      return
-    }
-  } catch { /* 走后端兜底 */ }
-
-  getMusicList({ page: 1, size: 100 }).then(res => {
-    const data = res.data?.records || res.data || []
-    musicList.value = data.map((t, i) => ({
-      ...t,
-      id: t.id || t.musicId || i + 1,
-      neteaseId: t.netease_id || t.neteaseId || '',
-      duration: t.duration || 0,
-      category: parseCategory(t, i),
-      url: t.url || '',
-    }))
-  }).catch(() => { musicList.value = []; localError.value = true }).finally(() => { listLoading.value = false })
-}
-
 onMounted(() => {
-  loadLocalMusic()
-  // 默认加载免费全曲库（Audius），无需后端服务即可播放；
-  // 网易云为可选来源，仅在用户切到该来源时才探测，避免首屏出现服务未启动告警
+  // 默认加载八九十年代金曲（iTunes 免费源），无需后端服务即可播放
   loadCloud()
 })
 </script>

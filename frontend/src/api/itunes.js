@@ -59,13 +59,21 @@ export async function searchItunes(term, limit = 20) {
   return (data.results || []).filter(r => r.previewUrl && r.trackName).map(mapResult)
 }
 
-// 云端精选歌单（唯美向）：页面默认直接可播，无需登录/Key
+// 云端精选歌单（八九十年代为主）：页面默认直接可播，无需登录/Key
+// term 关键词命中 iTunes 八九十年代华语/外语金曲
 export const ITUNES_PRESET = [
-  { label: '极光夜航', term: 'aurora ambient' },
-  { label: '星河低语', term: 'lofi chill' },
-  { label: '月光钢琴', term: 'piano instrumental' },
-  { label: '城市夜景', term: 'city pop night' },
-  { label: '深海呼吸', term: 'ocean waves sleep' },
+  { label: '80s 华语金曲', term: '80s chinese golden hits' },
+  { label: '90s 经典情歌', term: '90s love songs mandarin' },
+  { label: '邓丽君', term: 'teresa teng' },
+  { label: '张国荣', term: 'leslie cheung' },
+  { label: 'Beyond', term: 'beyond band hong kong' },
+  { label: '谭咏麟', term: 'alan tam' },
+  { label: '80s 英文金曲', term: '80s english pop hits' },
+  { label: '90s 摇滚', term: '90s rock classics' },
+  { label: '罗大佑', term: 'lo ta yu' },
+  { label: '李宗盛', term: 'jonathan lee' },
+  { label: '凤飞飞', term: 'feng fei fei' },
+  { label: '蔡琴', term: 'tsai chin' },
 ]
 
 // 拉取某个精选歌单

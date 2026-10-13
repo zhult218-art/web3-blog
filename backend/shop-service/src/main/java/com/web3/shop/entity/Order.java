@@ -36,6 +36,8 @@ public class Order {
     private LocalDateTime paidAt;
     /** 支付渠道（alipay/wechat），支付成功时记录 */
     private String payChannel;
+    /** 第三方交易号（支付宝 trade_no / 微信 transaction_id），支付回调时回填 */
+    private String tradeNo;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableLogic

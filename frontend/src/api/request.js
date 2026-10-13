@@ -34,9 +34,9 @@ request.interceptors.request.use(
     if (uid != null) {
       config.headers['X-Blog-Uid'] = String(uid)
     }
-    // ngrok 免费版会对没有「Visit Site」Cookie 的访问方返回 HTML 警告页而非 JSON，
-    // 导致前端数据解析失败/误报网络不可达。该请求头可绕过此过渡页，对其他环境无副作用。
-    config.headers['ngrok-skip-browser-warning'] = 'true'
+    // 防止浏览器缓存 API 响应（开发期服务重启后旧错误响应仍被缓存命中）
+    config.headers['Cache-Control'] = 'no-cache'
+    config.headers['Pragma'] = 'no-cache'
     return config
   },
   error => Promise.reject(error)
@@ -47,6 +47,20 @@ request.interceptors.response.use(
   response => response.data,
   async error => {
     const cfg = error.config || {}
+
+    // 主动取消的请求不是服务故障：AbortController 超时中止、路由切换/整页刷新时
+    // 浏览器取消在途 XHR(HMR、trae-preview 反复 reload)、轮询竞态取消前一个请求。
+    // axios v1 中这些 reject 为 CanceledError(code=ERR_CANCELED)，且没有 response，
+    // 若不拦截会被下面的 isNetError 误报成"网络异常：服务未上线或不可达"。这里直接
+    // 静默 reject；页面已切到后台/正在卸载时的网络层错误同理(用户看不到，提示无意义)。
+    const isCanceled =
+      error.code === 'ERR_CANCELED' ||
+      (typeof axios.isCancel === 'function' && axios.isCancel(error))
+    const isUnloading = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+    if (isCanceled || isUnloading) {
+      return Promise.reject(error)
+    }
+
     const is401 = error.response?.status === 401
 
     // 会话过期恢复：仅对普通业务请求触发一次，经刷新请求成功则重放原请求

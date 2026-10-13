@@ -80,6 +80,8 @@ const web3Routes = [
   // 个人知识库（Supabase 存储，持续成长的学习地图）
   { path: 'knowledge', name: 'Knowledge', component: () => import('@/views/knowledge/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
   { path: 'knowledge/:id', name: 'KnowledgeDetail', component: () => import('@/views/knowledge/detail.vue'), meta: { requiresAuth: false, perm: 'home' } },
+  // 冒险者招募亭 · 招聘投递（央国企/大厂/外企/银行券商/事业编等企业招聘链接导航）
+  { path: 'jobs', name: 'JobBoard', component: () => import('@/views/jobs/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
 ]
 
 const routes = [

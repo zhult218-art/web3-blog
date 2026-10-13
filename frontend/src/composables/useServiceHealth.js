@@ -64,10 +64,22 @@ async function probeInfraServices(javaStatus) {
 async function fetchStatus() {
   try {
     const res = await getServicesStatus()
-    const javaStatus = res.data || res || {}
+    // res 经响应拦截器已是后端 ApiResponse body（{ code, data, message }）。
+    // 兼容直返状态 map 的旧形态：无 code 字段时把 res 视作 data 本体。
+    const body = res && res.data !== undefined ? res : { data: res }
+    // 后端业务异常（code !== 200，data 多为 null）：保持现状，不覆盖已知状态
+    if (body.code !== undefined && body.code !== 200) return
+    const javaStatus = body.data
+    // 响应非对象（网关返回 HTML/字符串等异常体）：保持现状，避免清空导航栏服务
+    if (!javaStatus || typeof javaStatus !== 'object' || Array.isArray(javaStatus)) return
     // 并行探测基础设施
     const infraStatus = await probeInfraServices(javaStatus)
-    serviceStatus.value = { ...javaStatus, ...infraStatus }
+    // 合并而非覆盖：仅在响应中明确给出的服务状态覆盖旧值，未提及的服务保留上次状态。
+    // 这样单次异常/部分响应不会清空已知服务状态，导航栏不再"掉服务"。
+    const merged = { ...serviceStatus.value }
+    for (const name of Object.keys(javaStatus)) merged[name] = javaStatus[name]
+    for (const name of Object.keys(infraStatus)) merged[name] = infraStatus[name]
+    serviceStatus.value = merged
   } catch {
     // API 不可用时保持当前状态（注册表兜底已初始化）
   }
@@ -93,9 +105,13 @@ export function useServiceHealth() {
   return { serviceStatus, loading, refresh: fetchStatus }
 }
 
-/** 判断某服务是否运行中 */
+/** 判断某服务是否运行中（导航栏可见性用）。
+ *  仅在明确确认停止时才判定为"未运行"；UNKNOWN / 未探测到 / admin-service 不可达
+ *  均视为可用，避免健康检查单次抖动或 admin 不可达导致导航栏服务"消失"。
+ *  真正 STOPPED 才隐藏入口，此时用户点击也只会得到错误，隐藏更合理。 */
 export function isServiceUp(name) {
-  return serviceStatus.value[name] === 'RUNNING'
+  const s = serviceStatus.value[name]
+  return s !== 'STOPPED' && s !== 'DOWN' && s !== 'TERMINATED'
 }
 
 /** 判断某服务是否状态未知（admin-service 不可达） */

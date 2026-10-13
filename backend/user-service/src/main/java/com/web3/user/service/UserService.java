@@ -132,7 +132,7 @@ public class UserService {
         user.setRole(isAdminUsername(dto.getUsername()) ? "ADMIN" : "USER");
         this.userMapper.insert(user);
         String token = this.jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole(), user.getNickname(), user.getPermissions());
-        this.redisTemplate.opsForValue().set("token:" + user.getId(), token, this.jwtProperties.getExpire() * 60L, TimeUnit.SECONDS);
+        this.redisTemplate.opsForValue().set("token:" + user.getId(), token, this.jwtProperties.getRefresh() * 60L, TimeUnit.SECONDS);
         autoJoinChatRooms(user.getId(), user.getUsername(), user.getNickname());
         JwtVO vo = new JwtVO();
         vo.setToken(token);
@@ -296,7 +296,8 @@ public class UserService {
     private ApiResponse<JwtVO> issueToken(User user) {
         Integer verified = user.getVerified() != null ? user.getVerified() : 0;
         String token = this.jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole(), user.getNickname(), user.getPermissions(), verified);
-        this.redisTemplate.opsForValue().set("token:" + user.getId(), token, this.jwtProperties.getExpire() * 60L, TimeUnit.SECONDS);
+        // Redis 会话 TTL 与 JWT/Cookie 一致取 jwt.refresh（7 天），保证刷新页面后 Cookie 仍能命中 Redis 续期
+        this.redisTemplate.opsForValue().set("token:" + user.getId(), token, this.jwtProperties.getRefresh() * 60L, TimeUnit.SECONDS);
         JwtVO vo = new JwtVO();
         vo.setToken(token);
         vo.setUser(this.toUserVO(user));

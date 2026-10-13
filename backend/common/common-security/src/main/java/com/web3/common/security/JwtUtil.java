@@ -29,7 +29,10 @@ public class JwtUtil {
      */
     public JwtUtil(JwtProperties properties) {
         this.key = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
-        this.expireMillis = properties.getExpire() * 60 * 1000L;
+        // 令牌有效期取 jwt.refresh（默认 7 天），与 Redis 会话 TTL、Cookie maxAge 三者保持一致：
+        // 这样刷新页面后浏览器仍持有有效 Cookie → /user/refresh 静默续期成功，登录态可持续整个周期。
+        // jwt.expire（2h）保留为配置项备用；个人本机/内网站以可用性优先，access 与 refresh 复用同一令牌。
+        this.expireMillis = properties.getRefresh() * 60 * 1000L;
     }
 
     /**

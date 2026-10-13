@@ -349,6 +349,9 @@ const serviceGroups = [
     { path: '/upload', label: '星空仓库', sub: '资源上传', perm: 'home', icon: '☁️' },
     { path: '/wifi', label: '信号侦测', sub: 'WiFi安全审计', perm: 'wifi', icon: '📶' },
   ]},
+  { name: '冒险公会', items: [
+    { path: '/jobs', label: '冒险者招募亭', sub: '招聘投递·央国企/大厂/外企', perm: 'home', icon: '🛡️' },
+  ]},
 ]
 
 // "更多"下拉菜单 —— 分组展示

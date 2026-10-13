@@ -1,4 +1,4 @@
-﻿﻿# ============================================================
+﻿# ============================================================
 # Web3 Portal — 一键启动本地开发环境全部服务（Windows PowerShell）
 #
 # 2026-10-09 修订（一键启动全栈）：
@@ -326,6 +326,36 @@ if ($node -and (Test-Path (Join-Path $feDir "node_modules"))) {
     Write-Host "  跳过前端：未找到 node 或 frontend/node_modules（请先 cd frontend; npm install）" -ForegroundColor Yellow
 }
 
+# ── 6. SakuraFrp 内网穿透（TCP 隧道 frp-six.com:44598 → 本机 5173） ──
+# SakuraFrpService.exe 是用户态守护进程（非 Windows 服务），读取
+# C:\ProgramData\SakuraFrpService\config.json 自动启动隧道列表中的隧道。
+# 隧道为 TCP 类型，节点会为 HTTPS 访问自动生成自签证书（frp-six.com.crt），
+# 已导入 CurrentUser\Root 信任存储区，Chrome/Edge 不再弹 SSL 警告页。
+Write-Host "启动 SakuraFrp 内网穿透..." -ForegroundColor Cyan
+$sakuraSvc = @(
+    "C:\Program Files\SakuraFrpLauncher\SakuraFrpService.exe",
+    "F:\Program Files\SakuraFrpLauncher\SakuraFrpService.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+$sakuraRunning = Get-Process -Name "SakuraFrpService" -ErrorAction SilentlyContinue
+if ($sakuraRunning) {
+    Write-Host "  SakuraFrp 服务已在运行（PID $($sakuraRunning.Id)），跳过" -ForegroundColor DarkGray
+} elseif ($sakuraSvc) {
+    $sakuraDir = Split-Path $sakuraSvc -Parent
+    Start-HiddenProcess -Name "sakurafrp" -File $sakuraSvc -Arguments "" `
+        -WorkDir $sakuraDir -LogDir "C:\ProgramData\SakuraFrpService\Logs" | Out-Null
+    Write-Host "  等待 frpc 隧道建立（最多 15s）..." -ForegroundColor DarkGray
+    $frpcUp = $false
+    for ($i = 0; $i -lt 8; $i++) {
+        $frpc = Get-Process -Name "frpc" -ErrorAction SilentlyContinue
+        if ($frpc) { $frpcUp = $true; break }
+        Start-Sleep -Seconds 2
+    }
+    if ($frpcUp) { Write-Host "  SakuraFrp 隧道已建立 → https://frp-six.com:44598" -ForegroundColor Green }
+    else { Write-Host "  警告：frpc 未启动，隧道可能未建立（检查 config.json auto_start_tunnels）" -ForegroundColor Yellow }
+} else {
+    Write-Host "  跳过 SakuraFrp：未找到 SakuraFrpService.exe" -ForegroundColor Yellow
+}
+
 # ── 端口自检 ──
 Write-Host "`n等待 20s 让服务完成启动..." -ForegroundColor Cyan
 Start-Sleep -Seconds 20
@@ -336,3 +366,4 @@ foreach ($p in @(3306,6379,8848,8080,8081,8082,8083,8084,8085,8086,8087,8089,809
     else { Write-Host "  :$p  DOWN" -ForegroundColor Red }
 }
 Write-Host "`n前端地址：http://localhost:5173" -ForegroundColor Cyan
+Write-Host "隧道地址：https://frp-six.com:44598" -ForegroundColor Cyan

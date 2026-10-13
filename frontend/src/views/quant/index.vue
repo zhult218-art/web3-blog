@@ -29,11 +29,6 @@
         <div class="hidden md:block border-b border-amber-800/20 flex-1"></div>
       </div>
 
-      <!-- ========== TAB: 开源量化（github-myblog 项目集成） ========== -->
-      <div v-if="activeTab === 'projects'">
-        <QuantProjects @navigate="activeTab = $event" />
-      </div>
-
       <!-- ========== TAB: 市场概览 ========== -->
       <div v-if="activeTab === 'overview'">
         <!-- Index Cards -->
@@ -482,7 +477,14 @@
             </div>
           </div>
         </div>
-        <div v-if="!strategyList.length" class="py-10"><Loading /></div>
+        <div v-if="!strategyList.length" class="py-10 text-center">
+          <Loading v-if="!strategyListError" />
+          <div v-else class="text-xs text-red-400/80">
+            <p>⚠ 策略加载失败</p>
+            <p class="mt-1 text-[10px] text-amber-600/50">{{ strategyListError }}</p>
+            <button class="mt-3 text-[10px] px-3 py-1 rounded-lg border border-amber-800/30 text-amber-500/70 hover:text-amber-100 transition" @click="fetchStrategies">重试</button>
+          </div>
+        </div>
         <div class="mt-6 flex items-center gap-4" v-if="strategyTotal > 0">
           <Pagination v-model:page="strategyPage" :page-size="strategySize" :total="strategyTotal" @update:page="fetchStrategies" />
           <div class="flex items-center gap-2 text-xs text-amber-600/60">
@@ -967,9 +969,15 @@
         </div>
       </div>
 
-      <!-- ========== TAB: AI分析 ========== -->
+      <!-- ========== TAB: AI分析（含 AI 量化助手 + AI 深度投研） ========== -->
       <div v-if="activeTab === 'ai'">
-        <div class="scroll-card p-6">
+        <!-- 内部分区切换 -->
+        <div class="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#1a0f08] border border-amber-800/15 w-fit">
+          <button :class="['text-xs px-4 py-1.5 rounded-lg transition', aiSubTab === 'chat' ? 'bg-amber-500/20 text-amber-100 font-medium' : 'text-amber-500/60 hover:text-amber-100']" @click="aiSubTab = 'chat'">🤖 量化助手</button>
+          <button :class="['text-xs px-4 py-1.5 rounded-lg transition', aiSubTab === 'deep' ? 'bg-amber-500/20 text-amber-100 font-medium' : 'text-amber-500/60 hover:text-amber-100']" @click="aiSubTab = 'deep'">🧠 深度投研</button>
+        </div>
+
+        <div v-if="aiSubTab === 'chat'" class="scroll-card p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-bold text-amber-100 flex items-center gap-2">
               <span class="text-amber-400">🤖</span> AI 量化助手
@@ -985,11 +993,9 @@
           <!-- ChatPanel（抽出到子组件 ChatPanel.vue，内部持有聊天状态与 sendChat 逻辑，通过 v-model:config 读取 aiConfig） -->
           <ChatPanel v-model:config="aiConfig" />
         </div>
-      </div>
 
-      <!-- ========== TAB: AI深度投研 (TradingAgents-Astock) ========== -->
-      <div v-if="activeTab === 'deepai'">
-        <div class="scroll-card p-6">
+        <!-- AI 深度投研（原独立 tab，合并为 ai 模块子分区） -->
+        <div v-if="aiSubTab === 'deep'" class="scroll-card p-6">
           <div class="flex items-center justify-between mb-5">
             <h3 class="text-sm font-bold text-amber-100 flex items-center gap-2">
               <span class="text-amber-400">🧠</span> AI 深度投研 · TradingAgents-Astock
@@ -1816,6 +1822,7 @@ import { getQuantList, getStockKlineVR, getIndices, getMarketEmotion, getConcept
 defineOptions({ name: 'QuantIndex' })
 import { getIndexQuotes } from '@/api/akshare'
 import Pagination from '@/components/common/Pagination.vue'
+import Loading from '@/components/common/Loading.vue'
 import Modal from '@/components/common/Modal.vue'
 import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
@@ -1825,7 +1832,6 @@ import FundFlowChart from './components/FundFlowChart.vue'
 import DragonTigerTable from './components/DragonTigerTable.vue'
 import ReportsTable from './components/ReportsTable.vue'
 import MarginTable from './components/MarginTable.vue'
-import QuantProjects from './components/QuantProjects.vue'
 import AiConfigPanel from './components/AiConfigPanel.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import StrategyScreenModal from './components/StrategyScreenModal.vue'
@@ -1853,8 +1859,6 @@ const tabs = [
   { key: 'backtest', label: '回测分析' },
   { key: 'news', label: '新闻雷达' },
   { key: 'ai', label: 'AI分析' },
-  { key: 'deepai', label: 'AI深度投研' },
-  { key: 'projects', label: '开源量化' },
   // 市场研究驾驶舱（marketingdashboard 全功能聚合大屏，独立路由全屏嵌入）
   { key: 'cockpit', label: '市场驾驶舱', to: '/quant/cockpit', badge: true },
 ]
@@ -1864,6 +1868,8 @@ const activeTab = ref('dashboard')
 function onTabClick(tab) {
   if (tab.to) { router.push(tab.to); return }
   activeTab.value = tab.key
+  // 切到策略管理时立即拉取（不依赖 watch，避免 keep-alive 缓存实例时 watch 不触发）
+  if (tab.key === 'strategies') fetchStrategies()
 }
 
 const indexCards = ref([
@@ -2066,6 +2072,7 @@ const strategyList = ref([])
 const strategyPage = ref(1)
 const strategySize = ref(9)
 const strategyTotal = ref(0)
+const strategyListError = ref('')
 const showStrategyModal = ref(false)
 const strategyDetail = ref(null)
 const showCreateForm = ref(false)
@@ -2220,6 +2227,8 @@ function clearStrategyPortfolio() {
 // chatMessages / chatInput / chatLoading / sendChat 已全部移入子组件 ChatPanel.vue。
 const showAiConfig = ref(false)
 const aiConfig = ref({ baseURL: '', apiKey: '', model: '' })
+// AI 模块内部分区（合并原「AI分析」「AI深度投研」两个独立 tab）
+const aiSubTab = ref('chat')
 
 // ===== AI Chat (streaming via Vibe-Research /api/chat NDJSON) =====
 // sendChat / chatMessages / chatInput / chatLoading 已移入子组件 ChatPanel.vue
@@ -3394,11 +3403,13 @@ async function fetchStockInfo(code) {
 async function fetchStrategies() {
   try {
     const res = await getQuantList({ page: strategyPage.value, size: strategySize.value })
-    const d = res.data || {}
+    // 原生 fetch 返回完整 ApiResponse，axios 拦截器后返回 data；兼容两种形态
+    const d = res.data !== undefined ? res.data : res
     strategyList.value = d.records || []
     strategyTotal.value = d.total || (d.records?.length || 0) * 10
   } catch (e) {
     console.warn('strategies fail', e)
+    strategyListError.value = e.message || '加载失败'
   }
 }
 
@@ -3478,7 +3489,9 @@ const allStrategies = ref([])
 async function loadAllUserStrategies() {
   try {
     const res = await getQuantList({ page: 1, size: 200 })
-    const records = (res.data && res.data.records) || []
+    // 原生 fetch 返回完整 ApiResponse，axios 拦截器后返回 data；兼容两种形态
+    const d = res.data !== undefined ? res.data : res
+    const records = (d && d.records) || []
     allStrategies.value = Array.isArray(records) ? records : []
   } catch (e) {
     console.warn('load all user strategies fail', e)
@@ -3824,6 +3837,7 @@ onMounted(async () => {
   loadLlmProviders()
   loadLlmDefault()
   loadAllUserStrategies()
+  fetchStrategies() // 修复：策略管理 tab 从 keep-alive 返回时不触发 watch，onMounted 兜底
   lastUpdate.value = new Date().toLocaleTimeString()
 })
 

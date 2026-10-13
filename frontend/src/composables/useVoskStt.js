@@ -18,16 +18,13 @@ export async function loadVoskModel() {
   modelPromise = (async () => {
     try {
       const Vosk = await import('vosk-browser')
-      import.meta.env.DEV && console.log('[vosk] vosk-browser module loaded')
       const loadPromise = Vosk.createModel(MODEL_URL)
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('vosk model load timeout (30s)')), 30000)
       )
       model = await Promise.race([loadPromise, timeoutPromise])
-      import.meta.env.DEV && console.log('[vosk] model loaded')
       return model
     } catch (err) {
-      console.warn('[vosk] model load failed:', err)
       modelPromise = null
       throw err
     }
@@ -53,9 +50,7 @@ async function startMic() {
     try {
       const buf = e.inputBuffer.getChannelData(0)
       recognizer.acceptWaveform(buf)
-    } catch (err) {
-      console.warn('[vosk] acceptWaveform error:', err)
-    }
+    } catch {}
   }
   source.connect(processor)
   processor.connect(audioCtx.destination)
@@ -74,10 +69,8 @@ export async function startVoskRecognition() {
       if (msg?.result?.partial) callbacks.onPartial(msg.result.partial)
     })
     running = true
-    import.meta.env.DEV && console.log('[vosk] recognition started, sampleRate:', audioCtx.sampleRate)
     return true
   } catch (err) {
-    console.warn('[vosk] start failed:', err)
     stopVoskRecognition()
     return false
   }

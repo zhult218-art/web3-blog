@@ -36,7 +36,6 @@ export const useChatStore = defineStore('chat', () => {
   let verifyTimer = null
   let initRetryTimer = null
   let initRetryCount = 0
-  const MAX_INIT_RETRIES = 3
 
   const myUserId = computed(() => auth.user?.id)
   const onlineCount = computed(() => members.value.filter(m => m.online).length)
@@ -85,19 +84,19 @@ export const useChatStore = defineStore('chat', () => {
     loading.value = true
     loadError.value = ''
     try {
-      // 先检查管理员聊天开关（公开接口，关闭时不再初始化）
-      try {
-        const en = await getChatEnabled()
-        const enabled = (en?.data ?? en)?.enabled !== false
-        chatClosed.value = !enabled
-        if (!enabled) {
-          loadError.value = '管理员已关闭群聊'
-          started = false
-          return false
-        }
-      } catch { chatClosed.value = false }
-      const res = await getChatRooms()
-      const list = res?.data ?? res
+      // 开关检查与群列表并行拉取，进群少一轮串行等待
+      const [enRes, roomsRes] = await Promise.all([
+        getChatEnabled().catch(() => null),
+        getChatRooms(),
+      ])
+      const enabled = (enRes?.data ?? enRes)?.enabled !== false
+      chatClosed.value = !enabled
+      if (!enabled) {
+        loadError.value = '管理员已关闭群聊'
+        started = false
+        return false
+      }
+      const list = roomsRes?.data ?? roomsRes
       room.value = Array.isArray(list) ? list[0] : null
       if (!room.value) { loadError.value = '群聊服务尚未就绪'; started = false; scheduleInitRetry(); return false }
       await Promise.all([loadMembers(), loadHistory()])
@@ -116,13 +115,16 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function scheduleInitRetry() {
-    if (initRetryCount >= MAX_INIT_RETRIES || !auth.isLoggedIn) return
+    if (!auth.isLoggedIn) return
     initRetryCount++
     if (initRetryTimer) clearTimeout(initRetryTimer)
+    // 无限后台重试（3s/6s/9s…封顶 15s）：加载爆发期挤占结束后自动恢复进入，
+    // 不再 3 次放弃后只能手动点"重新连接"
+    const delay = Math.min(3000 * initRetryCount, 15000)
     initRetryTimer = setTimeout(() => {
       initRetryTimer = null
       init()
-    }, 3000 * initRetryCount)
+    }, delay)
   }
 
   // ---------- 管理员聊天开关 ----------

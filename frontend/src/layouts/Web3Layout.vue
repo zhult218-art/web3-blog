@@ -5,12 +5,17 @@
     <Web3Nav />
     <main class="relative z-10 min-h-[calc(100vh-64px)]">
       <router-view v-slot="{ Component }">
+        <!-- 结构：Suspense > keep-alive > component。
+             keep-alive 的直接子节点必须是单一组件（<component :is>），否则报
+             "KeepAlive expects exactly one child component"。此前把 <Suspense> 放进 keep-alive
+             内层会触发该错误；把 transition 放进 Suspense 内层又会与 out-in 模式 + 异步挂起
+             互相阻塞，导致"返回后大框架在但内容区空白、需刷新才恢复"，且破坏 keep-alive 缓存
+             （量化数据刷新后切走再回来丢失）。现去掉路由级 transition（页面切换瞬切，靠 keep-alive
+             命中缓存即时显示），换取稳定可靠的进入与返回。 -->
         <Suspense :timeout="0">
-          <transition name="page" mode="out-in">
-            <keep-alive :include="['QuantIndex']">
-              <component :is="Component" v-if="Component" />
-            </keep-alive>
-          </transition>
+          <keep-alive :include="['QuantIndex', 'Community']">
+            <component :is="Component" />
+          </keep-alive>
           <template #fallback>
             <div class="flex items-center justify-center min-h-[calc(100vh-64px)]">
               <div class="h-10 w-10 rounded-full border-2 border-white/15 border-t-cyan-400 animate-spin"></div>

@@ -71,24 +71,31 @@
           <span class="block-en">SKILL MATRIX</span>
         </div>
         <div class="skills-grid">
-          <article v-for="g in skillGroups" :key="g.name" class="glass-panel-sm skill-panel">
+          <article v-for="g in skillGroups" :key="g.name"
+            class="glass-panel-sm skill-panel"
+            @mousemove="onTilt" @mouseleave="onTiltLeave">
+            <span class="sp-spot" aria-hidden="true"></span>
             <div class="sp-head">
               <span class="sp-icon">{{ g.icon }}</span>
               <div>
                 <h3 class="sp-name">{{ g.name }}</h3>
                 <span class="sp-en">{{ g.en }}</span>
               </div>
+              <span class="sp-count">{{ g.items.length }} 项</span>
             </div>
             <div class="sp-items">
               <div v-for="s in g.items" :key="s.name" class="sp-item">
                 <div class="sp-item-top">
                   <span class="sp-item-name">{{ s.name }}</span>
-                  <span class="sp-stars">
-                    <i v-for="n in 5" :key="n" class="star" :class="{ on: n <= s.stars }">★</i>
-                  </span>
+                  <div class="sp-item-meta">
+                    <span class="sp-lv" :data-lv="s.level">{{ levelLabel(s.level) }}</span>
+                    <span class="sp-stars">
+                      <i v-for="n in 5" :key="n" class="star" :class="{ on: n <= s.stars }">★</i>
+                    </span>
+                  </div>
                 </div>
                 <div class="sp-bar">
-                  <span class="sp-bar-fill" :style="{ width: s.level + '%' }"></span>
+                  <span class="sp-bar-fill" :style="{ '--lvl': s.level + '%', width: s.level + '%' }"></span>
                 </div>
               </div>
             </div>
@@ -266,6 +273,31 @@
 // ============================================================
 
 import ScrollTypewriter from '@/components/ScrollTypewriter.vue'
+
+// 技能矩阵交互：鼠标移动 3D 倾斜 + 聚光跟随
+function onTilt(e) {
+  const el = e.currentTarget
+  const r = el.getBoundingClientRect()
+  const px = (e.clientX - r.left) / r.width - 0.5
+  const py = (e.clientY - r.top) / r.height - 0.5
+  el.style.transform = `perspective(900px) rotateY(${px * 6}deg) rotateX(${-py * 6}deg) translateY(-3px)`
+  el.style.transition = 'transform 0.1s ease-out'
+  el.style.setProperty('--spot-x', (px + 0.5) * 100 + '%')
+  el.style.setProperty('--spot-y', (py + 0.5) * 100 + '%')
+}
+function onTiltLeave(e) {
+  const el = e.currentTarget
+  el.style.transform = ''
+  el.style.transition = 'transform 0.5s cubic-bezier(0.23,1,0.32,1)'
+}
+// 根据熟练度百分比返回等级标签
+function levelLabel(lv) {
+  if (lv >= 90) return 'EXPERT'
+  if (lv >= 80) return 'ADVANCED'
+  if (lv >= 70) return 'PROFICIENT'
+  if (lv >= 60) return 'FAMILIAR'
+  return 'LEARNING'
+}
 
 // 「关于我」滚动打字机文本（随下滑逐字写出，倒滚回收）
 const aboutText = `我是一名沉迷于「沉浸式 Web 体验」的前端工程师与全栈爱好者。
@@ -722,8 +754,27 @@ const modules = [
 }
 
 .skill-panel {
+  position: relative;
   padding: 1.4rem 1.4rem 1.5rem;
+  transform-style: preserve-3d;
+  will-change: transform;
+  overflow: hidden;
 }
+
+/* 聚光层：随鼠标移动的径向高光 */
+.sp-spot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    220px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(168, 85, 247, 0.16),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.skill-panel:hover .sp-spot { opacity: 1; }
 
 .sp-head {
   display: flex;
@@ -751,6 +802,15 @@ const modules = [
   margin-top: 2px;
 }
 
+.sp-count {
+  margin-left: auto;
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+}
+
 .sp-items {
   display: flex;
   flex-direction: column;
@@ -767,6 +827,45 @@ const modules = [
 .sp-item-name {
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.75);
+}
+
+.sp-item-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* 等级标签：按熟练度分色 */
+.sp-lv {
+  font-size: 0.5rem;
+  letter-spacing: 0.12em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+}
+.sp-lv[data-lv="90"],
+.sp-lv[data-lv="91"],
+.sp-lv[data-lv="92"],
+.sp-lv[data-lv="93"],
+.sp-lv[data-lv="94"],
+.sp-lv[data-lv="95"] {
+  background: rgba(236, 72, 153, 0.18);
+  color: #f9a8d4;
+}
+.sp-lv[data-lv="80"],
+.sp-lv[data-lv="81"],
+.sp-lv[data-lv="82"],
+.sp-lv[data-lv="83"],
+.sp-lv[data-lv="84"],
+.sp-lv[data-lv="85"],
+.sp-lv[data-lv="86"],
+.sp-lv[data-lv="87"],
+.sp-lv[data-lv="88"] {
+  background: rgba(168, 85, 247, 0.18);
+  color: #c4b5fd;
 }
 
 .sp-stars {
@@ -794,6 +893,13 @@ const modules = [
   border-radius: 999px;
   background: linear-gradient(90deg, #a855f7, #06b6d4 70%, #ec4899);
   box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+  transform-origin: left center;
+  animation: spBarGrow 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes spBarGrow {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
 }
 
 /* ============================================================

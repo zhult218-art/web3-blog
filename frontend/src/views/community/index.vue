@@ -244,12 +244,16 @@
 // 社区广场页：聚合博客文章、论坛讨论与视频内容，
 // 支持 tab/排序切换、点赞、收藏、标签搜索与分页加载
 // ====================================================
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getForumList, likePost, getPostStats } from '@/api/forum'
 import { getOnlineCount } from '@/api/admin'
 import { useToastStore } from '@/stores/modules/toast'
 import PublishModal from '@/components/community/PublishModal.vue'
+
+// 显式命名以供外层 <keep-alive :include="..."> 缓存本组件：
+// 进入社区页时复用已加载的列表/stats，不再每次重挂重发请求，显著加快"每次进去慢"。
+defineOptions({ name: 'Community' })
 
 const router = useRouter()
 const toast = useToastStore()
@@ -395,21 +399,38 @@ async function loadOnlineCount() {
   } catch {}
 }
 
-// 在线人数轮询定时器：组件卸载时必须清理，避免离开页面后仍持续请求
+// 在线人数轮询定时器：组件被 <keep-alive> 缓存时，切走只触发 onDeactivated 而非 onUnmounted，
+// 必须在 onDeactivated 里停掉，否则后台会持续每 30s 请求在线人数接口（定时器泄漏）。
 let onlineTimer = null
+
+function startOnlineTimer() {
+  if (onlineTimer) clearInterval(onlineTimer)
+  loadOnlineCount()
+  onlineTimer = setInterval(loadOnlineCount, 30000)
+}
+function stopOnlineTimer() {
+  if (onlineTimer) { clearInterval(onlineTimer); onlineTimer = null }
+}
 
 onMounted(() => {
   fetch()
   loadStats()
-  loadOnlineCount()
-  onlineTimer = setInterval(loadOnlineCount, 30000)
+  // 首次挂载也启动一次；onActivated 在首次挂载后同样会触发，startOnlineTimer 内部先清后建，幂等
+  startOnlineTimer()
+})
+
+// keep-alive 重新激活：重启在线人数轮询（列表/stats 由缓存保留，不重复请求）
+onActivated(() => {
+  startOnlineTimer()
+})
+
+// keep-alive 切走：停掉轮询，避免后台泄漏
+onDeactivated(() => {
+  stopOnlineTimer()
 })
 
 onUnmounted(() => {
-  if (onlineTimer) {
-    clearInterval(onlineTimer)
-    onlineTimer = null
-  }
+  stopOnlineTimer()
 })
 </script>
 

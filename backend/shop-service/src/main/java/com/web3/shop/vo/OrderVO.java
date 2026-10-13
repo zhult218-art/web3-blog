@@ -30,5 +30,7 @@ public class OrderVO {
     private LocalDateTime paidAt;
     /** 支付渠道（alipay/wechat） */
     private String payChannel;
+    /** 第三方交易号（支付宝 trade_no / 微信 transaction_id） */
+    private String tradeNo;
     private LocalDateTime createdAt;
 }

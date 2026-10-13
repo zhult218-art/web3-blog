@@ -11,6 +11,11 @@ import '@/assets/styles/main.css'
 import 'highlight.js/styles/atom-one-dark.css'
 
 const app = createApp(App)
+// 抑制 Vue 开发模式非关键警告（Suspense experimental、异步组件等）
+app.config.warnHandler = (msg) => {
+  if (msg.includes('experimental') || msg.includes('Suspense')) return
+  console.warn(msg)
+}
 app.use(createPinia())
 app.use(router)
 // 全局注册滚动显现指令（模板中使用 v-reveal / v-reveal-left / v-reveal-right / v-reveal-scale）

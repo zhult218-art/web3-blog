@@ -42,6 +42,8 @@
         <div class="divider"></div>
         <button class="mi" @click="act('copy', location.href)">🔗 复制地址</button>
         <button class="mi" @click="act('theme')">🎨 {{ themeLabel }}</button>
+        <div class="divider"></div>
+        <button class="mi" @click="act('hard-refresh')">🔄 清除缓存并刷新</button>
       </div>
     </div>
   </Teleport>
@@ -62,6 +64,7 @@ import { usePlayerStore } from '@/stores/modules/player'
 import { useTheme } from '@/composables/useTheme'
 import { getBlogRandom } from '@/api/blog'
 import { useToastStore } from '@/stores/modules/toast'
+import { hardRefresh } from '@/utils/hardRefresh'
 
 const ui = useUiStore()
 const player = usePlayerStore()
@@ -105,7 +108,7 @@ function estimateHeight() {
   rows += has(ctx.value.img) ? 4 : 0
   rows += selectedText.value ? 4 : 0
   rows += player.hasTrack ? 6 : 0
-  rows += 6 // 全局项: 随便逛逛/分类/标签 + divider + 复制地址/主题
+  rows += 8 // 全局项: 随便逛逛/分类/标签 + divider + 复制地址/主题 + divider + 清除刷新
   return rows * 34 + 12
 }
 
@@ -152,6 +155,10 @@ async function act(name, arg) {
     case 'blog-categories': router.push('/blog/categories'); break
     case 'blog-tags': router.push('/blog/tags'); break
     case 'theme': cycle(); break
+    case 'hard-refresh':
+      toast.info('正在清除缓存…')
+      hardRefresh()
+      break
   }
 }
 

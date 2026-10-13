@@ -55,7 +55,8 @@ function init() {
   const c = canvas.value
   if (!c) return
 
-  clock = new THREE.Clock()
+  // 简易时钟（避免 THREE.Clock 弃用警告）
+  clock = (() => { const s = performance.now(); let l = s; return { getDelta() { const n = performance.now(); const d = (n - l) / 1000; l = n; return d; }, getElapsedTime() { return (performance.now() - s) / 1000; } } })()
   scene = new THREE.Scene()
   camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000)
   // preserveDrawingBuffer: true —— 修复布局级路由切换（如首页→博客）过渡瞬间全屏白闪

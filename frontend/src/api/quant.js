@@ -16,7 +16,25 @@ const vr = (path, config) => {
 
 // quant-service strategies
 // 股票列表/看板首次调用会触发 Java 后端拉取 Python 全市场数据（冷启动可达 30s+），超时放宽到 60s
-export const getQuantList = params => request.get('/strategy/list', { params })
+// 策略列表冷启动也可能慢（Java → quant-service 首次初始化），同样放宽
+// 临时：trae-preview 环境下 axios XHR 对 /api/strategy/list 会异常挂起（原生 fetch 正常），
+// 先用原生 fetch 绕过，待排查 axios 代理层问题后回退
+// 必须带超时且覆盖到响应体读完：fetch 在收到响应头即 resolve，
+// 若提前清掉定时器，body 卡住会让 res.json() 永久挂起并占用连接池槽位
+async function fetchJson(url, timeout = 15000) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeout)
+  try {
+    const res = await fetch(url, { signal: ctrl.signal })
+    return await res.json()
+  } finally {
+    clearTimeout(timer)
+  }
+}
+export const getQuantList = params => {
+  const qs = new URLSearchParams(params).toString()
+  return fetchJson(`/api/strategy/list?${qs}`)
+}
 export const createStrategy = data => request.post('/strategy', data)
 export const updateStrategy = (id, data) => request.put(`/strategy/${id}`, data)
 export const deleteStrategy = id => request.delete(`/strategy/${id}`)
@@ -89,8 +107,8 @@ export const runPyBacktestQuick = data => py('/api/quant/backtest/quick', { meth
 // build_pool 优化后 80 只候选股并行拉 K 线（16 workers + 8s per-stock 超时），总耗时应 < 60s
 export const getPyScreenStrategy = (id, params) => py(`/api/quant/strategies/${id}/screen`, { params, timeout: 120000 })
 export const getPyScreenCustom = data => py('/api/quant/screen/custom', { method: 'post', data, timeout: 120000 })
-// 行情同步告警（NoticePanel 轮询用）
-export const getPyMarketAlerts = () => py('/api/quant/market/alerts')
+// 行情同步告警（NoticePanel 轮询用；trae-preview 爆发期 axios 挂起，改原生 fetch）
+export const getPyMarketAlerts = () => fetchJson(`${PY_BASE}/api/quant/market/alerts`)
 // 服务端默认 LLM 配置状态（不暴露 api_key）
 export const getPyLlmStatus = () => py('/api/quant/ai/llm-status')
 // AI 深度投研完整流水线包含约 15 次 LLM 调用，超时放宽到 10 分钟

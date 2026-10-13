@@ -27,6 +27,15 @@ extends BaseMapper<Order> {
     int markPaid(@Param("id") Long id, @Param("channel") String channel);
 
     /**
+     * 原子支付转换（带第三方交易号）：支付回调验签通过后调用，
+     * 仅当订单处于 PENDING 时置为 PAID，同时回填渠道、支付时间、第三方交易号。
+     * 返回受影响行数（0 = 订单不存在/已支付/已取消，回调视为重复通知直接 ack）。
+     */
+    @Update("UPDATE `order` SET status = 'PAID', pay_channel = #{channel}, trade_no = #{tradeNo}, paid_at = NOW() " +
+            "WHERE id = #{id} AND deleted = 0 AND status = 'PENDING'")
+    int markPaidWithTradeNo(@Param("id") Long id, @Param("channel") String channel, @Param("tradeNo") String tradeNo);
+
+    /**
      * 原子取消转换：仅当订单处于 PENDING 时置为 CANCELLED，
      * 返回受影响行数（0 = 订单不存在或已支付/已取消等不可取消状态）。
      */

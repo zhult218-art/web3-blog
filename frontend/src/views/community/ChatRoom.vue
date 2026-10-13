@@ -291,11 +291,12 @@
       <button v-if="auth.user?.role === 'ADMIN'" class="c-btn primary" :disabled="chatToggling" @click="toggleChat(true)">恢复群聊</button>
     </div>
 
-    <!-- 加载失败 -->
+    <!-- 加载失败（后台自动重试中，成功即自动进入） -->
     <div v-else-if="loadError" class="chat2-state">
       <div class="state-emoji">📡</div>
       <p class="state-title">{{ loadError }}</p>
-      <button class="c-btn primary" @click="init">重新连接</button>
+      <p class="state-sub">正在后台自动重试，恢复后会自动进入…</p>
+      <button class="c-btn primary" @click="init">立即重连</button>
     </div>
 
     <!-- 加载中 -->
@@ -323,6 +324,10 @@ import {
   getNotifications, createNotification, deleteNotification,
   searchMessages,
 } from '@/api/chat'
+
+// 显式命名以供 <keep-alive> 缓存：WS 由全局 chat store 常驻（路由切换不断线），
+// 缓存本页可保留消息/滚动位置，重入即时显示，无 WS 泄漏风险。
+defineOptions({ name: 'CommunityChat' })
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -368,6 +373,11 @@ async function init() {
   loadingHistory.value = false
   scrollBottom()
 }
+
+// store 后台自动重试成功（room 就绪）时，本页若还停在失败态则自动完成进入
+watch(() => chat.room, r => {
+  if (r && loadError.value && auth.isLoggedIn) init()
+})
 
 // ========== 发送文本（权限校验在 store 内统一处理） ==========
 function sendText() {
@@ -559,7 +569,12 @@ function jumpToMessage() { showSearch.value = false; scrollBottom() }
 // ========== 灯箱 ==========
 const lightbox = ref('')
 
-onMounted(() => { init() })
+onMounted(() => {
+  // 全屏聊天页已展示完整内容，收起左侧 Dock 避免重叠；
+  // 返回后 Dock 以窄条态显示，不再以 340px 展开面板常驻
+  if (chat.dockState === 'open') chat.miniDock()
+  init()
+})
 // 新消息到达时自动滚到底部（WebSocket 全局常驻，离开本页也不断线）
 watch(() => messages.value.length, () => scrollBottom())
 </script>
@@ -576,6 +591,7 @@ watch(() => messages.value.length, () => scrollBottom())
 .chat2-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
 .state-emoji { font-size: 3rem; opacity:.5; }
 .state-title { color: rgba(255,255,255,.7); font-size:.95rem; margin:0; }
+.state-sub { color: rgba(255,255,255,.4); font-size:.75rem; margin:-6px 0 0; }
 .spinner { width:40px;height:40px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#22d3ee;animation:spin .9s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 

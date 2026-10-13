@@ -58,6 +58,34 @@
         <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="fetch" />
       </div>
     </div>
+
+    <!-- 立即购买收款码弹窗：创建订单后展示个人收款码 + 联系方式 -->
+    <transition name="fade">
+      <div v-if="payModalVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" @click.self="closePayModal">
+        <div class="glass-panel p-6 max-w-sm w-full relative">
+          <button class="absolute top-3 right-3 text-gray-400 hover:text-white text-xl" @click="closePayModal" aria-label="关闭">×</button>
+          <h3 class="text-lg font-bold text-white mb-1 flex items-center gap-2"><span>💚</span>微信扫码支付</h3>
+          <p class="text-xs text-gray-500 mb-4">订单已创建，请扫码完成付款</p>
+          <div class="flex flex-col items-center gap-3">
+            <div class="bg-white rounded-2xl p-3 shadow-lg">
+              <img src="/images/pay-wechat.jpg" alt="微信收款码" class="w-56 h-56 object-contain rounded-xl" />
+            </div>
+            <div class="text-center space-y-1 w-full">
+              <p class="text-sm text-white">付款金额：<span class="text-lg font-bold text-web3-accent">¥{{ payModalAmount }}</span></p>
+              <p class="text-[11px] text-gray-500 truncate">订单号：{{ payModalOrderNo || '--' }}</p>
+              <div class="mt-2 p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-400/30">
+                <p class="text-xs text-cyan-300 font-semibold mb-0.5">付款完成后添加联系方式</p>
+                <p class="text-sm text-white font-mono select-all">微信：zlt194253038</p>
+              </div>
+            </div>
+            <div class="flex gap-2 w-full mt-1">
+              <button class="web3-btn-sm flex-1 py-2" @click="goPayPage">去收银台</button>
+              <button class="flex-1 py-2 text-xs border border-white/15 text-gray-300 rounded-lg hover:bg-white/5" @click="closePayModal">关闭</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -117,12 +145,34 @@ function addToCart(item) {
   toast.success('已加入购物车')
 }
 
-// 立即购买：直接下单并跳转支付成功页，未登录则提示
+// 立即购买：创建订单后弹出个人收款码弹窗 + 联系方式引导（人工核销模式）
+const payModalVisible = ref(false)
+const payModalAmount = ref('0.00')
+const payModalOrderNo = ref('')
+const payModalOrderId = ref(null)
+
 async function buyNow(item) {
   try {
-    await createOrder({ productId: item.id, quantity: 1 })
-    toast.success('下单成功！')
-  } catch { toast.error('请先登录') }
+    const res = await createOrder({ productId: item.id, quantity: 1 })
+    const d = res?.data || res || {}
+    payModalAmount.value = Number(d.amount || item.price || 0).toFixed(2)
+    payModalOrderNo.value = d.orderNo || d.id || ''
+    payModalOrderId.value = d.id || null
+    payModalVisible.value = true
+    toast.info('订单已创建，请扫码付款后联系商家核销')
+  } catch (e) {
+    /* 全局拦截器已提示 */
+  }
+}
+
+function closePayModal() {
+  payModalVisible.value = false
+}
+
+function goPayPage() {
+  const id = payModalOrderId.value
+  closePayModal()
+  if (id) router.push({ path: '/pay', query: { orderId: id } })
 }
 
 onMounted(fetch)

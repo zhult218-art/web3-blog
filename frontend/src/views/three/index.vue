@@ -200,7 +200,8 @@ function initThree() {
   scene = new THREE.Scene()
   camera = new THREE.PerspectiveCamera(58, canvas.clientWidth / canvas.clientHeight, 0.1, 100)
   camera.position.z = 9
-  clock = new THREE.Clock()
+  // 简易时钟（避免 THREE.Clock 弃用警告）
+  clock = (() => { const s = performance.now(); let l = s; return { getDelta() { const n = performance.now(); const d = (n - l) / 1000; l = n; return d; }, getElapsedTime() { return (performance.now() - s) / 1000; } } })()
 
   const count = isMobile ? 9000 : 30000
   particleCount.value = count

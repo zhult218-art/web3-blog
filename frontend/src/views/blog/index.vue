@@ -85,6 +85,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { getBlogList, getBlogCategories, getBlogStats } from '@/api/blog'
 import ArticleCard from '@/components/blog/ArticleCard.vue'
 
+// keep-alive 按组件名匹配，必须声明 name 才能被 BlogLayout 的 <keep-alive include> 缓存
+defineOptions({ name: 'BlogHome' })
+
 const route = useRoute()
 const router = useRouter()
 

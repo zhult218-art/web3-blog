@@ -92,16 +92,17 @@ function draw() {
     let target
     if (useSim) {
       // 暂停时压低整体幅度，保持轻微呼吸
-      target = fakeLevel(i, n) * (player.isPlaying ? 1 : 0.32)
+      target = fakeLevel(i, n) * (player.isPlaying ? 1.1 : 0.32)
     } else {
       // 对数式频率映射：低频柱密、高频柱疏，听感更均衡
       const ratio = i / n
       const bin = Math.floor(Math.pow(ratio, 1.7) * data.length * 0.72)
       const v = data[bin] / 255
-      target = Math.max(0.03, Math.min(1, Math.pow(v, 1.15) * 1.05))
+      // 提升低值 + 放大倍数，让柱体随分贝起伏更明显（幂<1 抬升低值，×1.6 放大幅度）
+      target = Math.max(0.03, Math.min(1, Math.pow(v, 0.78) * 1.6))
     }
-    // 逐柱插值：升起快、落下稍慢 → 流动感
-    const ease = target > levels[i] ? 0.32 : 0.16
+    // 逐柱插值：升起更快、落下稍慢 → 节奏感更强
+    const ease = target > levels[i] ? 0.5 : 0.18
     levels[i] += (target - levels[i]) * ease
   }
 
@@ -118,7 +119,8 @@ function draw() {
   ctx.shadowBlur = 12
 
   for (let i = 0; i < n; i++) {
-    const h = Math.max(bw * 0.5, levels[i] * (H - 4))
+    // 降低柱体最低高度，让静音/低分贝时柱体更矮，高低反差更大
+    const h = Math.max(bw * 0.18, levels[i] * (H - 4))
     const x = i * (bw + gap)
     const y = baseY - h
     const r = Math.min(bw / 2, 4)

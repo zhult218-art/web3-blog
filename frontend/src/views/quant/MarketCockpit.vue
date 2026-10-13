@@ -40,9 +40,9 @@
         <div class="text-4xl">📡</div>
         <div class="text-sm font-bold">驾驶舱数据服务未启动</div>
         <p class="text-xs text-cyan-500/70 max-w-md leading-relaxed">
-          市场研究驾驶舱依赖独立的 Node 数据代理服务（端口 3030）。请在
-          <code class="px-1.5 py-0.5 rounded bg-cyan-900/40 text-cyan-300 text-[11px]">F:\project\github-myblog\marketingdashboard-main</code>
-          目录执行构建并启动服务后刷新本页。
+          市场研究驾驶舱依赖 py-service（端口 9006）的 cockpit 模块。请确认
+          <code class="px-1.5 py-0.5 rounded bg-cyan-900/40 text-cyan-300 text-[11px]">py-service</code>
+          已启动后刷新本页。
         </p>
         <button @click="recheck" class="text-xs px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-500/30 transition">
           重新探测
@@ -57,10 +57,10 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-// iframe 源：同源代理 /cockpit/ → marketingdashboard 服务（3030）
-// bn=/cockpit 让 react-router 在子路径下路由；apiBase=/cockpit 让 API 走 /cockpit/api/* 经代理回源
+// iframe 源：同源代理 /cockpit/ → py-service cockpit 模块（9006）
+// React 前端已构建为 base='/cockpit/'，API 走 /cockpit/api/* 经 Vite 代理回源
 // _v= 构建版本戳: 强制浏览器每次取最新 index.html(避免旧 bundle 缓存导致 ERR_ABORTED)
-const cockpitSrc = '/cockpit/?bn=/cockpit&apiBase=/cockpit&_v=20260930e'
+const cockpitSrc = '/cockpit/?_v=20261012'
 const iframeRef = ref(null)
 const loaded = ref(false)
 const checking = ref(true)
@@ -83,9 +83,9 @@ async function probe() {
     // 不使用 AbortController: 服务不可达时 fetch 快速失败(连接拒绝),
     // 无需超时; 任何 abort 都会在响应体未消费时触发 ERR_ABORTED 控制台污染。
     // 始终消费响应体(r.json)防止 Chrome 标记未消费 body stream 为 cancelled。
-    const r = await fetch('/cockpit/api/health')
+    const r = await fetch('/cockpit/health')
     const j = await r.json().catch(() => ({}))
-    serviceUp.value = !!(j?.ok || j?.data || r.ok)
+    serviceUp.value = !!(j?.status === 'ok' || r.ok)
   } catch {
     serviceUp.value = false
   }

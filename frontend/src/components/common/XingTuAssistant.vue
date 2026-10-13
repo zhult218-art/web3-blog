@@ -940,7 +940,6 @@ function startWebListening() {
     recognition.start()
     isListening.value = true
     statusText.value = '监听中...'
-    import.meta.env.DEV && console.log('[xingtu] Web Speech recognition started')
   } catch (e) {
     try { recognition.stop() } catch {}
     setTimeout(() => {
@@ -950,7 +949,6 @@ function startWebListening() {
         statusText.value = '监听中...'
       } catch (_) {
         statusText.value = '就绪'
-        console.warn('[xingtu] Web Speech start failed:', _)
       }
     }, 400)
   }
@@ -997,7 +995,7 @@ const isAndroid = /android/i.test(navigator.userAgent || '')
 function initRecognition() {
   if (recognition) return true
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!SR) { console.warn('[xingtu] SpeechRecognition not supported'); return false }
+  if (!SR) { return false }
   recognition = new SR()
   // 安卓上 continuous=true 反而更易掉线，桌面端用 continuous 保持长会话
   recognition.continuous = !isAndroid
@@ -1023,7 +1021,6 @@ function initRecognition() {
   }
   recognition.onerror = (e) => {
     if (disposed) return
-    console.warn('[xingtu] recognition error:', e.error)
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       statusText.value = '麦克风权限被拒绝'
       isListening.value = false
@@ -1181,18 +1178,16 @@ onMounted(() => {
   // 检测 Web Speech 是否可用
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SR) {
-    console.warn('[xingtu] Web Speech API not supported in this browser')
-  } else {
-    import.meta.env.DEV && console.log('[xingtu] Web Speech API available')
+    // Web Speech API 不可用，静默降级到 Vosk
   }
 
-  // 预加载 Vosk 模型（不自动启动监听，等用户点击球或按钮）
-  statusText.value = '加载中...'
-  setTimeout(() => {
-    loadVoskModel()
-      .then(() => { voskOk = true; statusText.value = '就绪'; import.meta.env.DEV && console.log('[xingtu] vosk ready') })
-      .catch(() => { voskOk = false; statusText.value = '就绪'; import.meta.env.DEV && console.log('[xingtu] vosk unavailable, will use Web Speech') })
-  }, 1000)
+  // Vosk 模型预加载已禁用，直接进入就绪态
+  statusText.value = '就绪'
+  // Vosk 模型预加载已禁用：WASM FS error 导致模型总是加载失败（30s 超时）
+  // 直接使用 Web Speech API 作为语音识别后端，避免控制台刷屏和无意义等待
+  // 如需启用 Vosk，取消下行注释并确保浏览器支持 WASM FS sync
+  // setTimeout(() => { loadVoskModel().then(() => { voskOk = true }).catch(() => { voskOk = false }) }, 1000)
+  voskOk = false
 
   window.addEventListener('pointerup', onOrbPointerUp)
 

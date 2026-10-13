@@ -156,7 +156,7 @@ public class UserController {
             return;
         }
         String token = result.getData().getToken();
-        ResponseCookie cookie = this.buildAuthCookie(token, jwtProperties.getExpire());
+        ResponseCookie cookie = this.buildAuthCookie(token, jwtProperties.getRefresh());
         response.addHeader("Set-Cookie", cookie.toString());
     }
 
@@ -612,7 +612,7 @@ public class UserController {
             Map<String, String> googleUser = googleOAuthService.fetchUserInfo(accessToken);
             JwtVO jwt = userService.googleLogin(googleUser).getData();
             // token 走 HttpOnly Cookie，不暴露在 URL
-            response.addHeader("Set-Cookie", this.buildAuthCookie(jwt.getToken(), jwtProperties.getExpire()).toString());
+            response.addHeader("Set-Cookie", this.buildAuthCookie(jwt.getToken(), jwtProperties.getRefresh()).toString());
             String redirectUrl = authProperties.getFrontendUrl() + "/login?oauth=success&state=" + safeState(state);
             return new ModelAndView("redirect:" + redirectUrl);
         } catch (Exception e) {
