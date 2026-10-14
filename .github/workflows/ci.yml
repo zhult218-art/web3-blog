@@ -128,7 +128,22 @@ jobs:
           case "$status" in 200|503) ;; *) echo "Unexpected Nginx -> py-service status: $status"; exit 1 ;; esac
           python -c 'import json; data=json.load(open("/tmp/py-health.json")); names={m["name"] for m in data.get("modules", [])}; assert {"quant", "cockpit"}.issubset(names), (names, data.get("unhealthy_modules")); print("Nginx -> py-service route and critical module discovery: OK")'
       - name: Verify Python aggregate module health
-        run: docker compose exec -T py-service python -c 'import json,urllib.request; data=json.load(urllib.request.urlopen("http://127.0.0.1:9006/health", timeout=10)); print(json.dumps(data)); assert data.get("ok") is True and not data.get("unhealthy_modules")'
+        run: |
+          docker compose exec -T py-service python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+
+          try:
+              with urllib.request.urlopen("http://127.0.0.1:9006/health", timeout=10) as response:
+                  payload = json.load(response)
+          except urllib.error.HTTPError as error:
+              payload = json.loads(error.read())
+              print(json.dumps(payload, ensure_ascii=False))
+              raise SystemExit(f"Python aggregate health returned HTTP {error.code}")
+          print(json.dumps(payload, ensure_ascii=False))
+          assert payload.get("ok") is True and not payload.get("unhealthy_modules"), payload
+          PY
       - name: Verify Nginx to Gateway to User Service
         shell: bash
         run: |
