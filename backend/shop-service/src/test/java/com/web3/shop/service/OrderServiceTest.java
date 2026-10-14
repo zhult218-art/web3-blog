@@ -51,7 +51,7 @@ class OrderServiceTest {
         order.setProductId(2001L);
         order.setQuantity(3);
         when(orderMapper.selectById(1001L)).thenReturn(order);
-        when(orderMapper.updateStatus(eq(1001L), eq("CANCELLED"))).thenReturn(1);
+        when(orderMapper.updateById(any(Order.class))).thenReturn(1);
 
         orderService.updateStatus(1001L, "CANCELLED");
 
