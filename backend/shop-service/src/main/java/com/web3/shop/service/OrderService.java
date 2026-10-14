@@ -182,6 +182,7 @@ public class OrderService {
      * @return 订单视图对象的分页结果
      */
     public PageResult<OrderVO> pageByUser(Long userId, int page, int size) {
+        validatePage(page, size);
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<Order>();
         wrapper.eq(Order::getUserId, (Object)userId);
         wrapper.orderByDesc(Order::getCreatedAt);
@@ -199,6 +200,7 @@ public class OrderService {
      * @return 订单视图对象的分页结果
      */
     public PageResult<OrderVO> pageAll(int page, int size, String status) {
+        validatePage(page, size);
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<Order>();
         if (status != null && !status.isBlank()) {
             wrapper.eq(Order::getStatus, (Object)status);
@@ -207,6 +209,12 @@ public class OrderService {
         Page<Order> mpPage = new Page<Order>((long)page, (long)size);
         Page<Order> result = this.orderMapper.selectPage(mpPage, wrapper);
         return PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), result.getRecords().stream().map(this::toVO).collect(Collectors.toList()));
+    }
+
+    private void validatePage(int page, int size) {
+        if (page < 1 || size < 1 || size > 100) {
+            throw new BusinessException(400, "分页参数无效：page 必须大于 0，size 必须在 1 到 100 之间");
+        }
     }
 
     /**
