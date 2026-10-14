@@ -81,6 +81,8 @@ services:
       # Nacos 2.3.2 processor metrics can fail initialization in constrained containers.
       MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "false"
       MANAGEMENT_METRICS_BINDERS_PROCESSOR_ENABLED: "false"
+      NACOS_PROMETHEUS_METRICS_ENABLED: "false"
+      SPRING_APPLICATION_JSON: '{"management":{"metrics":{"binders":{"processor":{"enabled":false}},"export":{"prometheus":{"enabled":false}}}}'
     ports:
       - '127.0.0.1:8848:8848'
       - '127.0.0.1:9848:9848'
