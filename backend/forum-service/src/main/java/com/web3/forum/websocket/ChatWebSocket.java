@@ -192,9 +192,14 @@ public class ChatWebSocket {
             String content = node.has("content") ? node.get("content").asText() : "";
             if (content == null || content.isBlank()) return;
             if (content.length() > 2000) content = content.substring(0, 2000);
+            // 引用回复：可选字段 quoteId
+            Long quoteId = null;
+            if (node.has("quoteId") && !node.get("quoteId").isNull()) {
+                try { quoteId = node.get("quoteId").asLong(); } catch (Exception ignored) {}
+            }
 
             ChatService chatService = applicationContext.getBean(ChatService.class);
-            ChatMessage msg = chatService.saveMessage(roomId, userId, username, nickname, avatar, type, content);
+            ChatMessage msg = chatService.saveMessage(roomId, userId, username, nickname, avatar, type, content, quoteId);
 
             // 广播给房间内所有连接
             broadcast(roomId, MAPPER.writeValueAsString(msg));

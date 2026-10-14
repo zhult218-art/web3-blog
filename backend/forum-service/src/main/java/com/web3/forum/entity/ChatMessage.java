@@ -27,5 +27,9 @@ public class ChatMessage {
     private String msgType;
     /** 消息内容 */
     private String content;
+    /** 引用的目标消息ID（可空，用于引用回复） */
+    private Long quoteId;
+    /** 引用消息预览（冗余，避免前端再查一次） */
+    private String quotePreview;
     private LocalDateTime createdAt;
 }

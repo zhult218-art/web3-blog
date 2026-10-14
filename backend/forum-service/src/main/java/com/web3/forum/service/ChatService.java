@@ -35,9 +35,11 @@ public class ChatService {
 
     // ========== 房间 ==========
 
-    /** 列出所有群 */
+    /** 列出所有群（仅 type=group，私聊房间不在此列表） */
     public List<ChatRoom> listRooms() {
-        return roomMapper.selectList(new LambdaQueryWrapper<ChatRoom>().orderByDesc(ChatRoom::getCreatedAt));
+        return roomMapper.selectList(new LambdaQueryWrapper<ChatRoom>()
+                .and(w -> w.isNull(ChatRoom::getType).or().eq(ChatRoom::getType, "group").or().eq(ChatRoom::getType, ""))
+                .orderByDesc(ChatRoom::getCreatedAt));
     }
 
     /** 获取群详情 */
@@ -184,12 +186,12 @@ public class ChatService {
     /** 保存消息并返回 */
     public ChatMessage saveMessage(Long roomId, Long userId, String username, String nickname,
                                    String msgType, String content) {
-        return saveMessage(roomId, userId, username, nickname, null, msgType, content);
+        return saveMessage(roomId, userId, username, nickname, null, msgType, content, null);
     }
 
-    /** 保存消息并返回（带发送者头像冗余） */
+    /** 保存消息并返回（带发送者头像冗余 + 引用回复） */
     public ChatMessage saveMessage(Long roomId, Long userId, String username, String nickname, String avatar,
-                                   String msgType, String content) {
+                                   String msgType, String content, Long quoteId) {
         ChatMessage msg = new ChatMessage();
         msg.setRoomId(roomId);
         msg.setUserId(userId);
@@ -198,6 +200,18 @@ public class ChatService {
         msg.setAvatar(avatar);
         msg.setMsgType(msgType);
         msg.setContent(content);
+        msg.setQuoteId(quoteId);
+        if (quoteId != null && quoteId > 0) {
+            // 拉取被引用消息做预览（不查就忽略）
+            try {
+                ChatMessage quoted = messageMapper.selectById(quoteId);
+                if (quoted != null) {
+                    String preview = quoted.getContent();
+                    if (preview != null && preview.length() > 60) preview = preview.substring(0, 60) + "…";
+                    msg.setQuotePreview((quoted.getNickname() != null ? quoted.getNickname() : "匿名") + "：" + preview);
+                }
+            } catch (Exception ignored) {}
+        }
         msg.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(msg);
         return msg;
@@ -224,8 +238,13 @@ public class ChatService {
     /** 从 user-service 拉取全量用户目录（内部接口，X-Internal-Key 鉴权） */
     @SuppressWarnings("unchecked")
     public Map<Long, Map<String, Object>> userDirectory() {
+        return userDirectory(false);
+    }
+
+    /** force=true 时绕过 60s 缓存强制重新拉取（用户头像/资料变更后立即生效） */
+    public Map<Long, Map<String, Object>> userDirectory(boolean force) {
         long now = System.currentTimeMillis();
-        if (userDirectoryCache != null && now - userDirectoryCacheAt < USER_DIRECTORY_TTL_MS) {
+        if (!force && userDirectoryCache != null && now - userDirectoryCacheAt < USER_DIRECTORY_TTL_MS) {
             return userDirectoryCache;
         }
         Map<Long, Map<String, Object>> dir = new java.util.HashMap<>();
@@ -265,6 +284,15 @@ public class ChatService {
         return userDirectory().get(userId);
     }
 
+    /** 兜底：从任意 chat_room_member 记录取用户冗余资料（INTERNAL_API_KEY 未配、目录为空时使用） */
+    public ChatRoomMember findAnyMemberByUserId(Long userId) {
+        List<ChatRoomMember> list = memberMapper.selectList(new LambdaQueryWrapper<ChatRoomMember>()
+                .eq(ChatRoomMember::getUserId, userId)
+                .orderByDesc(ChatRoomMember::getUpdatedAt)
+                .last("LIMIT 1"));
+        return list.isEmpty() ? null : list.get(0);
+    }
+
     /** 成员视图：所有注册用户 + 群内角色/状态 + 在线标记 */
     @Data
     public static class MemberVO {
@@ -283,6 +311,12 @@ public class ChatService {
      * 对尚未落库的用户懒创建成员记录；头像/昵称以用户表最新值为准回写冗余。
      */
     public List<MemberVO> listAllMembersWithStatus(Long roomId, java.util.Set<Long> onlineIds) {
+        return listAllMembersWithStatus(roomId, onlineIds, false);
+    }
+
+    /** 同上，force=true 强制刷新用户目录缓存（头像更新后立即生效） */
+    public List<MemberVO> listAllMembersWithStatus(Long roomId, java.util.Set<Long> onlineIds, boolean force) {
+        Map<Long, Map<String, Object>> dir = userDirectory(force);
         Map<Long, ChatRoomMember> members = new java.util.HashMap<>();
         for (ChatRoomMember m : memberMapper.selectList(new LambdaQueryWrapper<ChatRoomMember>()
                 .eq(ChatRoomMember::getRoomId, roomId))) {
@@ -382,5 +416,46 @@ public class ChatService {
             vo.setMyStatus("approved");
             return vo;
         }).collect(Collectors.toList());
+    }
+
+    // ========== 私聊房间 ==========
+
+    /**
+     * 获取或创建 A 与 B 之间的私聊房间。
+     * - 复用 chat_room 表，type='private'
+     * - 成员记录写入 chat_room_member（status=approved）
+     * - 历史已存在则直接返回（按两名成员共同所在 private 房间匹配）
+     */
+    public ChatRoom getOrCreatePrivateRoom(Long userAId, String userAName, String userANick, String userAAvatar,
+                                           Long userBId, String userBName, String userBNick, String userBAvatar) {
+        // 1) 查两人共同所在的 private 房间
+        List<ChatRoomMember> aMembers = memberMapper.selectList(new LambdaQueryWrapper<ChatRoomMember>()
+                .eq(ChatRoomMember::getUserId, userAId));
+        for (ChatRoomMember am : aMembers) {
+            ChatRoom r = roomMapper.selectById(am.getRoomId());
+            if (r == null || !"private".equals(r.getType())) continue;
+            ChatRoomMember bMem = memberMapper.selectOne(new LambdaQueryWrapper<ChatRoomMember>()
+                    .eq(ChatRoomMember::getRoomId, r.getId())
+                    .eq(ChatRoomMember::getUserId, userBId));
+            if (bMem != null) {
+                // 同步最新资料
+                ensureMembership(r.getId(), userAId, userAName, userANick, userAAvatar);
+                ensureMembership(r.getId(), userBId, userBName, userBNick, userBAvatar);
+                return r;
+            }
+        }
+        // 2) 创建新私聊房间
+        ChatRoom room = new ChatRoom();
+        room.setName("private-" + Math.min(userAId, userBId) + "-" + Math.max(userAId, userBId));
+        room.setDescription("私聊");
+        room.setOwnerId(userAId);
+        room.setRequireApproval(0);
+        room.setType("private");
+        room.setCreatedAt(LocalDateTime.now());
+        room.setUpdatedAt(LocalDateTime.now());
+        roomMapper.insert(room);
+        ensureMembership(room.getId(), userAId, userAName, userANick, userAAvatar);
+        ensureMembership(room.getId(), userBId, userBName, userBNick, userBAvatar);
+        return room;
     }
 }

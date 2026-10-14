@@ -92,11 +92,14 @@ public class ChatController {
         return ApiResponse.ok(chatService.getMemberStatus(roomId, uid));
     }
 
-    /** 群成员列表：全部注册用户（固定公开群），带在线标记与头像 */
+    /** 群成员列表：全部注册用户（固定公开群），带在线标记与头像
+     *  ?refresh=1 时强制刷新用户目录缓存（用户在个人中心改完头像后调用，立即生效） */
     @GetMapping("/rooms/{roomId}/members")
-    public ApiResponse<List<ChatService.MemberVO>> members(@PathVariable Long roomId) {
+    public ApiResponse<List<ChatService.MemberVO>> members(@PathVariable Long roomId,
+                                                            @RequestParam(value = "refresh", required = false) String refresh) {
+        boolean force = "1".equals(refresh) || "true".equalsIgnoreCase(refresh);
         return ApiResponse.ok(chatService.listAllMembersWithStatus(
-                roomId, com.web3.forum.websocket.ChatWebSocket.getOnlineUserIds(roomId)));
+                roomId, com.web3.forum.websocket.ChatWebSocket.getOnlineUserIds(roomId), force));
     }
 
     /** 历史消息 */
@@ -149,6 +152,54 @@ public class ChatController {
                 || "1".equals(String.valueOf(body.get("enabled")));
         chatSwitchService.setEnabled(value);
         return ApiResponse.ok(Map.of("enabled", chatSwitchService.isEnabled()));
+    }
+
+    // ========== 私聊 ==========
+
+    /**
+     * 获取或创建与指定用户的私聊房间。
+     * 返回 { id: roomId, name: 对方昵称, peer: {userId, username, nickname, avatar} }
+     */
+    @PostMapping("/private/{targetUserId}")
+    public ApiResponse<java.util.Map<String, Object>> createPrivateChat(@PathVariable Long targetUserId,
+                                                                         @RequestHeader("Authorization") String auth) {
+        Long uid = requireUserId(auth);
+        if (targetUserId.equals(uid)) return ApiResponse.fail(400, "不能和自己私聊");
+        String token = AuthUtils.resolveToken(auth, jwtProperties);
+        Claims claims = jwtUtil.parseClaims(token);
+        String myName = claims.get("username", String.class);
+        String myNick = claims.get("nickname", String.class);
+        if (myNick == null) myNick = myName;
+        // 拉取对方资料：优先 user-service 目录（INTERNAL_API_KEY 配置时可用），
+        // 否则从 chat_room_member 表兜底查（每个曾连过群聊的用户都有冗余记录）
+        java.util.Map<String, Object> peer = chatService.directoryUser(targetUserId);
+        String peerName = myName, peerNick = myNick, peerAvatar = null;
+        if (peer != null) {
+            peerName = (String) peer.getOrDefault("username", myName);
+            peerNick = (String) peer.getOrDefault("nickname", peerName);
+            peerAvatar = (String) peer.get("avatar");
+        } else {
+            // 兜底：从任意群成员记录里取对方最新冗余资料
+            com.web3.forum.entity.ChatRoomMember peerMember = chatService.findAnyMemberByUserId(targetUserId);
+            if (peerMember != null) {
+                peerName = peerMember.getUsername() != null ? peerMember.getUsername() : peerName;
+                peerNick = peerMember.getNickname() != null ? peerMember.getNickname() : peerName;
+                peerAvatar = peerMember.getAvatar();
+            }
+        }
+        com.web3.forum.entity.ChatRoom room = chatService.getOrCreatePrivateRoom(
+                uid, myName, myNick, null,
+                targetUserId, peerName, peerNick, peerAvatar);
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("id", room.getId());
+        result.put("name", peerNick != null ? peerNick : peerName);
+        java.util.Map<String, Object> peerInfo = new java.util.HashMap<>();
+        peerInfo.put("userId", targetUserId);
+        peerInfo.put("username", peerName);
+        peerInfo.put("nickname", peerNick);
+        peerInfo.put("avatar", peerAvatar);
+        result.put("peer", peerInfo);
+        return ApiResponse.ok(result);
     }
 
     // ========== 服务间内部接口（注册后自动入群） ==========

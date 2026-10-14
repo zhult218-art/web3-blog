@@ -35,10 +35,12 @@ import { ref, watch, nextTick } from 'vue'
 import { updateAvatar } from '@/api/user'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useToastStore } from '@/stores/modules/toast'
+import { useChatStore } from '@/stores/modules/chat'
 import { animate } from 'animejs'
 
 const auth = useAuthStore()
 const toast = useToastStore()
+const chat = useChatStore()
 
 const props = defineProps({
   // 控制弹窗显示（v-model:open）
@@ -70,6 +72,8 @@ async function save() {
   try {
     const res = await updateAvatar(url.value)
     auth.updateUser(res.data || res)
+    // 头像联动：强制刷新群聊成员目录缓存，使历史消息与新消息都立即显示新头像
+    chat.syncAvatar?.()
     emit('update:open', false)
     toast.success('头像更换成功')
     emit('saved')

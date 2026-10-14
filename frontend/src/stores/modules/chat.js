@@ -145,10 +145,10 @@ export const useChatStore = defineStore('chat', () => {
     return enabled
   }
 
-  async function loadMembers() {
+  async function loadMembers(force = false) {
     if (!room.value) return
     try {
-      const res = await getChatMembers(room.value.id)
+      const res = await getChatMembers(room.value.id, force)
       members.value = res?.data ?? res ?? []
     } catch {}
   }
@@ -251,14 +251,16 @@ export const useChatStore = defineStore('chat', () => {
     return true
   }
 
-  function send(type, content) {
+  function send(type, content, quoteId = null) {
     if (!ws || ws.readyState !== WebSocket.OPEN || !content) return false
     if (!ensureChatPerm()) return false
-    ws.send(JSON.stringify({ type, content }))
+    const payload = { type, content }
+    if (quoteId) payload.quoteId = quoteId
+    ws.send(JSON.stringify(payload))
     return true
   }
 
-  const sendText = (text) => send('text', String(text || '').trim())
+  const sendText = (text, quoteId = null) => send('text', String(text || '').trim(), quoteId)
   const sendEmoji = (emoji) => send('emoji', emoji)
 
   /** 上传聊天图片并发送图片消息，返回图片 URL（失败返回 null） */
@@ -274,11 +276,21 @@ export const useChatStore = defineStore('chat', () => {
 
   // ---------- 消息展示辅助 ----------
   function nameOf(msg) { return msg.nickname || msg.username || '匿名' }
-  /** 消息头像：消息冗余优先 → 成员目录 → null（组件层兜底首字母） */
+  /** 消息头像：优先成员目录（最新头像，资料变更后立即生效）→ 消息冗余 → null
+   *  原实现先取 msg.avatar（发送时冗余），导致用户在个人中心换头像后历史消息仍是旧头像。
+   *  改为优先成员目录，目录由 listAllMembersWithStatus 60s TTL 拉自 user-service，
+   *  且 syncAvatar() 在头像更新后立即触发 loadMembers() 强制刷新目录缓存。 */
   function avatarOf(msg) {
-    if (msg.avatar) return msg.avatar
-    const mem = memberMap.value.get(typeof msg.userId === 'string' ? Number(msg.userId) : msg.userId)
-    return mem?.avatar || null
+    const uid = typeof msg.userId === 'string' ? Number(msg.userId) : msg.userId
+    const mem = memberMap.value.get(uid)
+    if (mem?.avatar) return mem.avatar
+    return msg.avatar || null
+  }
+
+  /** 头像/资料变更后调用：强制刷新群成员目录（绕过 60s 缓存）使新头像立即生效 */
+  async function syncAvatar() {
+    if (!room.value) return
+    try { await loadMembers(true) } catch {}
   }
 
   /** 登出时彻底断开并复位 */
@@ -299,7 +311,7 @@ export const useChatStore = defineStore('chat', () => {
     dockState, room, members, messages, wsConnected, loading, loadError, unread, roomEmoji, chatClosed,
     myUserId, onlineCount, canChat,
     setDock, openDock, miniDock, closeDock,
-    init, loadMembers, loadHistory, connect, disconnect, reset, syncVerified, adminToggleChat,
+    init, loadMembers, loadHistory, connect, disconnect, reset, syncVerified, syncAvatar, adminToggleChat,
     sendText, sendEmoji, sendImage,
     nameOf, avatarOf,
   }

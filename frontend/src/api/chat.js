@@ -59,8 +59,9 @@ export const joinChatRoom = roomId => chatFetch(`/chat/rooms/${roomId}/join`, { 
 export const leaveChatRoom = roomId => chatFetch(`/chat/rooms/${roomId}/leave`, { method: 'POST' })
 // 自己在某群的状态
 export const getMyChatStatus = roomId => chatFetch(`/chat/rooms/${roomId}/my-status`)
-// 群成员
-export const getChatMembers = roomId => chatFetch(`/chat/rooms/${roomId}/members`)
+// 群成员（force=true 时带 ?refresh=1 强制刷新用户目录缓存，用于头像更新后立即生效）
+export const getChatMembers = (roomId, force = false) =>
+  chatFetch(`/chat/rooms/${roomId}/members${force ? '?refresh=1' : ''}`)
 // 历史消息
 export const getChatMessages = (roomId, limit = 100) => chatFetch(`/chat/rooms/${roomId}/messages?limit=${limit}`)
 
@@ -106,3 +107,8 @@ export const deleteNotification = id => chatFetch(`/chat/notifications/${id}`, {
 // ========== 聊天记录搜索 ==========
 export const searchMessages = (roomId, keyword) =>
   chatFetch(`/chat/rooms/${roomId}/search?keyword=${encodeURIComponent(keyword)}`)
+
+// ========== 私聊 ==========
+// 获取或创建与 targetUserId 的私聊房间：返回 { id, name, peer:{userId,username,nickname,avatar} }
+export const createPrivateChat = targetUserId =>
+  chatFetch(`/chat/private/${targetUserId}`, { method: 'POST', timeout: 8000 })

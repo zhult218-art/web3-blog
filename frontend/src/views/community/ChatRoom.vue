@@ -68,35 +68,39 @@
               <div v-if="msg.msgType === 'system'" class="sys-line">{{ msg.content }}</div>
               <!-- 图片消息 -->
               <div v-else-if="msg.msgType === 'image'" :class="['bubble-row', { mine: msg.userId === myUserId }]">
-                <div class="bubble-avatar">
+                <div class="bubble-avatar" @click="onAvatarClick(msg)">
                   <img v-if="avatarOf(msg)" :src="avatarOf(msg)" referrerpolicy="no-referrer" loading="lazy" />
                   <template v-else>{{ avatarChar(msg) }}</template>
                 </div>
                 <div class="bubble-col">
                   <div class="bubble-meta"><span>{{ nameOf(msg) }}</span><time>{{ fmtTime(msg.createdAt) }}</time></div>
                   <img class="bubble-img" :src="msg.content" loading="lazy" @click="lightbox = msg.content" referrerpolicy="no-referrer" />
+                  <button class="bubble-action" @click="startQuote(msg)" title="引用">引用</button>
                 </div>
               </div>
               <!-- 大表情 -->
               <div v-else-if="msg.msgType === 'emoji'" :class="['bubble-row', { mine: msg.userId === myUserId }]">
-                <div class="bubble-avatar">
+                <div class="bubble-avatar" @click="onAvatarClick(msg)">
                   <img v-if="avatarOf(msg)" :src="avatarOf(msg)" referrerpolicy="no-referrer" loading="lazy" />
                   <template v-else>{{ avatarChar(msg) }}</template>
                 </div>
                 <div class="bubble-col">
                   <div class="bubble-meta"><span>{{ nameOf(msg) }}</span><time>{{ fmtTime(msg.createdAt) }}</time></div>
                   <div class="bubble-emoji">{{ msg.content }}</div>
+                  <button class="bubble-action" @click="startQuote(msg)" title="引用">引用</button>
                 </div>
               </div>
               <!-- 文本 -->
               <div v-else :class="['bubble-row', { mine: msg.userId === myUserId }]">
-                <div class="bubble-avatar">
+                <div class="bubble-avatar" @click="onAvatarClick(msg)">
                   <img v-if="avatarOf(msg)" :src="avatarOf(msg)" referrerpolicy="no-referrer" loading="lazy" />
                   <template v-else>{{ avatarChar(msg) }}</template>
                 </div>
                 <div class="bubble-col">
                   <div class="bubble-meta"><span>{{ nameOf(msg) }}</span><time>{{ fmtTime(msg.createdAt) }}</time></div>
+                  <div v-if="msg.quotePreview" class="quote-block" @click="jumpToQuote(msg.quoteId)">{{ msg.quotePreview }}</div>
                   <div class="bubble-text">{{ msg.content }}</div>
+                  <button class="bubble-action" @click="startQuote(msg)" title="引用">引用</button>
                 </div>
               </div>
             </div>
@@ -221,11 +225,11 @@
               <div v-if="!notifications.length" class="muted">暂无通知</div>
             </div>
 
-            <!-- 群成员：全部注册用户，在线置顶 -->
+            <!-- 群成员：全部注册用户，在线置顶（点击头像可发起私聊） -->
             <div v-if="drawerTab==='members'" class="tab-panel">
               <div class="member-count-line">共 {{ members.length }} 人 · {{ chat.onlineCount }} 人在线</div>
               <div v-for="m in members" :key="m.userId" class="member-row" :class="{ off: !m.online }">
-                <div class="member-avatar">
+                <div class="member-avatar" @click="onMemberClick(m)" title="点击头像私聊">
                   <img v-if="m.avatar" :src="m.avatar" referrerpolicy="no-referrer" loading="lazy" />
                   <template v-else>{{ (m.nickname || m.username || '?').charAt(0).toUpperCase() }}</template>
                   <b :class="['mem-dot', m.online ? 'on' : 'off']"></b>
@@ -235,6 +239,7 @@
                   <span class="member-u">@{{ m.username }}</span>
                 </div>
                 <span v-if="m.role === 'admin' || m.role === 'owner'" class="owner-tag">{{ m.role === 'owner' ? '群主' : '管理' }}</span>
+                <button v-if="m.userId !== myUserId" class="mem-dm-btn" @click="onMemberClick(m)" title="私聊">私信</button>
                 <span :class="['mem-state', { on: m.online }]">{{ m.online ? '在线' : '离线' }}</span>
               </div>
             </div>
@@ -244,27 +249,37 @@
 
       <!-- ============ 输入区 ============ -->
       <footer v-if="chat.canChat" class="chat2-input">
-        <div class="input-buttons">
-          <div class="emoji-wrap">
-            <button class="icon-btn round" @click="showEmoji = !showEmoji" title="表情">😊</button>
-            <transition name="pop">
-              <div v-if="showEmoji" class="emoji-panel">
-                <div class="emoji-tabs">
-                  <button v-for="(g,i) in emojiGroups" :key="g.name"
-                    :class="{on: emojiGroupIdx===i}" @click="emojiGroupIdx=i">{{ g.name }}</button>
-                </div>
-                <div class="emoji-grid">
-                  <button v-for="e in emojiGroups[emojiGroupIdx].emojis" :key="e"
-                    class="emoji-cell" @click="pickEmoji(e)">{{ e }}</button>
-                </div>
-              </div>
-            </transition>
+        <!-- 引用预览条 -->
+        <div v-if="quoteMsg" class="quote-preview">
+          <div class="qp-text">
+            <span class="qp-label">回复 {{ quoteMsg.nickname || quoteMsg.username || '匿名' }}：</span>
+            <span class="qp-content">{{ quotePreviewText }}</span>
           </div>
-          <button class="icon-btn round" @click="triggerChatUpload" title="发送图片">🖼</button>
+          <button class="qp-close" @click="clearQuote" title="取消引用">✕</button>
         </div>
-        <textarea ref="inputRef" v-model="inputText" @keydown.enter.exact.prevent="sendText"
-          placeholder="在极光广场说点什么… Enter 发送，Shift+Enter 换行" rows="1"></textarea>
-        <button class="c-btn primary send" @click="sendText" :disabled="!inputText.trim()">发送</button>
+        <div class="input-row">
+          <div class="input-buttons">
+            <div class="emoji-wrap">
+              <button class="icon-btn round" @click="showEmoji = !showEmoji" title="表情">😊</button>
+              <transition name="pop">
+                <div v-if="showEmoji" class="emoji-panel">
+                  <div class="emoji-tabs">
+                    <button v-for="(g,i) in emojiGroups" :key="g.name"
+                      :class="{on: emojiGroupIdx===i}" @click="emojiGroupIdx=i">{{ g.name }}</button>
+                  </div>
+                  <div class="emoji-grid">
+                    <button v-for="e in emojiGroups[emojiGroupIdx].emojis" :key="e"
+                      class="emoji-cell" @click="pickEmoji(e)">{{ e }}</button>
+                  </div>
+                </div>
+              </transition>
+            </div>
+            <button class="icon-btn round" @click="triggerChatUpload" title="发送图片">🖼</button>
+          </div>
+          <textarea ref="inputRef" v-model="inputText" @keydown.enter.exact.prevent="sendText"
+            :placeholder="quoteMsg ? `引用回复 ${quoteMsg.nickname || quoteMsg.username || '匿名'}…` : '在极光广场说点什么… Enter 发送，Shift+Enter 换行'" rows="1"></textarea>
+          <button class="c-btn primary send" @click="sendText" :disabled="!inputText.trim()">发送</button>
+        </div>
       </footer>
       <!-- 未实名认证：只读提示条 -->
       <footer v-else class="chat2-readonly-bar">
@@ -282,6 +297,9 @@
       <!-- 隐藏文件选择 -->
       <input ref="chatFileRef" type="file" accept="image/*" class="hidden-file" @change="onChatFile" />
       <input ref="albumFileRef" type="file" accept="image/*" multiple class="hidden-file" @change="onAlbumFiles" />
+
+      <!-- 私聊弹窗 -->
+      <PrivateChatModal v-model:open="privateChatOpen" :target="privateChatTarget" />
     </template>
 
     <!-- 管理员关闭群聊 -->
@@ -324,6 +342,7 @@ import {
   getNotifications, createNotification, deleteNotification,
   searchMessages,
 } from '@/api/chat'
+import PrivateChatModal from '@/components/chat/PrivateChatModal.vue'
 
 // 显式命名以供 <keep-alive> 缓存：WS 由全局 chat store 常驻（路由切换不断线），
 // 缓存本页可保留消息/滚动位置，重入即时显示，无 WS 泄漏风险。
@@ -380,10 +399,56 @@ watch(() => chat.room, r => {
 })
 
 // ========== 发送文本（权限校验在 store 内统一处理） ==========
+// 引用回复：点击「引用」按钮时记录被引用消息，发送时带 quoteId 一并提交
+const quoteMsg = ref(null)
+const quotePreviewText = computed(() => {
+  if (!quoteMsg.value) return ''
+  const c = quoteMsg.value.content || ''
+  return c.length > 50 ? c.slice(0, 50) + '…' : c
+})
+function startQuote(msg) {
+  quoteMsg.value = msg
+  nextTick(() => inputRef.value?.focus())
+}
+function clearQuote() { quoteMsg.value = null }
+function jumpToQuote() {
+  // 当前实现直接滚到底；后续可扩展为定位到 quoteId 消息
+  scrollBottom()
+}
+
 function sendText() {
   const text = inputText.value.trim()
   if (!text) return
-  if (chat.sendText(text)) inputText.value = ''
+  const qid = quoteMsg.value?.id || null
+  if (chat.sendText(text, qid)) {
+    inputText.value = ''
+    clearQuote()
+  }
+}
+
+// ========== 点击头像私聊：群内消息/成员头像点击 → 打开私聊弹窗 ==========
+const privateChatOpen = ref(false)
+const privateChatTarget = ref(null)  // { userId, username, nickname, avatar }
+function onAvatarClick(msg) {
+  if (!msg || msg.userId === myUserId.value) return
+  privateChatTarget.value = {
+    userId: msg.userId,
+    username: msg.username,
+    nickname: msg.nickname,
+    avatar: avatarOf(msg),
+  }
+  privateChatOpen.value = true
+}
+// 群成员列表点击：复用 onAvatarClick 入口
+function onMemberClick(m) {
+  if (!m || m.userId === myUserId.value) return
+  privateChatTarget.value = {
+    userId: m.userId,
+    username: m.username,
+    nickname: m.nickname,
+    avatar: m.avatar,
+  }
+  privateChatOpen.value = true
 }
 
 // ========== 管理员聊天开关 ==========
@@ -653,7 +718,7 @@ watch(() => messages.value.length, () => scrollBottom())
   background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;overflow:hidden;
 }
 .bubble-avatar img { width:100%;height:100%;object-fit:cover; }
-.bubble-row.mine .bubble-avatar { background:linear-gradient(135deg,#22d3ee,#a855f7); }
+.bubble-row.mine .bubble-avatar { background:linear-gradient(135deg,#3b82f6,#1d4ed8); }
 .bubble-col { min-width:0; }
 .bubble-row.mine .bubble-col { text-align:right; }
 .bubble-meta { display:flex;gap:8px;margin-bottom:4px;align-items:center; }
@@ -664,11 +729,42 @@ watch(() => messages.value.length, () => scrollBottom())
   border-top-left-radius:5px;color:#fff;font-size:.9rem;word-break:break-word;text-align:left;line-height:1.6;
 }
 .bubble-row.mine .bubble-text {
-  background:linear-gradient(135deg,rgba(34,211,238,.22),rgba(168,85,247,.22));
-  border:1px solid rgba(34,211,238,.28);border-top-left-radius:14px;border-top-right-radius:5px;
+  background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+  border:1px solid rgba(59,130,246,.5);border-top-left-radius:14px;border-top-right-radius:5px;
+  color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.25);
 }
 .bubble-img { max-width:280px;max-height:300px;border-radius:14px;cursor:zoom-in;border:1px solid rgba(255,255,255,.1);display:inline-block; }
 .bubble-emoji { font-size:2.6rem;line-height:1.2; }
+
+/* 引用相关样式 */
+.bubble-action {
+  margin-top:4px;border:none;background:transparent;color:rgba(255,255,255,.35);
+  font-size:.66rem;cursor:pointer;padding:2px 6px;border-radius:6px;opacity:0;transition:.15s;
+}
+.bubble-row:hover .bubble-action { opacity:1; }
+.bubble-action:hover { color:#67e8f9;background:rgba(34,211,238,.1); }
+.bubble-row.mine .bubble-action { align-self:flex-end; }
+.quote-block {
+  display:inline-block;background:rgba(255,255,255,.06);border-left:2px solid rgba(34,211,238,.5);
+  padding:5px 10px;border-radius:6px;font-size:.74rem;color:rgba(255,255,255,.6);
+  margin-bottom:5px;max-width:100%;cursor:pointer;transition:.15s;line-height:1.5;
+}
+.quote-block:hover { background:rgba(34,211,238,.08);color:rgba(255,255,255,.85); }
+.bubble-row.mine .quote-block { border-left-color:rgba(59,130,246,.7); }
+
+/* 输入区引用预览条 */
+.chat2-input { flex-direction:column;align-items:stretch; }
+.input-row { display:flex;align-items:flex-end;gap:10px; }
+.quote-preview {
+  display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:8px;
+  background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:10px;
+  font-size:.78rem;
+}
+.qp-text { flex:1;min-width:0;display:flex;gap:4px;align-items:baseline; }
+.qp-label { color:#93c5fd;flex-shrink:0; }
+.qp-content { color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.qp-close { border:none;background:transparent;color:rgba(255,255,255,.5);cursor:pointer;font-size:.9rem;padding:0 4px;border-radius:6px; }
+.qp-close:hover { color:#f87171;background:rgba(248,113,113,.1); }
 
 /* 右侧卡片通用 */
 .side-card {
@@ -773,6 +869,11 @@ watch(() => messages.value.length, () => scrollBottom())
 .member-n { font-size:.84rem;color:#fff; }
 .member-u { font-size:.7rem;color:rgba(255,255,255,.4); }
 .owner-tag { font-size:.66rem;padding:2px 8px;border-radius:7px;background:rgba(34,211,238,.18);color:#67e8f9;border:1px solid rgba(34,211,238,.3); }
+.mem-dm-btn {
+  border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.12);color:#93c5fd;
+  font-size:.66rem;padding:2px 8px;border-radius:7px;cursor:pointer;transition:.15s;flex-shrink:0;
+}
+.mem-dm-btn:hover { background:rgba(59,130,246,.25);color:#fff; }
 
 /* 搜索 */
 .search-input-row { display:flex;gap:8px;padding:14px; }
