@@ -9,7 +9,7 @@ Web3 极简未来科技风个人综合技术门户：博客 / 论坛 / 商城 / 
 | 前端 | Vue 3 + Vite 5 + Pinia + Vue Router + TailwindCSS + GSAP + Three.js + ECharts |
 | 后端 | Java 17 + Spring Boot 3.3 + Spring Cloud Alibaba（Nacos 注册/配置）+ Spring Cloud Gateway + MyBatis-Plus |
 | 基础设施 | MySQL 8、Redis、RabbitMQ、Nacos |
-| 附加服务 | `quant-py-service`（Python FastAPI 量化数据服务，端口 9006） |
+| 附加服务 | `py-service`（Python FastAPI 聚合服务，端口 9006） |
 
 ## 目录结构
 
@@ -53,7 +53,7 @@ web3-blog/
 | 社区 | `/community` | forum-service | 帖子、评论、点赞 |
 | 商城 | `/shop` `/cart` | shop-service | 商品、购物车、订单、支付 |
 | 媒体 | `/media` | media-service | 音乐、视频、书籍、播放列表 |
-| 量化 | `/quant` | quant-service + quant-py-service | 策略、龙虎榜、资金流、研报 |
+| 量化 | `/quant` | quant-service + py-service | 策略、龙虎榜、资金流、研报 |
 | 工具 | `/tools` | tool-service | 在线脚本工具（加密/二维码等） |
 | 软件 | `/software` | software-service | 软件列表与下载 |
 | 资源 | `/resources` | resource-service | 资源上传/下载 |
@@ -63,6 +63,10 @@ web3-blog/
 | 个人中心 | `/profile` | user-service | 资料、订单 |
 | 管理后台 | `/admin` | admin-service | 仪表盘、用户、文章、订单、流量、量化 |
 | 友链/相册/留言/关于 | `/link` `/album` `/comments` `/about` | user-service / forum-service | 扩展内容页 |
+
+## 验证码发送配置
+
+邮箱验证码只有在 `MAIL_ENABLED=true` 且 SMTP 主机、账号与凭据真实可用时才会发送；服务不会把验证码写入日志或 API 响应。短信验证码目前尚未接入供应商 SDK，接口会明确报错，请使用已配置的邮箱验证流程。不要在生产环境启用开发验证码回退。
 
 ## 快速启动
 
@@ -127,9 +131,12 @@ npm run dev
 ## 调用链路
 
 ```
-浏览器 → http://localhost:5173 (Vite Dev)
-            ├─ /api/**   → Gateway 8080 → 对应微服务 → MySQL / Redis / RabbitMQ
-            └─ /pyquant/** → quant-py-service 9006
+浏览器 → Nginx :80（或开发环境 Vite :5173）
+            ├─ /api/**      → Gateway 8080 → 对应 Java 微服务 → MySQL / Redis / RabbitMQ
+            ├─ /pyquant/**  → py-service 9006
+            ├─ /qzapi/**    → py-service 9006 (/api/qzone/**)
+            ├─ /wifiapi/**  → py-service 9006 (/api/wifi/**)
+            └─ /osintapi/** → py-service 9006 (/api/osint/**)
 ```
 
 ## 数据库初始化
