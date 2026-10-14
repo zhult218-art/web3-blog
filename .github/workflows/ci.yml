@@ -147,13 +147,19 @@ jobs:
       - name: Verify Gateway and Nginx to User Service
         shell: bash
         run: |
-          for url in http://127.0.0.1:8080/user/count http://127.0.0.1/api/user/count; do
-            status=$(curl --silent --show-error --retry 10 --retry-connrefused --retry-delay 2 --max-time 15 -o /tmp/user-count-response.json -w '%{http_code}' "$url")
-            echo "$url -> HTTP $status"
+          for mode in direct direct-forwarded nginx; do
+            case "$mode" in
+              direct) url=http://127.0.0.1:8080/user/count; args=() ;;
+              direct-forwarded) url=http://127.0.0.1:8080/user/count; args=(-H 'Host: localhost' -H 'X-Real-IP: 172.18.0.1' -H 'X-Forwarded-For: 172.18.0.1') ;;
+              nginx) url=http://127.0.0.1/api/user/count; args=() ;;
+            esac
+            status=$(curl --silent --show-error --retry 10 --retry-connrefused --retry-delay 2 --max-time 15 "${args[@]}" -o /tmp/user-count-response.json -w '%{http_code}' "$url")
+            echo "$mode $url -> HTTP $status"
             cat /tmp/user-count-response.json
-            if [ "$status" != "200" ]; then exit 1; fi
-            python -c 'import json; data=json.load(open("/tmp/user-count-response.json")); assert data.get("code", 200) in (0, 200), data'
+            if [ "$mode" = nginx ] && [ "$status" != "200" ]; then exit 1; fi
+            if [ "$mode" != nginx ] && [ "$status" != "200" ]; then echo "Gateway direct probe failed"; exit 1; fi
           done
+          python -c 'import json; data=json.load(open("/tmp/user-count-response.json")); assert data.get("code", 200) in (0, 200), data'
           echo "Gateway and Nginx -> User Service route: OK"
       - name: Show service diagnostics on failure
         if: failure()
