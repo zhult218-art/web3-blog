@@ -90,7 +90,7 @@ app = FastAPI(
 # 空配置时仅允许本机开发地址；部署域名通过 CORS_ALLOWED_ORIGINS 显式配置。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins or ["http://localhost", "http://127.0.0.1"],
+    allow_origins=settings.cors_origins or ["http://localhost", "http://127.0.0.1", "http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
