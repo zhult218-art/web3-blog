@@ -32,7 +32,7 @@ web3-blog/
 │   ├── common/                  # 公共模块（core / security / util）
 │   ├── deploy/                  # MySQL 初始化 SQL 等部署文件
 │   └── nacos/                   # Nacos 配置目录
-├── quant-py-service/            # Python 量化数据服务（9006，A股数据）
+├── py-service/                  # 统一 Python 服务（9006：量化/语音/视频/OSINT 等）
 ├── docs/                        # 需求文档 / 概述说明文档
 ├── start-all-services.bat       # Windows 一键启动脚本
 ├── start-all-services.ps1       # PowerShell 一键启动脚本
@@ -66,43 +66,41 @@ web3-blog/
 
 ## 快速启动
 
-### 方式一：Docker Compose（推荐，基础设施 + 后端）
+### Docker Compose（推荐）
+
+仓库使用统一的 `py-service` 提供量化、语音识别、QQ 空间、WiFi 审计、OSINT 和市场驾驶舱 API。首次启动请先配置环境变量，再启动完整服务栈：
 
 ```bash
-# 1. 启动基础设施与后端服务
-docker compose up -d mysql redis rabbitmq
-docker compose up -d gateway user-service blog-service forum-service shop-service media-service quant-service tool-service software-service resource-service jarvis-service admin-service
+# 1. 创建本地环境文件，并按注释设置强密码/随机密钥
+cp .env.example .env
 
-# 2. 启动前端（开发模式）
+# 2. 构建并启动基础设施、后端、Python 功能服务和前端
+docker compose up -d --build
+
+# 3. 查看服务状态与启动日志
+docker compose ps
+docker compose logs -f gateway py-service frontend
+```
+
+`JWT_SECRET` 至少 32 个字符；`MYSQL_ROOT_PASSWORD` 与 `MYSQL_PASSWORD` 必须一致（当前应用使用 root 数据库账号）；还需设置 `REDIS_PASSWORD`、RabbitMQ 凭据和 `VIDEO_ADMIN_TOKEN`。不要把真实密钥提交到 Git。MySQL、Redis、RabbitMQ 和 Nacos 的宿主机端口仅绑定到本机，业务 API 通过前端 Nginx 和网关访问。
+
+前端默认通过 Nginx 将 `/api` 转发到 Gateway，将 `/pyquant`、`/whisper`、`/qzapi`、`/wifiapi`、`/osintapi` 和 `/cockpit` 转发到统一 Python 服务。部署后可通过 `http://localhost/health` 检查前端容器，通过 `docker compose exec py-service python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:9006/health').read().decode())"` 检查 Python 服务。
+
+### 本地开发（不使用 Docker 前端容器）
+
+如果只需要开发前端，可按需启动后端依赖，然后执行：
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### 方式二：本地手动启动（Windows）
+开发代理默认指向本机的 Gateway（8080）和 Python 服务（9006）。本地手动运行后端时，请将相应的主机地址环境变量改为 `127.0.0.1`，不要直接沿用 Compose 容器名。
 
-```powershell
-# 1. 启动基础设施：MySQL / Redis / RabbitMQ / Nacos（见 INSTALL.md / RUN.md）
+### Windows 一键脚本
 
-# 2. 打包后端（只需一次）
-mvn clean package -DskipTests
-cd backend
-mvn clean package -DskipTests
-
-# 3. 启动后端服务（每个开一个终端窗口，端口见下表）
-java -jar gateway/target/gateway-1.0.0.jar
-java -jar user-service/target/user-service-1.0.0.jar
-# ... 其余服务同理
-
-# 4. 启动前端
-cd frontend
-npm install
-npm run dev        # 访问 http://localhost:5173
-```
-
-### 方式三：一键脚本
-
-双击 `start-all-services.bat`，或执行 `powershell -ExecutionPolicy Bypass -File start-all-services.ps1`。
+`start-all-services.bat` 是 PowerShell 脚本的薄封装。使用前先按 `RUN.md` 配置本地 Java、Python、Node.js 和基础设施环境，并检查脚本中的服务清单与本机配置。
 
 ## 端口清单
 
@@ -120,7 +118,7 @@ npm run dev        # 访问 http://localhost:5173
 | Resource Service | 8089 | web3_resource | 资源上传/下载 |
 | Jarvis Service | 9001 | web3_jarvis | AI 语音助手 |
 | Admin Service | 9002 | web3_admin | 管理后台 |
-| Quant Py Service | 9006 | - | Python 量化数据（A股） |
+| Python Service | 9006 | - | 量化、语音、视频、OSINT 等 Python 功能模块 |
 | Nacos | 8848 | - | 服务注册/配置中心 |
 | Redis | 6379 | - | 缓存 |
 | RabbitMQ | 5672 | - | 消息队列 |
@@ -137,7 +135,7 @@ npm run dev        # 访问 http://localhost:5173
 ## 数据库初始化
 
 ```powershell
-# 容器方式：backend/deploy/mysql/init/ 下 12 个 SQL 由 MySQL 容器自动执行
+# 容器方式：backend/deploy/mysql/init/ 下编号 SQL 由 MySQL 容器首次初始化时自动执行（当前 01–13）
 # 本地方式：
 mysql -u root -p < backend/deploy/mysql/init/01-databases.sql
 mysql -u root -p --database=web3_user < backend/deploy/mysql/init/02-web3_user.sql
