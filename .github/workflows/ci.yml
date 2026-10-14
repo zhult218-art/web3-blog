@@ -100,10 +100,10 @@ jobs:
         shell: bash
         run: |
           for attempt in $(seq 1 60); do
-            if docker compose exec -T mysql mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD" --silent; then break; fi
+            if docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -Nse "SELECT COUNT(*) FROM web3_user.user; SELECT COUNT(*) FROM web3_user.guild; SELECT COUNT(*) FROM web3_tool.site_share;"; then exit 0; fi
             sleep 2
           done
-          docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -Nse "SELECT COUNT(*) FROM web3_user.user; SELECT COUNT(*) FROM web3_user.guild; SELECT COUNT(*) FROM web3_tool.site_share;"
+          exit 1
       - name: Verify frontend and Nginx to Python route
         shell: bash
         run: |
