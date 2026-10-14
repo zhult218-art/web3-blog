@@ -236,7 +236,6 @@ services:
     environment:
       PY_SERVICE_HOST: 0.0.0.0
       PY_SERVICE_PORT: 9006
-      PY_SERVICE_IP: py-service
       PY_SERVICE_DATA_DIR: /app/data
       NACOS_SERVER: ${NACOS_SERVER:-nacos:8848}
       NACOS_ENABLED: "true"
