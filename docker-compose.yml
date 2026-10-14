@@ -246,6 +246,7 @@ services:
       PY_SERVICE_HOST: 0.0.0.0
       PY_SERVICE_PORT: 9006
       PY_SERVICE_DATA_DIR: /app/data
+      PY_SERVICE_MODULES: quant,cockpit,osint,qzone,video,whisper,wifi
       NACOS_SERVER: ${NACOS_SERVER:-nacos:8848}
       NACOS_ENABLED: "true"
       SUPABASE_URL: ${SUPABASE_URL:-}
