@@ -40,8 +40,8 @@ x-java-env: &java-env
   ADMIN_SERVICE_HOST: admin-service
   AI_PROXY_SERVICE_HOST: ai-proxy-service
   GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
-  J8Y_APP_KEY: ${J8Y_APP_KEY:-}
-  SHOWAPI_APP_KEY: ${SHOWAPI_APP_KEY:-}
+  J8Y_APP_KEY: ${J8Y_APP_KEY:-not-configured}
+  SHOWAPI_APP_KEY: ${SHOWAPI_APP_KEY:-not-configured}
 
 services:
   mysql:
