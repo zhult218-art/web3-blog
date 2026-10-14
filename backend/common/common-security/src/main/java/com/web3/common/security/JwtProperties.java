@@ -38,6 +38,15 @@ public class JwtProperties {
                 + "The default fallback was removed for security; a missing secret must fail-fast."
             );
         }
+        String normalizedSecret = this.secret.toLowerCase(java.util.Locale.ROOT);
+        if (normalizedSecret.contains("replace-with")
+                || normalizedSecret.contains("change-me")
+                || normalizedSecret.startsWith("your-")
+                || normalizedSecret.startsWith("example-")) {
+            throw new IllegalStateException(
+                "JWT_SECRET must be a private, randomly generated value; placeholder values are not allowed."
+            );
+        }
         if (this.secret.length() < 32) {
             throw new IllegalStateException(
                 "JWT_SECRET must be at least 32 characters long for HS256 security."
