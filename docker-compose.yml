@@ -230,16 +230,22 @@ services:
       - nacos
     restart: always
 
-  quant-py-service:
+  py-service:
     build:
-      context: ./quant-py-service
+      context: ./py-service
     environment:
-      - QUANT_DATA_DIR=/app/data
-      - QUANT_OUTPUT_DIR=/app/output
-      - SUPABASE_URL=${SUPABASE_URL:-}
-      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-}
+      PY_SERVICE_HOST: 0.0.0.0
+      PY_SERVICE_PORT: 9006
+      PY_SERVICE_IP: py-service
+      PY_SERVICE_DATA_DIR: /app/data
+      NACOS_SERVER: ${NACOS_SERVER:-nacos:8848}
+      NACOS_ENABLED: "true"
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+    volumes:
+      - ./runtime/py-service:/app/data
     depends_on:
-      - mysql
+      - nacos
     restart: always
 
   frontend:
