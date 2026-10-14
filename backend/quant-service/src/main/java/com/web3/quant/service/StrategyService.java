@@ -46,6 +46,10 @@ extends ServiceImpl<StrategyMapper, Strategy> {
      * @return 包含当前页策略 VO 记录与总数等分页信息的 PageResult
      */
     public PageResult<StrategyVO> page(int pageNum, int pageSize) {
+        if (pageNum < 1 || pageSize < 1 || pageSize > 100) {
+            throw new com.web3.common.core.BusinessException(400,
+                    "分页参数无效：page 必须大于 0，size 必须在 1 到 100 之间");
+        }
         Page<Strategy> p = new Page<Strategy>((long)pageNum, (long)pageSize);
         IPage<Strategy> result = this.page((IPage<Strategy>)p, new LambdaQueryWrapper<Strategy>().orderByDesc(Strategy::getCreatedAt));
         List<StrategyVO> records = result.getRecords().stream().map(this::toVO).collect(Collectors.toList());
