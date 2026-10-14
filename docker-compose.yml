@@ -78,6 +78,9 @@ services:
       MODE: standalone
       JVM_XMS: 256m
       JVM_XMX: 512m
+      # Nacos 2.3.2 processor metrics can fail initialization in constrained containers.
+      MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "false"
+      MANAGEMENT_METRICS_BINDERS_PROCESSOR_ENABLED: "false"
     ports:
       - '127.0.0.1:8848:8848'
       - '127.0.0.1:9848:9848'
