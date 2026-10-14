@@ -13,7 +13,7 @@ BASE_DIR = PACKAGE_DIR.resolve().parents[1]                  # py-service 根目
 
 # ─── 管理员 Token（生产环境务必用环境变量覆盖！见 README） ───
 ADMIN_TOKEN = os.getenv("VIDEO_ADMIN_TOKEN", "").strip()
-if not ADMIN_TOKEN or ADMIN_TOKEN.lower() in {"change-me-admin-token", "changeme", "replace-me"}:
+if not ADMIN_TOKEN or ADMIN_TOKEN.lower() in {"change-me-admin-token", "changeme", "replace-me"} or ADMIN_TOKEN.lower().startswith(("replace-with", "your-", "example-")):
     raise RuntimeError("VIDEO_ADMIN_TOKEN must be set to a strong, unique value before starting py-service")
 
 # ─── 存储目录 ───
