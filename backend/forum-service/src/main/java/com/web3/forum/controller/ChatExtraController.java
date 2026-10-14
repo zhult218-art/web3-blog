@@ -174,6 +174,7 @@ public class ChatExtraController {
     @PostMapping("/chat/rooms/{roomId}/notifications")
     public ApiResponse<ChatNotification> createNotification(@PathVariable Long roomId,
             @RequestHeader("Authorization") String auth, @RequestBody Map<String, Object> body) {
+        AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
         Claims c = claims(auth);
         return ApiResponse.ok(extraService.createNotification(roomId, uid(auth), nick(c),
                 String.valueOf(body.getOrDefault("type", "info")),
