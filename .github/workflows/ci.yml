@@ -86,7 +86,15 @@ jobs:
       VIDEO_ADMIN_TOKEN: ci-only-video-admin-token
     steps:
       - uses: actions/checkout@v4
+      - name: Set up JDK for container artifacts
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+      - name: Package backend jars for Dockerfiles
+        run: mvn -B -q -f backend/pom.xml -Dmaven.test.skip=true package
       - name: Validate Compose configuration
         run: docker compose config --quiet
-      - name: Build Python and frontend images
+      - name: Build complete application image set
         run: docker compose build
