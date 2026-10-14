@@ -1,6 +1,8 @@
 package com.web3.forum.service;
 
 import com.web3.common.core.UnauthorizedException;
+import com.web3.common.core.BusinessException;
+import com.web3.forum.entity.ChatAlbum;
 import com.web3.forum.entity.ChatPhoto;
 import com.web3.forum.mapper.ChatAlbumMapper;
 import com.web3.forum.mapper.ChatAnnouncementMapper;
@@ -37,6 +39,29 @@ class ChatExtraServiceSecurityTest {
         verify(photos, never()).deleteById(11L);
     }
 
+    @Test
+    void movingPhotoAcrossRoomsIsRejected() {
+        ChatPhotoMapper photos = mock(ChatPhotoMapper.class);
+        ChatAlbumMapper albums = mock(ChatAlbumMapper.class);
+        ChatPhoto photo = new ChatPhoto();
+        photo.setId(11L);
+        photo.setUserId(22L);
+        photo.setRoomId(44L);
+        ChatAlbum target = new ChatAlbum();
+        target.setId(99L);
+        target.setRoomId(55L);
+        when(photos.selectById(11L)).thenReturn(photo);
+        when(albums.selectById(99L)).thenReturn(target);
+        ChatExtraService service = new ChatExtraService(
+                mock(ChatAnnouncementMapper.class), albums, photos,
+                mock(ChatNotificationMapper.class), mock(ChatMessageMapper.class));
+
+        BusinessException error = assertThrows(
+                BusinessException.class, () -> service.movePhoto(11L, 99L, 22L, false));
+
+        assertEquals(400, error.getCode());
+        verify(photos, never()).updateById(photo);
+    }
     @Test
     void adminCanDeleteAnotherUsersPhoto() {
         ChatPhotoMapper photos = mock(ChatPhotoMapper.class);
