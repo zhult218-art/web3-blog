@@ -7,6 +7,8 @@ import com.web3.forum.entity.ChatMessage;
 import com.web3.forum.entity.ChatNotification;
 import com.web3.forum.entity.ChatPhoto;
 import com.web3.common.core.UnauthorizedException;
+import com.web3.common.core.BusinessException;
+import java.util.Objects;
 import com.web3.forum.mapper.ChatAlbumMapper;
 import com.web3.forum.mapper.ChatAnnouncementMapper;
 import com.web3.forum.mapper.ChatMessageMapper;
@@ -167,7 +169,12 @@ public class ChatExtraService {
     }
 
     public ChatPhoto addPhoto(Long roomId, Long albumId, Long userId, String nickname,
-                              String url, Integer width, Integer height) {
+                              String url, Integer width, Integer height, boolean admin) {
+        ChatAlbum album = albumMapper.selectById(albumId);
+        if (album == null || !Objects.equals(album.getRoomId(), roomId)) {
+            throw new BusinessException(400, "相册不存在或不属于该群");
+        }
+        if (album.getUserId() != null) ensureOwnerOrAdmin(album.getUserId(), userId, admin, "相册");
         ChatPhoto p = new ChatPhoto();
         p.setRoomId(roomId);
         p.setAlbumId(albumId);
@@ -185,6 +192,11 @@ public class ChatExtraService {
         ChatPhoto p = photoMapper.selectById(id);
         if (p == null) throw new RuntimeException("照片不存在");
         ensureOwnerOrAdmin(p.getUserId(), userId, admin, "照片");
+        ChatAlbum targetAlbum = albumMapper.selectById(targetAlbumId);
+        if (targetAlbum == null || !Objects.equals(targetAlbum.getRoomId(), p.getRoomId())) {
+            throw new BusinessException(400, "目标相册不存在或不属于该群");
+        }
+        if (targetAlbum.getUserId() != null) ensureOwnerOrAdmin(targetAlbum.getUserId(), userId, admin, "目标相册");
         p.setAlbumId(targetAlbumId);
         photoMapper.updateById(p);
         return p;
