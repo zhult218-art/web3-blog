@@ -68,17 +68,15 @@ public class OtpService {
      * @return 始终返回 null（验证码不再回传响应体；dev 模式请查服务端日志）
      */
     public String sendEmailCode(String email) {
+        if (!props.isMailEnabled() || mailSender == null) {
+            throw new IllegalStateException("Email OTP delivery is not configured");
+        }
         rateLimit(email, EMAIL_RATE_PREFIX);
         String code = randomCode();
-        String key = EMAIL_CODE_PREFIX + email.toLowerCase();
-        redis.opsForValue().set(key, code, CODE_TTL_MINUTES, TimeUnit.MINUTES);
-        if (!props.isMailEnabled()) {
-            // dev 模式：验证码只写日志，不再回传响应体（防账户接管）
-            log.warn("[OtpService] mailDisabled, code logged for local dev. email={} code={}", LogMasker.maskEmail(email), code);
-            return null;
-        }
-        log.info("[OtpService] email code sent. email={}", LogMasker.maskEmail(email));
+        String key = EMAIL_CODE_PREFIX + email.toLowerCase(java.util.Locale.ROOT);
         sendMail(email, code);
+        redis.opsForValue().set(key, code, CODE_TTL_MINUTES, TimeUnit.MINUTES);
+        log.info("[OtpService] email code sent. email={}", LogMasker.maskEmail(email));
         return null;
     }
 
@@ -105,51 +103,7 @@ public class OtpService {
      * @return 始终返回 null（验证码不再回传响应体；dev/fallback 模式请查服务端日志）
      */
     public String sendPhoneCode(String phone) {
-        rateLimit(phone, PHONE_RATE_PREFIX);
-        String code = randomCode();
-        String key = PHONE_CODE_PREFIX + phone;
-        redis.opsForValue().set(key, code, CODE_TTL_MINUTES, TimeUnit.MINUTES);
-        if (!props.isSmsEnabled()) {
-            // dev 模式：验证码只写日志，不再回传响应体（防账户接管）
-            log.warn("[OtpService] smsDisabled, code logged for local dev. phone={} code={}", LogMasker.maskPhone(phone), code);
-            return null;
-        }
-        // 生产模式：尝试调网关；网关未接入时回退日志模式（不回传 devCode，提示用户改用邮箱）
-        boolean sent = sendSmsByGateway(phone, code);
-        if (sent) {
-            log.info("[OtpService] sms code sent. phone={}", LogMasker.maskPhone(phone));
-            return null;
-        }
-        log.warn("[OtpService] sms gateway unavailable, code logged as fallback. phone={} code={}", LogMasker.maskPhone(phone), code);
-        return null;
-    }
-
-    /**
-     * 真实短信网关下发（生产模式调用）。
-     *
-     * <p>2026-09-30 修订：项目改为「仅邮件 OTP」方案——短信通道未接入第三方网关，
-     * 此方法不再抛 RuntimeException 阻塞流程，而是记录 warn 日志并返回 false，
-     * 由 {@link #sendPhoneCode} 自动回退到 dev 模式（回传 devCode），
-     * 让 Controller 提示用户改用邮箱验证码完成登录/绑定。</p>
-     *
-     * <p>如未来需要接入真实短信：在 {@code application.yml} 配置
-     * {@code SMS_PROVIDER=aliyun|tencent} + 凭据后，在此方法内按 provider 分发到
-     * 阿里云 dysmsapi20170525 SDK 或腾讯云 tencentcloud-sdk-java-sms 即可，
-     * 返回 true 表示已真实下发。</p>
-     *
-     * @param phone 手机号
-     * @param code 验证码
-     * @return true 表示已真实下发；false 表示网关未接入，调用方应回退 dev 模式
-     */
-    private boolean sendSmsByGateway(String phone, String code) {
-        String provider = System.getenv().getOrDefault("SMS_PROVIDER", "");
-        if (provider.isBlank()) {
-            log.warn("[OtpService] 短信网关未配置：请改用邮箱验证码。phone={}", LogMasker.maskPhone(phone));
-            return false;
-        }
-        // 短信 SDK 未接入：保留接入位（aliyun/tencent），当前一律回退
-        log.warn("[OtpService] 短信网关 {} 未接入 SDK：请改用邮箱验证码。phone={}", provider, LogMasker.maskPhone(phone));
-        return false;
+        throw new IllegalStateException("SMS OTP delivery is not implemented; use email verification");
     }
 
     public boolean verifyPhoneCode(String phone, String code) {
