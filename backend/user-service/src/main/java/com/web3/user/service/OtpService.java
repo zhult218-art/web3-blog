@@ -10,8 +10,10 @@ import org.springframework.stereotype.Service;
 
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
-import java.util.concurrent.ThreadLocalRandom;
+import java.security.SecureRandom;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -29,6 +31,9 @@ public class OtpService {
     private static final int CODE_LENGTH = 6;
     private static final int CODE_TTL_MINUTES = 10;
     private static final int RESEND_INTERVAL_SECONDS = 60;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final DefaultRedisScript<Long> CONSUME_CODE_SCRIPT = new DefaultRedisScript<>(
+            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end", Long.class);
 
     private static final String EMAIL_CODE_PREFIX = "otp:email:";
     private static final String EMAIL_RATE_PREFIX = "otpsent:email:";
@@ -80,10 +85,7 @@ public class OtpService {
     public boolean verifyEmailCode(String email, String code) {
         if (email == null || code == null) return false;
         String key = EMAIL_CODE_PREFIX + email.toLowerCase();
-        String expected = redis.opsForValue().get(key);
-        if (expected == null) return false;
-        redis.delete(key);
-        return expected.equals(code.trim());
+        return consumeCode(key, code.trim());
     }
 
     // ───────── 手机短信验证码 ─────────
@@ -153,10 +155,7 @@ public class OtpService {
     public boolean verifyPhoneCode(String phone, String code) {
         if (phone == null || code == null) return false;
         String key = PHONE_CODE_PREFIX + phone;
-        String expected = redis.opsForValue().get(key);
-        if (expected == null) return false;
-        redis.delete(key);
-        return expected.equals(code.trim());
+        return consumeCode(key, code.trim());
     }
 
     // ───────── 内部方法 ─────────
@@ -164,16 +163,21 @@ public class OtpService {
     /** 60 秒发送频率限制（过快抛 RuntimeException） */
     private void rateLimit(String target, String prefix) {
         String key = prefix + target.toLowerCase();
-        if (Boolean.TRUE.equals(redis.hasKey(key))) {
+        Boolean acquired = redis.opsForValue().setIfAbsent(
+                key, "1", RESEND_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        if (!Boolean.TRUE.equals(acquired)) {
             throw new RuntimeException("发送过于频繁，请60秒后重试");
         }
-        redis.opsForValue().set(key, "1", RESEND_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private boolean consumeCode(String key, String code) {
+        Long consumed = redis.execute(CONSUME_CODE_SCRIPT, Collections.singletonList(key), code);
+        return Long.valueOf(1L).equals(consumed);
     }
 
     private String randomCode() {
-        ThreadLocalRandom r = ThreadLocalRandom.current();
         StringBuilder sb = new StringBuilder(CODE_LENGTH);
-        for (int i = 0; i < CODE_LENGTH; i++) sb.append(r.nextInt(10));
+        for (int i = 0; i < CODE_LENGTH; i++) sb.append(SECURE_RANDOM.nextInt(10));
         return sb.toString();
     }
 
