@@ -6,6 +6,7 @@ import com.web3.forum.entity.ChatAnnouncement;
 import com.web3.forum.entity.ChatMessage;
 import com.web3.forum.entity.ChatNotification;
 import com.web3.forum.entity.ChatPhoto;
+import com.web3.common.core.UnauthorizedException;
 import com.web3.forum.mapper.ChatAlbumMapper;
 import com.web3.forum.mapper.ChatAnnouncementMapper;
 import com.web3.forum.mapper.ChatMessageMapper;
@@ -67,9 +68,10 @@ public class ChatExtraService {
         return a;
     }
 
-    public ChatAnnouncement updateAnnouncement(Long id, String title, String content, Integer pinned) {
+    public ChatAnnouncement updateAnnouncement(Long id, String title, String content, Integer pinned, Long userId, boolean admin) {
         ChatAnnouncement a = announcementMapper.selectById(id);
         if (a == null) throw new RuntimeException("公告不存在");
+        ensureOwnerOrAdmin(a.getUserId(), userId, admin, "公告");
         if (title != null) a.setTitle(title);
         if (content != null) a.setContent(content);
         if (pinned != null) a.setPinned(pinned);
@@ -78,7 +80,10 @@ public class ChatExtraService {
         return a;
     }
 
-    public void deleteAnnouncement(Long id) {
+    public void deleteAnnouncement(Long id, Long userId, boolean admin) {
+        ChatAnnouncement a = announcementMapper.selectById(id);
+        if (a == null) return;
+        ensureOwnerOrAdmin(a.getUserId(), userId, admin, "公告");
         announcementMapper.deleteById(id);
     }
 
@@ -133,15 +138,19 @@ public class ChatExtraService {
         return a;
     }
 
-    public ChatAlbum renameAlbum(Long id, String name) {
+    public ChatAlbum renameAlbum(Long id, String name, Long userId, boolean admin) {
         ChatAlbum a = albumMapper.selectById(id);
         if (a == null) throw new RuntimeException("相册不存在");
+        ensureOwnerOrAdmin(a.getUserId(), userId, admin, "相册");
         a.setName(name);
         albumMapper.updateById(a);
         return a;
     }
 
-    public void deleteAlbum(Long id) {
+    public void deleteAlbum(Long id, Long userId, boolean admin) {
+        ChatAlbum album = albumMapper.selectById(id);
+        if (album == null) return;
+        ensureOwnerOrAdmin(album.getUserId(), userId, admin, "相册");
         // 删除相册下的照片关联记录
         photoMapper.delete(new LambdaQueryWrapper<ChatPhoto>().eq(ChatPhoto::getAlbumId, id));
         albumMapper.deleteById(id);
@@ -172,15 +181,19 @@ public class ChatExtraService {
         return p;
     }
 
-    public ChatPhoto movePhoto(Long id, Long targetAlbumId) {
+    public ChatPhoto movePhoto(Long id, Long targetAlbumId, Long userId, boolean admin) {
         ChatPhoto p = photoMapper.selectById(id);
         if (p == null) throw new RuntimeException("照片不存在");
+        ensureOwnerOrAdmin(p.getUserId(), userId, admin, "照片");
         p.setAlbumId(targetAlbumId);
         photoMapper.updateById(p);
         return p;
     }
 
-    public void deletePhoto(Long id) {
+    public void deletePhoto(Long id, Long userId, boolean admin) {
+        ChatPhoto photo = photoMapper.selectById(id);
+        if (photo == null) return;
+        ensureOwnerOrAdmin(photo.getUserId(), userId, admin, "照片");
         photoMapper.deleteById(id);
     }
 
@@ -206,8 +219,17 @@ public class ChatExtraService {
         return n;
     }
 
-    public void deleteNotification(Long id) {
+    public void deleteNotification(Long id, Long userId, boolean admin) {
+        ChatNotification notification = notificationMapper.selectById(id);
+        if (notification == null) return;
+        ensureOwnerOrAdmin(notification.getUserId(), userId, admin, "通知");
         notificationMapper.deleteById(id);
+    }
+
+    private void ensureOwnerOrAdmin(Long ownerId, Long userId, boolean admin, String resource) {
+        if (!admin && (ownerId == null || !ownerId.equals(userId))) {
+            throw new UnauthorizedException(403, "无权修改该" + resource);
+        }
     }
 
     // ========== 聊天记录搜索 ==========
