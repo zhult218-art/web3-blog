@@ -144,13 +144,17 @@ jobs:
           print(json.dumps(payload, ensure_ascii=False))
           assert payload.get("ok") is True and not payload.get("unhealthy_modules"), payload
           PY
-      - name: Verify Nginx to Gateway to User Service
+      - name: Verify Gateway and Nginx to User Service
         shell: bash
         run: |
-          status=$(curl --silent --show-error --retry 30 --retry-all-errors --retry-connrefused --retry-delay 2 --max-time 15 -o /tmp/user-count-response.json -w '%{http_code}' http://127.0.0.1/api/user/count)
-          cat /tmp/user-count-response.json
-          if [ "$status" != "200" ]; then echo "Nginx -> Gateway -> User Service /user/count returned HTTP $status"; exit 1; fi
-          python -c 'import json; data=json.load(open("/tmp/user-count-response.json")); assert data.get("code", 200) in (0, 200); print("Nginx -> Gateway -> User Service /user/count route: OK")'
+          for url in http://127.0.0.1:8080/user/count http://127.0.0.1/api/user/count; do
+            status=$(curl --silent --show-error --retry 10 --retry-connrefused --retry-delay 2 --max-time 15 -o /tmp/user-count-response.json -w '%{http_code}' "$url")
+            echo "$url -> HTTP $status"
+            cat /tmp/user-count-response.json
+            if [ "$status" != "200" ]; then exit 1; fi
+            python -c 'import json; data=json.load(open("/tmp/user-count-response.json")); assert data.get("code", 200) in (0, 200), data'
+          done
+          echo "Gateway and Nginx -> User Service route: OK"
       - name: Show service diagnostics on failure
         if: failure()
         run: |
