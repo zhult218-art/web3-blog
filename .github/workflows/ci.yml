@@ -147,10 +147,10 @@ jobs:
       - name: Verify Nginx to Gateway to User Service
         shell: bash
         run: |
-          status=$(curl --silent --show-error --retry 30 --retry-all-errors --retry-connrefused --retry-delay 2 --max-time 15 -o /tmp/captcha-response.json -w '%{http_code}' http://127.0.0.1/api/user/captcha)
-          cat /tmp/captcha-response.json
-          if [ "$status" != "200" ]; then echo "Nginx -> Gateway -> User Service returned HTTP $status"; exit 1; fi
-          python -c 'import json; data=json.load(open("/tmp/captcha-response.json")); assert data.get("code", 200) in (0, 200); print("Nginx -> Gateway -> User Service route: OK")'
+          status=$(curl --silent --show-error --retry 30 --retry-all-errors --retry-connrefused --retry-delay 2 --max-time 15 -o /tmp/user-count-response.json -w '%{http_code}' http://127.0.0.1/api/user/count)
+          cat /tmp/user-count-response.json
+          if [ "$status" != "200" ]; then echo "Nginx -> Gateway -> User Service /user/count returned HTTP $status"; exit 1; fi
+          python -c 'import json; data=json.load(open("/tmp/user-count-response.json")); assert data.get("code", 200) in (0, 200); print("Nginx -> Gateway -> User Service /user/count route: OK")'
       - name: Show service diagnostics on failure
         if: failure()
         run: |
