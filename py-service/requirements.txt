@@ -19,6 +19,7 @@ faster-whisper>=1.0
 SQLAlchemy>=2.0
 PyMySQL>=1.1,<2
 tickflow>=0.1.25,<0.2
+sse-starlette>=2,<4
 APScheduler>=3.10,<4
 python-jose[cryptography]>=3.3
 cryptography>=42
