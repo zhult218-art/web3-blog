@@ -25,6 +25,7 @@ from typing import Any, Callable, List
 from .config import MODULES_DIR, Settings
 
 logger = logging.getLogger("py-service.loader")
+FAILED_MODULES: List[str] = []
 
 
 @dataclass
@@ -60,11 +61,13 @@ def _discover_names(settings: Settings) -> List[str]:
 def load_modules(settings: Settings) -> List[LoadedModule]:
     """导入并装配所有启用的模块；单个模块失败不影响其余模块启动。"""
     loaded: List[LoadedModule] = []
+    FAILED_MODULES.clear()
     for name in _discover_names(settings):
         try:
             pkg = importlib.import_module(f"modules.{name}")
         except Exception as exc:  # noqa: BLE001
-            logger.error("模块 %s 导入失败，已跳过：%s", name, exc)
+            FAILED_MODULES.append(name)
+            logger.exception("模块 %s 导入失败，已跳过：%s", name, exc)
             continue
 
         loaded.append(
