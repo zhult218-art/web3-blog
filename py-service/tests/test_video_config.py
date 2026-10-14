@@ -20,6 +20,19 @@ def test_video_config_rejects_missing_admin_token():
     assert "VIDEO_ADMIN_TOKEN must be set" in result.stderr
 
 
+def test_video_config_rejects_example_placeholder_token():
+    env = os.environ.copy()
+    env["VIDEO_ADMIN_TOKEN"] = "replace-with-a-long-random-token"
+    result = subprocess.run(
+        [sys.executable, "-c", f"import runpy; runpy.run_path({str(CONFIG)!r})"],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "VIDEO_ADMIN_TOKEN must be set" in result.stderr
+
+
 def test_video_config_accepts_configured_admin_token():
     env = os.environ.copy()
     env["VIDEO_ADMIN_TOKEN"] = "test-token-with-sufficient-randomness"
