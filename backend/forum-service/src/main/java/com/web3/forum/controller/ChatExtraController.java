@@ -144,8 +144,9 @@ public class ChatExtraController {
                 ? Long.parseLong(String.valueOf(body.get("albumId"))) : 1L;
         Integer width = body.get("width") != null ? Integer.parseInt(String.valueOf(body.get("width"))) : null;
         Integer height = body.get("height") != null ? Integer.parseInt(String.valueOf(body.get("height"))) : null;
-        return ApiResponse.ok(extraService.addPhoto(roomId, albumId, uid(auth), nick(c),
-                String.valueOf(body.getOrDefault("url", "")), width, height));
+        Long userId = uid(auth);
+        return ApiResponse.ok(extraService.addPhoto(roomId, albumId, userId, nick(c),
+                String.valueOf(body.getOrDefault("url", "")), width, height, isAdmin(auth)));
     }
 
     @PutMapping("/chat/photos/{id}/move")
