@@ -62,6 +62,16 @@ class OrderServiceTest {
     }
 
     @Test
+    void getDetailOwned_rejectsAnotherUsersOrder() {
+        Order order = new Order();
+        order.setId(1003L);
+        order.setUserId(22L);
+        when(orderMapper.selectById(1003L)).thenReturn(order);
+
+        assertThrows(RuntimeException.class, () -> orderService.getDetailOwned(1003L, 33L));
+    }
+
+    @Test
     void pageByUser_rejectsInvalidPagination() {
         assertThrows(RuntimeException.class, () -> orderService.pageByUser(1L, 0, 20));
         assertThrows(RuntimeException.class, () -> orderService.pageByUser(1L, 1, 101));
