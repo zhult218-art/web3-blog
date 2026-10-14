@@ -86,6 +86,12 @@ docker compose ps
 docker compose logs -f gateway py-service frontend
 ```
 
+如果你复用的是在本次修复前创建的 MySQL 数据卷，初始化脚本不会自动重跑。公会迁移此前可能误用默认库，请在备份后手动重放幂等迁移：
+
+```bash
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" < backend/deploy/mysql/init/04-guild-system.sql
+```
+
 `JWT_SECRET` 至少 32 个字符；`MYSQL_ROOT_PASSWORD` 与 `MYSQL_PASSWORD` 必须一致（当前应用使用 root 数据库账号）；还需设置 `REDIS_PASSWORD`、RabbitMQ 凭据和 `VIDEO_ADMIN_TOKEN`。不要把真实密钥提交到 Git。MySQL、Redis、RabbitMQ 和 Nacos 的宿主机端口仅绑定到本机，业务 API 通过前端 Nginx 和网关访问。
 
 前端默认通过 Nginx 将 `/api` 转发到 Gateway，将 `/pyquant`、`/whisper`、`/qzapi`、`/wifiapi`、`/osintapi` 和 `/cockpit` 转发到统一 Python 服务。部署后可通过 `http://localhost/` 检查前端页面，通过 `docker compose exec py-service python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:9006/health').read().decode())"` 检查 Python 服务。
