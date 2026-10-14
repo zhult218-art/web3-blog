@@ -20,9 +20,8 @@ import java.util.concurrent.TimeUnit;
  * OtpService (邮箱/短信验证码服务)
  *
  * email: 6 位数字验证码，有效期 10 分钟，同一邮箱 60 秒内只能再发一次。
- * phone: 短信验证码（smsEnabled=true 走短信网关，false 为开发模式直接返回 devCode）。
- * mailEnabled=false 时邮箱验证码走开发模式：验证码仍生成并校验，但不发 SMTP，
- * 直接写进响应体 data.devCode 方便调试，控制台打印。
+ * 邮箱验证码只在真实 SMTP 配置可用时发送；短信验证码在接入供应商 SDK 前明确禁用。
+ * 验证码不会写入日志或响应体。
  */
 @Service
 public class OtpService {
@@ -57,9 +56,9 @@ public class OtpService {
      * 发送邮箱验证码。
      *
      * <p>2026-10-10 安全修订：dev 模式（mailEnabled=false）验证码不再回传 HTTP 响应体，
-     * 只写入服务端日志（明文，便于本地开发从控制台读取）。原先 dev 模式会把 devCode 写入
+     * 不再写入日志或响应体。原先 dev 模式会把 devCode 写入
      * 响应体，配合 emailLogin 的未知邮箱自动注册，构成「对任意邮箱发码→从响应取码→登录即接管」
-     * 的账户接管链路；现 dev 模式与生产模式统一返回 null，由日志承担开发可见性。</p>
+     * 的账户接管链路；现 dev 模式与生产模式统一返回 null，由真实 SMTP 承担交付。</p>
      *
      * <p>生产部署：设置 {@code MAIL_ENABLED=true} 并配置 {@code MAIL_HOST/MAIL_USERNAME/MAIL_PASSWORD}，
      * 验证码走真实 SMTP。</p>
@@ -82,7 +81,7 @@ public class OtpService {
 
     public boolean verifyEmailCode(String email, String code) {
         if (email == null || code == null) return false;
-        String key = EMAIL_CODE_PREFIX + email.toLowerCase();
+        String key = EMAIL_CODE_PREFIX + email.toLowerCase(java.util.Locale.ROOT);
         return consumeCode(key, code.trim());
     }
 
@@ -92,8 +91,7 @@ public class OtpService {
      * 发送短信验证码。
      *
      * <p>2026-10-10 安全修订：dev 模式（smsEnabled=false）与网关未接入的 fallback 路径
-     * 均不再回传 devCode，只写服务端日志（明文）。原先 dev/fallback 回传 devCode 配合
-     * phoneLogin 自动注册构成账户接管链路，现统一返回 null。</p>
+     * 未实现的短信通道直接失败，避免调用方误以为验证码已下发。</p>
      *
      * <p>真实 SMS 网关接入：设置 {@code SMS_ENABLED=true} + {@code SMS_PROVIDER=aliyun|tencent}
      * + {@code SMS_KEY/SMS_SECRET/SMS_SIGN_NAME/SMS_TEMPLATE_CODE}，然后在
@@ -116,7 +114,7 @@ public class OtpService {
 
     /** 60 秒发送频率限制（过快抛 RuntimeException） */
     private void rateLimit(String target, String prefix) {
-        String key = prefix + target.toLowerCase();
+        String key = prefix + target.toLowerCase(java.util.Locale.ROOT);
         Boolean acquired = redis.opsForValue().setIfAbsent(
                 key, "1", RESEND_INTERVAL_SECONDS, TimeUnit.SECONDS);
         if (!Boolean.TRUE.equals(acquired)) {
