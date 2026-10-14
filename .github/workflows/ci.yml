@@ -50,8 +50,8 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           cache: 'maven'
-      - name: Maven compile (no tests)
-        run: mvn -B -q -DskipTests -Dmaven.test.skip=true compile
+      - name: Maven test
+        run: mvn -B -q test
 
   python:
     name: Python Service Checks
