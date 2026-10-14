@@ -96,6 +96,14 @@ jobs:
         run: docker compose build
       - name: Start integration smoke-test services
         run: docker compose up -d --no-build mysql redis nacos user-service gateway py-service frontend
+      - name: Verify MySQL schema initialization
+        shell: bash
+        run: |
+          for attempt in $(seq 1 60); do
+            if docker compose exec -T mysql mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD" --silent; then break; fi
+            sleep 2
+          done
+          docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -Nse "SELECT COUNT(*) FROM web3_user.user; SELECT COUNT(*) FROM web3_user.guild; SELECT COUNT(*) FROM web3_tool.site_share;"
       - name: Verify frontend and Nginx to Python route
         shell: bash
         run: |
