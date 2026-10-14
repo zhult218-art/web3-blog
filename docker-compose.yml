@@ -1,7 +1,7 @@
 # =====================================================================
 # Web3 Portal — Docker Compose
 # 2026-09-17 修订（与体检报告 P0-3 对齐）：
-#   1. 补充 nacos / ai-proxy-service / quant-py-service 三个缺失服务定义；
+#   1. 补充 nacos / ai-proxy-service / 统一 py-service 服务定义；
 #   2. 所有 Java 服务的 *_SERVICE_HOST 环境变量统一指向对应容器名，
 #      与 gateway/application.yml 的 ${XXX_SERVICE_HOST:localhost} 占位一一对应；
 #      —— 修复网关路由全部 502 的根因（容器内服务发现失败）。
