@@ -56,7 +56,7 @@ class OrderServiceTest {
         orderService.updateStatus(1001L, "CANCELLED");
 
         // 验证状态被改为 CANCELLED
-        verify(orderMapper).updateStatus(1001L, "CANCELLED");
+        verify(orderMapper).updateById(order);
         // 验证库存回补被调用（productId=2001, +3）
         verify(productService).restoreStock(2001L, 3);
     }
