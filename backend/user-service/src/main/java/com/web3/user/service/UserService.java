@@ -17,7 +17,6 @@ import com.web3.user.mapper.UserMapper;
 import com.web3.user.vo.JwtVO;
 import com.web3.user.vo.UserVO;
 import io.jsonwebtoken.Claims;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -105,13 +104,6 @@ public class UserService {
      * @param username 用户名
      * @return true=该用户名在白名单中（白名单为空时永远返回 false）
      */
-    private boolean isAdminUsername(String username) {
-        String admins = System.getenv("ADMIN_USERNAMES");
-        if (admins == null || admins.isBlank()) {
-            return false;
-        }
-        return Arrays.stream(admins.split(",")).map(String::trim).filter(s -> !s.isEmpty()).anyMatch(name -> name.equals(username));
-    }
 
     /**
      * 用户注册：校验用户名唯一 -> BCrypt 加密密码 -> 判定角色 -> 入库 -> 签发 JWT 并缓存至 Redis。
@@ -129,7 +121,7 @@ public class UserService {
         user.setPassword(this.passwordEncoder.encode(dto.getPassword()));
         user.setNickname(dto.getNickname());
         user.setEmail(dto.getEmail());
-        user.setRole(isAdminUsername(dto.getUsername()) ? "ADMIN" : "USER");
+        user.setRole("USER");
         this.userMapper.insert(user);
         String token = this.jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole(), user.getNickname(), user.getPermissions());
         this.redisTemplate.opsForValue().set("token:" + user.getId(), token, this.jwtProperties.getRefresh() * 60L, TimeUnit.SECONDS);
