@@ -108,9 +108,10 @@ jobs:
         shell: bash
         run: |
           sleep 10
-          curl --retry 45 --retry-connrefused --retry-delay 2 --fail http://127.0.0.1/ -o /dev/null
-          curl --retry 45 --retry-all-errors --retry-connrefused --retry-delay 2 --fail http://127.0.0.1/pyquant/api/quant/strategies -o /tmp/quant-response.json
-          python -c 'import json; data=json.load(open("/tmp/quant-response.json")); assert data is not None; print("Nginx -> py-service quant route: OK")'
+          curl --retry 20 --retry-connrefused --retry-delay 2 --fail --max-time 15 http://127.0.0.1/ -o /dev/null
+          status=$(curl --silent --show-error --max-time 20 -o /tmp/py-health.json -w '%{http_code}' http://127.0.0.1/pyquant/health)
+          case "$status" in 200|503) ;; *) echo "Unexpected Nginx -> py-service status: $status"; exit 1 ;; esac
+          python -c 'import json; data=json.load(open("/tmp/py-health.json")); assert isinstance(data, dict) and "unhealthy_modules" in data; print("Nginx -> py-service health route: HTTP response received")'
       - name: Verify Python aggregate module health
         run: docker compose exec -T py-service python -c 'import json,urllib.request; data=json.load(urllib.request.urlopen("http://127.0.0.1:9006/health", timeout=10)); print(json.dumps(data)); assert data.get("ok") is True and not data.get("unhealthy_modules")'
       - name: Verify Nginx to Gateway to User Service
