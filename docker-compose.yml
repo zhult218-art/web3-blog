@@ -81,6 +81,7 @@ services:
       JVM_XMN: 128m
       # Disable the processor metrics binder; Java's cgroup-v2 probe can throw NPE in CI containers.
       MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "false"
+      MANAGEMENT_METRICS_EXPORT_SIMPLE_ENABLED: "false"
       MANAGEMENT_METRICS_BINDERS_PROCESSOR_ENABLED: "false"
       NACOS_PROMETHEUS_METRICS_ENABLED: "false"
       JAVA_OPT_EXT: "-XX:-UseContainerSupport -Dmanagement.metrics.binders.processor.enabled=false -Dmanagement.metrics.export.prometheus.enabled=false"
