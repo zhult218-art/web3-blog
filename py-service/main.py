@@ -21,10 +21,11 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import get_settings, load_dotenv
-from core.loader import LoadedModule, is_awaitable, load_modules
+from core.loader import FAILED_MODULES, LoadedModule, is_awaitable, load_modules
 from core.logging import setup_logging
 from core.nacos import NacosRegistrar
 
@@ -35,6 +36,8 @@ setup_logging()
 import logging  # noqa: E402
 
 logger = logging.getLogger("py-service")
+_startup_failures: List[str] = []
+_setup_failures: List[str] = []
 
 # ── 装配模块（先 setup 挂载静态资源，再 include 路由） ──
 modules: List[LoadedModule] = load_modules(settings)
@@ -42,7 +45,8 @@ modules: List[LoadedModule] = load_modules(settings)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动各模块
+    # 启动各模块；失败会反映在 /health 中。
+    _startup_failures.clear()
     for mod in modules:
         if mod.startup is None:
             continue
@@ -51,7 +55,8 @@ async def lifespan(app: FastAPI):
             if is_awaitable(mod.startup) or asyncio.iscoroutine(result):
                 await result
         except Exception as exc:  # noqa: BLE001
-            logger.error("模块 %s 启动失败：%s", mod.name, exc)
+            _startup_failures.append(mod.name)
+            logger.exception("模块 %s 启动失败：%s", mod.name, exc)
 
     # 注册到 Nacos（metadata 暴露模块清单）
     meta = {
@@ -82,21 +87,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS：默认放行（本地开发，经 Vite 同源代理）；生产用 CORS_ALLOWED_ORIGINS 收紧。
+# 空配置时仅允许本机开发地址；部署域名通过 CORS_ALLOWED_ORIGINS 显式配置。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins or ["*"],
+    allow_origins=settings.cors_origins or ["http://localhost", "http://127.0.0.1", "http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+_setup_failures.clear()
 for mod in modules:
     if mod.setup is not None:
         try:
             mod.setup(app)
         except Exception as exc:  # noqa: BLE001
-            logger.error("模块 %s setup 失败：%s", mod.name, exc)
+            _setup_failures.append(mod.name)
+            logger.exception("模块 %s setup 失败：%s", mod.name, exc)
     if mod.router is not None:
         app.include_router(mod.router)
 
@@ -118,14 +125,24 @@ async def _module_health(mod: LoadedModule) -> Dict[str, Any]:
 
 @app.get("/health")
 async def health():
-    """聚合健康检查：服务基本信息 + 各模块状态。"""
-    return {
-        "ok": True,
+    """聚合健康检查；关键模块异常时返回 HTTP 503。"""
+    module_statuses = [await _module_health(m) for m in modules]
+    unhealthy = [
+        item["name"] for item in module_statuses
+        if isinstance(item.get("status"), dict) and item["status"].get("ok") is False
+    ]
+    unhealthy.extend(name for name in _startup_failures + _setup_failures if name not in unhealthy)
+    unhealthy.extend(name for name in FAILED_MODULES if name not in unhealthy)
+    ok = not unhealthy
+    payload = {
+        "ok": ok,
         "service": settings.service_name,
         "ip": settings.register_ip,
         "port": settings.port,
-        "modules": [await _module_health(m) for m in modules],
+        "modules": module_statuses,
+        "unhealthy_modules": unhealthy,
     }
+    return payload if ok else JSONResponse(status_code=503, content=payload)
 
 
 @app.get("/")

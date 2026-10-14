@@ -31,6 +31,8 @@ class OrderServiceTest {
     private OrderMapper orderMapper;
     @Mock
     private ProductMapper productMapper;
+    @Mock
+    private ProductService productService;
 
     @InjectMocks
     private OrderService orderService;
@@ -49,20 +51,37 @@ class OrderServiceTest {
         order.setProductId(2001L);
         order.setQuantity(3);
         when(orderMapper.selectById(1001L)).thenReturn(order);
-        when(orderMapper.updateStatus(eq(1001L), eq("CANCELLED"))).thenReturn(1);
+        when(orderMapper.updateById(any(Order.class))).thenReturn(1);
 
         orderService.updateStatus(1001L, "CANCELLED");
 
         // 验证状态被改为 CANCELLED
-        verify(orderMapper).updateStatus(1001L, "CANCELLED");
+        verify(orderMapper).updateById(order);
         // 验证库存回补被调用（productId=2001, +3）
-        verify(productMapper).restoreStock(2001L, 3);
+        verify(productService).restoreStock(2001L, 3);
+    }
+
+    @Test
+    void getDetailOwned_rejectsAnotherUsersOrder() {
+        Order order = new Order();
+        order.setId(1003L);
+        order.setUserId(22L);
+        when(orderMapper.selectById(1003L)).thenReturn(order);
+
+        assertThrows(RuntimeException.class, () -> orderService.getDetailOwned(1003L, 33L));
+    }
+
+    @Test
+    void pageByUser_rejectsInvalidPagination() {
+        assertThrows(RuntimeException.class, () -> orderService.pageByUser(1L, 0, 20));
+        assertThrows(RuntimeException.class, () -> orderService.pageByUser(1L, 1, 101));
+        verifyNoInteractions(orderMapper);
     }
 
     @Test
     void updateStatus_invalidTargetStatus_throws() {
         assertThrows(RuntimeException.class, () -> orderService.updateStatus(1002L, "INVALID_STATUS"));
         // 不应回补库存
-        verify(productMapper, never()).restoreStock(anyLong(), anyInt());
+        verify(productService, never()).restoreStock(anyLong(), anyInt());
     }
 }

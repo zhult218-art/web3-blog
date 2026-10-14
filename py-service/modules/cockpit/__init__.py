@@ -53,7 +53,7 @@ def health() -> dict:
         "ok": _state.get("ready", False),
         "service": "cockpit",
         "version": MODULE_META["version"],
-        "capabilities": len(_state.get("capabilities", []) or []),
+        "capabilities": len(_state["capabilities"].all()) if _state.get("capabilities") is not None else 0,
     }
 
 

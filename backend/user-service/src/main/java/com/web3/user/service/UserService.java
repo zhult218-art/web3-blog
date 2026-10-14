@@ -17,7 +17,6 @@ import com.web3.user.mapper.UserMapper;
 import com.web3.user.vo.JwtVO;
 import com.web3.user.vo.UserVO;
 import io.jsonwebtoken.Claims;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -93,28 +92,7 @@ public class UserService {
     }
 
     /**
-     * 判断用户名是否属于管理员名单（环境变量 ADMIN_USERNAMES，逗号分隔）。
-     *
-     * <p>安全说明：历史上此处默认值为 "admin"，意味着任何人只要注册一个叫 admin 的账号就能拿到 ADMIN
-     * 角色。该默认值已于 2026-09-17 移除，现在 ADMIN 角色只能通过以下途径获得：</p>
-     * <ol>
-     *   <li>管理员在后台通过 createByAdmin/updateByAdmin 显式授权；</li>
-     *   <li>启动时通过环境变量 ADMIN_USERNAMES=xxx,yyy 显式声明允许提权的用户名（仅推荐用于首次种子账号）。</li>
-     * </ol>
-     *
-     * @param username 用户名
-     * @return true=该用户名在白名单中（白名单为空时永远返回 false）
-     */
-    private boolean isAdminUsername(String username) {
-        String admins = System.getenv("ADMIN_USERNAMES");
-        if (admins == null || admins.isBlank()) {
-            return false;
-        }
-        return Arrays.stream(admins.split(",")).map(String::trim).filter(s -> !s.isEmpty()).anyMatch(name -> name.equals(username));
-    }
-
-    /**
-     * 用户注册：校验用户名唯一 -> BCrypt 加密密码 -> 判定角色 -> 入库 -> 签发 JWT 并缓存至 Redis。
+     * 用户注册：校验用户名唯一 -> BCrypt 加密密码 -> 以普通用户角色入库 -> 签发 JWT 并缓存至 Redis。
      *
      * @param dto 注册参数（username/password/nickname/email）
      * @return 成功：code=200，data 为 JwtVO（token + 用户信息）；用户名已存在：code=500
@@ -129,7 +107,7 @@ public class UserService {
         user.setPassword(this.passwordEncoder.encode(dto.getPassword()));
         user.setNickname(dto.getNickname());
         user.setEmail(dto.getEmail());
-        user.setRole(isAdminUsername(dto.getUsername()) ? "ADMIN" : "USER");
+        user.setRole("USER");
         this.userMapper.insert(user);
         String token = this.jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole(), user.getNickname(), user.getPermissions());
         this.redisTemplate.opsForValue().set("token:" + user.getId(), token, this.jwtProperties.getRefresh() * 60L, TimeUnit.SECONDS);

@@ -79,7 +79,7 @@ class Settings:
     # ── 模块开关/顺序（空 = 自动加载全部 modules/*） ──
     modules: List[str] = field(default_factory=list)
 
-    # ── CORS 允许来源（空 = 放行全部，仅建议本地开发） ──
+    # ── CORS 允许来源（空 = 仅允许本地开发来源，部署域名需显式配置） ──
     cors_origins: List[str] = field(default_factory=list)
 
     # ── 运行数据目录 ──

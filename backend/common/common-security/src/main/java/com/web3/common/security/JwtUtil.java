@@ -10,6 +10,8 @@ import java.util.Date;
 import java.util.HashMap;
 import javax.crypto.SecretKey;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * 类名：JwtUtil
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Component;
 public class JwtUtil {
     private final SecretKey key;
     private final long expireMillis;
+    private final StringRedisTemplate redisTemplate;
 
     /**
      * 构造函数：根据配置初始化 HMAC 签名密钥与令牌有效期（expire 分钟转毫秒）。
@@ -28,11 +31,14 @@ public class JwtUtil {
      * @param properties JWT 配置（密钥、有效期）
      */
     public JwtUtil(JwtProperties properties) {
+        this(properties, null);
+    }
+
+    @Autowired
+    public JwtUtil(JwtProperties properties, StringRedisTemplate redisTemplate) {
         this.key = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
-        // 令牌有效期取 jwt.refresh（默认 7 天），与 Redis 会话 TTL、Cookie maxAge 三者保持一致：
-        // 这样刷新页面后浏览器仍持有有效 Cookie → /user/refresh 静默续期成功，登录态可持续整个周期。
-        // jwt.expire（2h）保留为配置项备用；个人本机/内网站以可用性优先，access 与 refresh 复用同一令牌。
         this.expireMillis = properties.getRefresh() * 60 * 1000L;
+        this.redisTemplate = redisTemplate;
     }
 
     /**
@@ -111,8 +117,16 @@ public class JwtUtil {
      */
     public boolean validate(String token) {
         try {
-            this.parseToken(token);
-            return true;
+            Claims claims = this.parseToken(token).getPayload();
+            if (redisTemplate == null) {
+                return true;
+            }
+            Long userId = claims.get("userId", Long.class);
+            if (userId == null) {
+                return false;
+            }
+            String activeToken = redisTemplate.opsForValue().get("token:" + userId);
+            return token.equals(activeToken);
         } catch (JwtException ex) {
             return false;
         }

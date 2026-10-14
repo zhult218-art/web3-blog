@@ -1,6 +1,7 @@
 package com.web3.forum.controller;
 
 import com.web3.common.core.ApiResponse;
+import com.web3.common.core.UnauthorizedException;
 import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
@@ -46,6 +47,15 @@ public class ChatExtraController {
     private Long uid(String auth) {
         return AuthUtils.requireUserId(auth, jwtUtil, jwtProperties);
     }
+    private boolean isAdmin(String auth) {
+        try {
+            AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
+            return true;
+        } catch (UnauthorizedException ex) {
+            if (ex.getCode() == 403) return false;
+            throw ex;
+        }
+    }
     private String nick(Claims c) {
         String n = c.get("nickname", String.class);
         return n != null ? n : c.get("username", String.class);
@@ -61,26 +71,31 @@ public class ChatExtraController {
     @PostMapping("/chat/rooms/{roomId}/announcements")
     public ApiResponse<ChatAnnouncement> createAnnouncement(@PathVariable Long roomId,
             @RequestHeader("Authorization") String auth, @RequestBody Map<String, Object> body) {
+        Long userId = uid(auth);
+        boolean admin = isAdmin(auth);
         Claims c = claims(auth);
-        return ApiResponse.ok(extraService.createAnnouncement(roomId, uid(auth), nick(c),
+        return ApiResponse.ok(extraService.createAnnouncement(roomId, userId, nick(c),
                 String.valueOf(body.getOrDefault("title", "")),
                 String.valueOf(body.getOrDefault("content", "")),
-                body.get("pinned") != null && Boolean.parseBoolean(String.valueOf(body.get("pinned"))) ? 1 : 0));
+                admin && body.get("pinned") != null && Boolean.parseBoolean(String.valueOf(body.get("pinned"))) ? 1 : 0));
     }
 
     @PutMapping("/chat/announcements/{id}")
     public ApiResponse<ChatAnnouncement> updateAnnouncement(@PathVariable Long id,
-            @RequestHeader(value = "Authorization", required = false) String auth,
+            @RequestHeader("Authorization") String auth,
             @RequestBody Map<String, Object> body) {
+        Long userId = uid(auth);
+        boolean admin = isAdmin(auth);
         return ApiResponse.ok(extraService.updateAnnouncement(id,
                 body.containsKey("title") ? String.valueOf(body.get("title")) : null,
                 body.containsKey("content") ? String.valueOf(body.get("content")) : null,
-                body.containsKey("pinned") ? (Boolean.parseBoolean(String.valueOf(body.get("pinned"))) ? 1 : 0) : null));
+                body.containsKey("pinned") && admin ? (Boolean.parseBoolean(String.valueOf(body.get("pinned"))) ? 1 : 0) : null, userId, admin));
     }
 
     @DeleteMapping("/chat/announcements/{id}")
-    public ApiResponse<Void> deleteAnnouncement(@PathVariable Long id) {
-        extraService.deleteAnnouncement(id);
+    public ApiResponse<Void> deleteAnnouncement(@PathVariable Long id, @RequestHeader("Authorization") String auth) {
+        Long userId = uid(auth);
+        extraService.deleteAnnouncement(id, userId, isAdmin(auth));
         return ApiResponse.ok();
     }
 
@@ -100,13 +115,16 @@ public class ChatExtraController {
     }
 
     @PutMapping("/chat/albums/{id}")
-    public ApiResponse<ChatAlbum> renameAlbum(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(extraService.renameAlbum(id, String.valueOf(body.getOrDefault("name", "新相册"))));
+    public ApiResponse<ChatAlbum> renameAlbum(@PathVariable Long id, @RequestBody Map<String, Object> body,
+            @RequestHeader("Authorization") String auth) {
+        Long userId = uid(auth);
+        return ApiResponse.ok(extraService.renameAlbum(id, String.valueOf(body.getOrDefault("name", "新相册")), userId, isAdmin(auth)));
     }
 
     @DeleteMapping("/chat/albums/{id}")
-    public ApiResponse<Void> deleteAlbum(@PathVariable Long id) {
-        extraService.deleteAlbum(id);
+    public ApiResponse<Void> deleteAlbum(@PathVariable Long id, @RequestHeader("Authorization") String auth) {
+        Long userId = uid(auth);
+        extraService.deleteAlbum(id, userId, isAdmin(auth));
         return ApiResponse.ok();
     }
 
@@ -126,19 +144,23 @@ public class ChatExtraController {
                 ? Long.parseLong(String.valueOf(body.get("albumId"))) : 1L;
         Integer width = body.get("width") != null ? Integer.parseInt(String.valueOf(body.get("width"))) : null;
         Integer height = body.get("height") != null ? Integer.parseInt(String.valueOf(body.get("height"))) : null;
-        return ApiResponse.ok(extraService.addPhoto(roomId, albumId, uid(auth), nick(c),
-                String.valueOf(body.getOrDefault("url", "")), width, height));
+        Long userId = uid(auth);
+        return ApiResponse.ok(extraService.addPhoto(roomId, albumId, userId, nick(c),
+                String.valueOf(body.getOrDefault("url", "")), width, height, isAdmin(auth)));
     }
 
     @PutMapping("/chat/photos/{id}/move")
-    public ApiResponse<ChatPhoto> movePhoto(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ApiResponse<ChatPhoto> movePhoto(@PathVariable Long id, @RequestBody Map<String, Object> body,
+            @RequestHeader("Authorization") String auth) {
         Long target = Long.parseLong(String.valueOf(body.getOrDefault("albumId", "1")));
-        return ApiResponse.ok(extraService.movePhoto(id, target));
+        Long userId = uid(auth);
+        return ApiResponse.ok(extraService.movePhoto(id, target, userId, isAdmin(auth)));
     }
 
     @DeleteMapping("/chat/photos/{id}")
-    public ApiResponse<Void> deletePhoto(@PathVariable Long id) {
-        extraService.deletePhoto(id);
+    public ApiResponse<Void> deletePhoto(@PathVariable Long id, @RequestHeader("Authorization") String auth) {
+        Long userId = uid(auth);
+        extraService.deletePhoto(id, userId, isAdmin(auth));
         return ApiResponse.ok();
     }
 
@@ -152,6 +174,7 @@ public class ChatExtraController {
     @PostMapping("/chat/rooms/{roomId}/notifications")
     public ApiResponse<ChatNotification> createNotification(@PathVariable Long roomId,
             @RequestHeader("Authorization") String auth, @RequestBody Map<String, Object> body) {
+        AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
         Claims c = claims(auth);
         return ApiResponse.ok(extraService.createNotification(roomId, uid(auth), nick(c),
                 String.valueOf(body.getOrDefault("type", "info")),
@@ -160,8 +183,9 @@ public class ChatExtraController {
     }
 
     @DeleteMapping("/chat/notifications/{id}")
-    public ApiResponse<Void> deleteNotification(@PathVariable Long id) {
-        extraService.deleteNotification(id);
+    public ApiResponse<Void> deleteNotification(@PathVariable Long id, @RequestHeader("Authorization") String auth) {
+        Long userId = uid(auth);
+        extraService.deleteNotification(id, userId, isAdmin(auth));
         return ApiResponse.ok();
     }
 

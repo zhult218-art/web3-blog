@@ -1,11 +1,4 @@
-# Web3 Portal CI — 最简 lint + build
-# 2026-09-17 新增。触发：push / pull_request 到 main/master。
-# 不跑后端单元测试（仓库当前零测试），只跑：
-#   1. frontend lint（ESLint）
-#   2. frontend build（vite build，验证无 import 错误）
-#   3. backend maven compile（验证 Java 编译通过，不跑测试）
-# 失败时阻断 PR 合入。
-
+# Web3 Portal CI
 name: CI
 
 on:
@@ -23,32 +16,153 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: Lint
-        run: npm run lint
-        continue-on-error: true # 历史代码大量 warn，先不阻断
-      - name: Build
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+      - name: Lint changed frontend source files
+        shell: bash
+        run: |
+          files="$(git diff --name-only origin/main...HEAD -- frontend | grep -E '\.(vue|js|ts)$' || true)"
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files" | xargs -r npx eslint
+          else
+            echo "No changed frontend source files; full production build remains required."
+          fi
+      - name: Production build
         run: npm run build
 
   backend:
-    name: Backend Compile
+    name: Backend Maven Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Run backend unit tests
+        run: mvn -B -q -f backend/pom.xml test
+
+  python:
+    name: Python Service Checks
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: py-service
     steps:
       - uses: actions/checkout@v4
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-python@v5
         with:
-          distribution: 'temurin'
+          python-version: '3.11'
+      - name: Install test runner
+        run: python -m pip install --upgrade pytest
+      - name: Compile Python sources
+        run: find main.py core modules tests -type f -name '*.py' ! -path 'modules/wifi/vendor/wifite/*' -print0 | xargs -0 -n1 python -m py_compile
+      - name: Run focused tests
+        run: python -m pytest -q tests
+
+  compose:
+    name: Compose Configuration and Image Build
+    runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-only-secret-that-is-long-enough
+      MYSQL_ROOT_PASSWORD: ci-only-mysql-password
+      MYSQL_PASSWORD: ci-only-mysql-password
+      REDIS_PASSWORD: ci-only-redis-password
+      RABBITMQ_DEFAULT_USER: ci
+      RABBITMQ_DEFAULT_PASS: ci-only-rabbit-password
+      RABBITMQ_USERNAME: ci
+      RABBITMQ_PASSWORD: ci-only-rabbit-password
+      VIDEO_ADMIN_TOKEN: ci-only-video-admin-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
           java-version: '17'
-          cache: 'maven'
-      - name: Maven compile (no tests)
-        run: mvn -B -q -DskipTests -Dmaven.test.skip=true compile
+          cache: maven
+      - name: Package backend jars for Dockerfiles
+        run: mvn -B -q -f backend/pom.xml -Dmaven.test.skip=true package
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build complete application image set
+        run: docker compose build
+      - name: Start integration smoke-test services
+        run: docker compose up -d --no-build mysql redis nacos user-service gateway py-service frontend
+      - name: Verify MySQL schema initialization
+        shell: bash
+        run: |
+          for attempt in $(seq 1 60); do
+            if docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -Nse "SELECT COUNT(*) FROM web3_user.user; SELECT COUNT(*) FROM web3_user.guild; SELECT COUNT(*) FROM web3_tool.site_share;"; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Verify Redis readiness and authentication
+        run: docker compose exec -T redis redis-cli -a "$REDIS_PASSWORD" ping | grep -qx PONG
+      - name: Verify Nacos readiness
+        shell: bash
+        run: |
+          for attempt in $(seq 1 45); do
+            if curl --silent --fail --max-time 2 http://127.0.0.1:8848/nacos/v1/console/health/readiness; then
+              echo "Nacos readiness: OK"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps nacos
+          docker compose logs --no-color --tail=200 nacos
+          exit 1
+      - name: Verify frontend and Nginx to Python route
+        shell: bash
+        run: |
+          sleep 10
+          curl --retry 20 --retry-connrefused --retry-delay 2 --fail --max-time 15 http://127.0.0.1/ -o /dev/null
+          status=$(curl --silent --show-error --max-time 20 -o /tmp/py-health.json -w '%{http_code}' http://127.0.0.1/pyquant/health)
+          case "$status" in 200|503) ;; *) echo "Unexpected Nginx -> py-service status: $status"; exit 1 ;; esac
+          python -c 'import json; data=json.load(open("/tmp/py-health.json")); names={m["name"] for m in data.get("modules", [])}; assert {"quant", "cockpit"}.issubset(names), (names, data.get("unhealthy_modules")); print("Nginx -> py-service route and critical module discovery: OK")'
+      - name: Verify Python aggregate module health
+        run: |
+          docker compose exec -T py-service python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+
+          try:
+              with urllib.request.urlopen("http://127.0.0.1:9006/health", timeout=10) as response:
+                  payload = json.load(response)
+          except urllib.error.HTTPError as error:
+              payload = json.loads(error.read())
+              print(json.dumps(payload, ensure_ascii=False))
+              raise SystemExit(f"Python aggregate health returned HTTP {error.code}")
+          print(json.dumps(payload, ensure_ascii=False))
+          assert payload.get("ok") is True and not payload.get("unhealthy_modules"), payload
+          PY
+      - name: Verify Gateway and Nginx to User Service
+        shell: bash
+        run: |
+          for mode in direct direct-forwarded nginx; do
+            case "$mode" in
+              direct) url=http://127.0.0.1:8080/user/count; args=() ;;
+              direct-forwarded) url=http://127.0.0.1:8080/user/count; args=(-H 'Host: localhost' -H 'X-Real-IP: 172.18.0.1' -H 'X-Forwarded-For: 172.18.0.1') ;;
+              nginx) url=http://127.0.0.1/api/user/count; args=() ;;
+            esac
+            status=$(curl --silent --show-error --retry 10 --retry-connrefused --retry-delay 2 --max-time 15 "${args[@]}" -o /tmp/user-count-response.json -w '%{http_code}' "$url")
+            echo "$mode $url -> HTTP $status"
+            cat /tmp/user-count-response.json
+            if [ "$mode" = nginx ] && [ "$status" != "200" ]; then exit 1; fi
+            if [ "$mode" != nginx ] && [ "$status" != "200" ]; then echo "Gateway direct probe failed"; exit 1; fi
+          done
+          python -c 'import json; data=json.load(open("/tmp/user-count-response.json")); assert data.get("code", 200) in (0, 200), data'
+          echo "Gateway and Nginx -> User Service route: OK"
+      - name: Show service diagnostics on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail=100 mysql redis nacos user-service gateway py-service frontend

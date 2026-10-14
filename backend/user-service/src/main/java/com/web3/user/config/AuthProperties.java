@@ -6,8 +6,8 @@ import org.springframework.stereotype.Component;
 /**
  * AuthProperties
  * (zh) 登录/认证相关配置项（application.yml 中 app.auth 前缀）：
- *      captcha-required 图形验证码开关；mail-enabled/sms-enabled 决定邮箱/短信验证码
- *      真发还是返回 devCode（开发模式）；google.* 为 OAuth 客户端配置；
+ *      captcha-required 图形验证码开关；mail-enabled/sms-enabled 控制真实邮箱/短信发送；
+ *      未配置真实发送通道时验证码发送失败；google.* 为 OAuth 客户端配置；
  *      frontend-url 为 OAuth 回调重定向的前端地址。
  */
 @Component
@@ -17,10 +17,10 @@ public class AuthProperties {
     /** 登录/注册/发送验证码前是否必须通过图形验证码 */
     private boolean captchaRequired = true;
 
-    /** 邮箱 SMTP 是否已配置可用（false 时验证码走开发模式：日志输出并回传 devCode） */
+    /** 邮箱 SMTP 是否已配置可用；false 时拒绝发送验证码 */
     private boolean mailEnabled = false;
 
-    /** 短信通道是否已配置可用（false 时验证码走开发模式） */
+    /** 短信通道是否已配置可用；当前尚未实现供应商 SDK */
     private boolean smsEnabled = false;
 
     /**
