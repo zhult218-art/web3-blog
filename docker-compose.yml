@@ -79,11 +79,12 @@ services:
       JVM_XMS: 256m
       JVM_XMX: 512m
       JVM_XMN: 128m
-      # Nacos 2.3.2 processor metrics can fail initialization in constrained containers.
+      # Disable the processor metrics binder; Java's cgroup-v2 probe can throw NPE in CI containers.
       MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "false"
       MANAGEMENT_METRICS_BINDERS_PROCESSOR_ENABLED: "false"
       NACOS_PROMETHEUS_METRICS_ENABLED: "false"
-      # Use the individual Nacos metrics flags above; avoid invalid JSON startup overrides.
+      JAVA_OPT_EXT: "-Dmanagement.metrics.binders.processor.enabled=false -Dmanagement.metrics.export.prometheus.enabled=false"
+      SPRING_APPLICATION_JSON: '{"management":{"metrics":{"binders":{"processor":{"enabled":false}},"export":{"prometheus":{"enabled":false}}}}}'
     ports:
       - '127.0.0.1:8848:8848'
       - '127.0.0.1:9848:9848'
