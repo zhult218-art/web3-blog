@@ -1,16 +1,19 @@
 <template>
   <div id="bg-layer" aria-hidden="true">
-    <!-- 视频壁纸：poster 首帧兜底（黑屏防护）；低端机/减少动效偏好 → 静态海报图 -->
+    <!-- 视频壁纸：poster 首帧兜底（黑屏防护）；低端机/减少动效偏好 → 静态海报图。
+         元素常驻（v-show 而非 v-if）：切换壁纸不销毁 video，避免进行中的媒体流
+         被强行中止而在控制台刷 net::ERR_ABORTED -->
     <video
-      v-if="bgVideo && canPlayVideo && !videoFailed"
+      v-if="canPlayVideo"
+      v-show="bgVideo && !videoFailed"
       ref="bgVideoEl"
-      :src="bgVideo.video"
-      :poster="bgVideo.poster"
-      muted loop playsinline autoplay disablepictureinpicture preload="metadata"
+      :src="bgVideo && !videoFailed ? bgVideo.video : undefined"
+      :poster="bgVideo ? bgVideo.poster : undefined"
+      muted loop playsinline disablepictureinpicture preload="metadata"
       @error="videoFailed = true"
       :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }"
     ></video>
-    <img v-else-if="bgVideo" :src="bgVideo.poster" :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }" />
+    <img v-if="bgVideo && (videoFailed || !canPlayVideo)" :src="bgVideo.poster" :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }" />
   </div>
   <div class="scroll-progress" :style="{ width: scrollProgress + '%' }"></div>
   <!-- 维护模式横幅：系统设置中开启后全站顶部提示（普通流程文档流，随滚动离开） -->
@@ -106,7 +109,8 @@ const scrollProgress = ref(0)
 // 2) poster 首帧兜底：视频未就绪时先亮海报，杜绝黑屏/白屏
 // 3) 页面隐藏（切 tab）→ 立即暂停解码，释放 GPU/CPU，避免后台卡顿
 // 4) canplay 后才 play()，且 play() 失败静默降级（自动播放策略拒绝时仍显示海报）
-// 5) 单实例 video：切换壁纸仅换 src，绝不多路解码
+// 5) 单实例常驻 video（v-show 切换）：换壁纸仅换 src 不销毁元素；换源前先 pause()，
+//    让旧流优雅停止，最大限度减少控制台 net::ERR_ABORTED 噪音
 const canPlayVideo = !window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches &&
   (navigator.hardwareConcurrency == null || navigator.hardwareConcurrency > 4)
 
@@ -144,7 +148,13 @@ watch(bgVideoEl, el => {
   el.addEventListener('play', () => clearTimeout(t), { once: true })
 })
 
-watch(bgWallpaper, () => { videoFailed.value = false; tryPlayVideo() })
+watch(bgWallpaper, (nw, ow) => {
+  // 先暂停旧流再让 Vue 换 src：播放/缓冲中的媒体被直接换源会被浏览器强行中止
+  const v = bgVideoEl.value
+  if (v && ow?.video && ow.video !== nw?.video) v.pause()
+  videoFailed.value = false
+  tryPlayVideo()
+})
 
 onMounted(() => document.addEventListener('visibilitychange', onVisibilityChange))
 onUnmounted(() => {
