@@ -255,14 +255,14 @@ foreach ($svc in $services) {
     # 2026-10-10：software-service 默认端口 8088 被腾讯更新代理占用，改用 8090。
     if ($svc.name -eq "user-service") {
         Start-HiddenProcess -Name $svc.name -File $java `
-            -Arguments "-Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7892 -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=7892 -jar `"$jarPath`"" `
+            -Arguments "-Xmx320m -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7892 -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=7892 -jar `"$jarPath`"" `
             -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
     } elseif ($svc.name -eq "software-service") {
         Start-HiddenProcess -Name $svc.name -File $java `
-            -Arguments "-jar `"$jarPath`" --server.port=8090" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
+            -Arguments "-Xmx320m -jar `"$jarPath`" --server.port=8090" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
     } else {
         Start-HiddenProcess -Name $svc.name -File $java `
-            -Arguments "-jar `"$jarPath`"" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
+            -Arguments "-Xmx320m -jar `"$jarPath`"" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
     }
     Start-Sleep -Milliseconds 400
 }
@@ -277,6 +277,19 @@ if ($node -and (Test-Path $ncmEntry)) {
         -WorkDir $ncmDir -LogDir $ncmDir | Out-Null
 } else {
     Write-Host "  跳过 netease-music-api：未找到 node 或 server.js（音乐馆仍可用 Audius / iTunes 免费源）" -ForegroundColor Yellow
+}
+
+# ── 2.5 聊天网关（Node / Socket.IO v4，端口 3010） ──
+# 群聊与私聊的实时通道；JWT 走 httpOnly Cookie 鉴权，消息落 MySQL web3_forum。
+# 前端经 Vite 的 /socket.io 代理同源接入，不经过网关（8080）。
+Write-Host "启动聊天网关（3010）..." -ForegroundColor Cyan
+$chatGwDir = Join-Path $root "node-service\chat-gateway"
+$chatGwEntry = Join-Path $chatGwDir "server.js"
+if ($node -and (Test-Path $chatGwEntry)) {
+    Start-HiddenProcess -Name "chat-gateway" -File $node -Arguments "`"$chatGwEntry`"" `
+        -WorkDir $chatGwDir -LogDir $chatGwDir | Out-Null
+} else {
+    Write-Host "  跳过 chat-gateway：未找到 node 或 server.js（聊天将不可用）" -ForegroundColor Yellow
 }
 
 # ── 3. 统一 Python 服务 py-service（FastAPI，单进程单端口 9006） ──
@@ -360,7 +373,7 @@ if ($sakuraRunning) {
 Write-Host "`n等待 20s 让服务完成启动..." -ForegroundColor Cyan
 Start-Sleep -Seconds 20
 Write-Host "`n=== 端口检查 ===" -ForegroundColor Cyan
-foreach ($p in @(3306,6379,8848,8080,8081,8082,8083,8084,8085,8086,8087,8089,8090,8093,9001,9002,3000,5173,9006,8900)) {
+foreach ($p in @(3306,6379,8848,8080,8081,8082,8083,8084,8085,8086,8087,8089,8090,8093,9001,9002,3000,5173,9006,8900,3010)) {
     $listening = netstat -ano | Select-String ":$p" | Select-String "LISTENING"
     if ($listening) { Write-Host "  :$p  OK" -ForegroundColor Green }
     else { Write-Host "  :$p  DOWN" -ForegroundColor Red }

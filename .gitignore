@@ -33,6 +33,20 @@ node_modules/.vite/
 .env.local
 *.local
 
+# Private keys & certificates
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Test coverage
+coverage/
+.nyc_output/
+
 # Runtime data
 backend/media-service/runtime/
 # 仓库根 runtime/：本地运行时上传目录（media-service 以仓库根为工作目录启动时产生）
@@ -71,3 +85,7 @@ check-encoding.json
 frontend/PROJECT_HANDOFF.md
 frontend/REFACTOR-MEGA-COMPONENTS.md
 backend/DECOMPILED-SOURCES.md
+# Runtime data / build output (2026-10-15)
+backend/uploads/
+backend/**/bin/
+py-service/data/

@@ -1997,7 +1997,7 @@ async function loadMultiStrategies(force = false) {
       if (!arr.some(x => x.id === dashMultiActive.value)) dashMultiActive.value = arr[0].id
     }
   } catch (e) {
-    console.warn('loadMultiStrategies fail', e)
+    if (import.meta.env.DEV) console.warn('loadMultiStrategies fail', e)
   } finally {
     dashMultiLoading.value = false
   }
@@ -2317,7 +2317,7 @@ async function loadLlmProviders() {
     }
   } catch (e) {
     llmProviderErr.value = '无法获取预置供应商（quant-py-service(9006) 未启动？）'
-    console.warn('loadLlmProviders failed', e)
+    if (import.meta.env.DEV) console.warn('loadLlmProviders failed', e)
   }
 }
 
@@ -2367,7 +2367,7 @@ function initDeepaiCfg() {
       deepaiCfg.serverDefault = !!saved.serverDefault
     }
   } catch (e) {
-    console.warn('initDeepaiCfg failed', e)
+    if (import.meta.env.DEV) console.warn('initDeepaiCfg failed', e)
   }
 }
 
@@ -2663,7 +2663,7 @@ async function loadOverview() {
     }
 
     if (m.updated_at) lastUpdate.value = m.updated_at
-  } catch (e) { console.warn('loadOverview fail', e) }
+  } catch (e) { if (import.meta.env.DEV) console.warn('loadOverview fail', e) }
 }
 
 // ===== 智能看板数据加载 =====
@@ -2723,7 +2723,7 @@ async function loadRecommend(force = false) {
     const d = res?.data || res
     if (d && Array.isArray(d.items)) dashRecommend.value = d
   } catch (e) {
-    console.warn('loadRecommend fail', e)
+    if (import.meta.env.DEV) console.warn('loadRecommend fail', e)
   } finally {
     dashRecommendLoading.value = false
   }
@@ -2791,7 +2791,7 @@ async function loadSectorTrends() {
       dashSectorTrends.value = d
     }
   } catch (e) {
-    console.warn('loadSectorTrends fail', e)
+    if (import.meta.env.DEV) console.warn('loadSectorTrends fail', e)
   } finally {
     dashSectorLoading.value = false
     await nextTick()
@@ -2848,7 +2848,7 @@ function renderSectorTrendsChart() {
     }),
   })
   } catch (e) {
-    console.warn('sector trends chart render failed, retrying', e)
+    if (import.meta.env.DEV) console.warn('sector trends chart render failed, retrying', e)
     setTimeout(renderSectorTrendsChart, 300)
   }
 }
@@ -3144,7 +3144,7 @@ async function loadSectors() {
     arr.sort((a, b) => b.change_pct - a.change_pct)
     thsSectors.value = arr.slice(0, 24)
     thsSectorSource.value = res.source || '同花顺'
-  } catch (e) { console.warn('sectors fail', e) }
+  } catch (e) { if (import.meta.env.DEV) console.warn('sectors fail', e) }
 }
 
 // loadHotStocks 已合并到 loadOverview
@@ -3168,7 +3168,7 @@ async function prefetchSparklines(list) {
       for (const [sym, closes] of Object.entries(d)) {
         if (Array.isArray(closes) && closes.length) cacheSpark(sym, closes)
       }
-    } catch (e) { console.warn('sparklines batch fail (offset ' + i + ')', e) }
+    } catch (e) { if (import.meta.env.DEV) console.warn('sparklines batch fail (offset ' + i + ')', e) }
   }
 }
 
@@ -3194,7 +3194,7 @@ async function fetchStockQuote() {
     }
     lastUpdate.value = new Date().toLocaleTimeString()
   } catch (e) {
-    console.warn('quote fail', e)
+    if (import.meta.env.DEV) console.warn('quote fail', e)
   }
 }
 
@@ -3340,7 +3340,7 @@ async function fetchKline(code, period) {
       ],
     }, true)
   } catch (e) {
-    console.warn('kline fail', e)
+    if (import.meta.env.DEV) console.warn('kline fail', e)
   }
 }
 
@@ -3395,7 +3395,7 @@ async function fetchStockInfo(code) {
       { label: '成交额(亿)', value: info.turnover ? f(info.turnover / 1e8) + '亿' : '--' },
       { label: '数据源', value: info.source || 'akshare' },
     ]
-  } catch (e) { console.warn('stock info fail', e) }
+  } catch (e) { if (import.meta.env.DEV) console.warn('stock info fail', e) }
 }
 
 // ===== Strategies =====
@@ -3408,7 +3408,7 @@ async function fetchStrategies() {
     strategyList.value = d.records || []
     strategyTotal.value = d.total || (d.records?.length || 0) * 10
   } catch (e) {
-    console.warn('strategies fail', e)
+    if (import.meta.env.DEV) console.warn('strategies fail', e)
     strategyListError.value = e.message || '加载失败'
   }
 }
@@ -3494,7 +3494,7 @@ async function loadAllUserStrategies() {
     const records = (d && d.records) || []
     allStrategies.value = Array.isArray(records) ? records : []
   } catch (e) {
-    console.warn('load all user strategies fail', e)
+    if (import.meta.env.DEV) console.warn('load all user strategies fail', e)
   }
 }
 // 当前选中策略的元信息（用户策略 / 内置策略）

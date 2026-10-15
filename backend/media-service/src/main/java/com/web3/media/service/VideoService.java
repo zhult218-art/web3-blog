@@ -9,19 +9,13 @@ import com.web3.media.entity.Video;
 import com.web3.media.mapper.VideoMapper;
 import com.web3.media.security.FileSecurityChecker;
 import com.web3.media.vo.VideoVO;
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileAttribute;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -46,9 +40,12 @@ public class VideoService
 extends ServiceImpl<VideoMapper, Video> {
     /** 上传目录与大小限制配置 */
     private final MediaUploadProperties uploadProperties;
+    /** URL 下载任务管理器：在后台线程执行 yt-dlp 并上报进度 */
+    private final DownloadTaskManager downloadTaskManager;
 
-    public VideoService(MediaUploadProperties uploadProperties) {
+    public VideoService(MediaUploadProperties uploadProperties, DownloadTaskManager downloadTaskManager) {
         this.uploadProperties = uploadProperties;
+        this.downloadTaskManager = downloadTaskManager;
     }
 
     /**
@@ -137,105 +134,29 @@ extends ServiceImpl<VideoMapper, Video> {
     }
 
     /**
-     * 通过 yt-dlp 从 URL 下载视频（YouTube/B站/抖音等 1800+ 平台）
-     * 下载到上传目录后建 Video 记录，直接出现在视频列表中
+     * 创建「从 URL 下载视频」任务（异步执行，立即返回任务号）
+     * <p>
+     * 真正的 yt-dlp 下载、进度上报与入库由 {@link DownloadTaskManager} 在后台线程完成，
+     * 前端拿到 taskId 后轮询进度，避免长下载阻塞 HTTP 请求触发客户端超时。
      *
      * @param url       视频 URL
-     * @param quality   清晰度 best/1080p/720p/480p
+     * @param quality   清晰度 best/1080p/720p/480p/audio
      * @param subtitle  是否下载字幕
      * @param tags      标签
-     * @return 视频视图对象
+     * @return 下载任务快照（含 taskId、status、percent 等）
      */
-    public VideoVO downloadFromUrl(String url, String quality, boolean subtitle, String tags) throws IOException, InterruptedException {
-        String ext = "mp4";
-        String filename = UUID.randomUUID().toString() + "." + ext;
-        Path dir = Paths.get(this.uploadProperties.getDir(), new String[0]).toAbsolutePath().normalize();
-        if (!Files.exists(dir, new LinkOption[0])) {
-            Files.createDirectories(dir, new FileAttribute[0]);
-        }
-        Path target = dir.resolve(filename).normalize();
+    public DownloadTaskManager.DownloadTask downloadFromUrl(String url, String quality, boolean subtitle, String tags) {
+        return this.downloadTaskManager.start(url, quality, subtitle, tags);
+    }
 
-        // 构造 yt-dlp 命令
-        String fmt = switch (quality == null ? "best" : quality) {
-            case "1080p" -> "bestvideo[height<=1080]+bestaudio/best[height<=1080]";
-            case "720p" -> "bestvideo[height<=720]+bestaudio/best[height<=720]";
-            case "480p" -> "bestvideo[height<=480]+bestaudio/best[height<=480]";
-            default -> "bestvideo*+bestaudio/best";
-        };
-        List<String> cmd = new ArrayList<>();
-        cmd.add("yt-dlp");
-        cmd.add("-f"); cmd.add(fmt);
-        cmd.add("--merge-output-format"); cmd.add("mp4");
-        cmd.add("-o"); cmd.add(target.toString());
-        cmd.add("--no-playlist");
-        cmd.add("--sponsorblock-remove"); cmd.add("all");
-        if (subtitle) {
-            cmd.add("--write-subs");
-            cmd.add("--write-auto-subs");
-            cmd.add("--sub-langs"); cmd.add("zh-CN,en");
-            cmd.add("--sub-format"); cmd.add("srt/best");
-            cmd.add("--convert-subs"); cmd.add("srt");
-        }
-        cmd.add(url);
-
-        ProcessBuilder pb = new ProcessBuilder(cmd);
-        pb.redirectErrorStream(true);
-        Process proc = pb.start();
-        String title = "网络视频";
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                // yt-dlp 会输出 [Metadata] 标题行，尝试提取
-                if (line.contains("Merging formats") || line.contains("Destination")) {
-                    // 忽略
-                }
-            }
-        }
-        boolean finished = proc.waitFor(30, TimeUnit.MINUTES);
-        if (!finished) {
-            proc.destroyForcibly();
-            throw new IOException("yt-dlp 下载超时（>30min）");
-        }
-        if (proc.exitValue() != 0) {
-            throw new IOException("yt-dlp 下载失败 (exit " + proc.exitValue() + ")");
-        }
-        if (!Files.exists(target, new LinkOption[0])) {
-            throw new IOException("下载完成但文件未生成");
-        }
-
-        // 用 ffprobe 探测时长（可选，失败则 0）
-        int duration = 0;
-        try {
-            ProcessBuilder fb = new ProcessBuilder("ffprobe", "-v", "error", "-show_entries",
-                    "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target.toString());
-            Process fp = fb.start();
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(fp.getInputStream()))) {
-                String d = br.readLine();
-                if (d != null) duration = (int) Double.parseDouble(d.trim());
-            }
-            fp.waitFor(10, TimeUnit.SECONDS);
-        } catch (Exception ignored) {}
-
-        // 尝试从 yt-dlp 获取标题（重新探测仅取标题）
-        try {
-            ProcessBuilder tb = new ProcessBuilder("yt-dlp", "--print", "%(title)s", "--skip-download", url);
-            Process tp = tb.start();
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(tp.getInputStream()))) {
-                String t = br.readLine();
-                if (t != null && !t.isEmpty()) title = t.trim();
-            }
-            tp.waitFor(30, TimeUnit.SECONDS);
-        } catch (Exception ignored) {}
-
-        Video video = new Video();
-        video.setTitle(title);
-        video.setUrl("/video/file/" + filename);
-        video.setDescription("来源: " + url);
-        video.setTags(tags != null ? tags : "网络下载");
-        video.setCover(null);
-        video.setDuration(duration);
-        this.baseMapper.insert(video);
-        return this.toVO(video);
+    /**
+     * 查询下载任务状态
+     *
+     * @param taskId 任务号
+     * @return 任务快照；不存在时返回 null
+     */
+    public DownloadTaskManager.DownloadTask getDownloadTask(String taskId) {
+        return this.downloadTaskManager.get(taskId);
     }
 
     /**

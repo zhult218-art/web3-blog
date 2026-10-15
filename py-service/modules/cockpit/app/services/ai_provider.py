@@ -756,7 +756,7 @@ def _format_openai_error(exc: Exception) -> str:
         403: "AI 服务拒绝访问, 请检查账号权限或网关配置",
         404: "模型或接口地址不存在, 请检查 AI Base URL 和模型名称",
         408: "AI 服务请求超时, 请稍后重试",
-        429: "AI 服务限流或额度不足, 请稍后重试或检查额度",
+        429: "请求过于频繁（上游限流或额度不足）, 请等待约 1 分钟后重试",
         500: "AI 服务内部错误, 请稍后重试",
         502: "AI 网关返回错误, 请稍后重试或检查 AI Base URL",
         503: "AI 服务暂时不可用, 请稍后重试",
@@ -764,7 +764,18 @@ def _format_openai_error(exc: Exception) -> str:
     }
     # 优先透出上游真实错误 (如 Moonshot 的 "model not found"), 仅在没有
     # 可读 detail 时才回落到按状态码的通用文案, 避免吞掉排障关键信息。
-    message = detail or status_messages.get(status) or "请稍后重试或检查 AI 服务配置"
+    fallback = status_messages.get(status) or "请稍后重试或检查 AI 服务配置"
+    # 429 上游返回的 detail 通常是一大段英文(如 "Rate limit exceeded: free model
+    # ... allows at most 10 requests per minute")或整段原始 JSON, 对用户没有
+    # 可执行价值, 统一改用按状态码的中文文案。
+    if status == 429:
+        message = fallback
+    # 其余状态码下 detail 若是 {"error":{...}} 这类原始 JSON 片段, 也改用友好
+    # 文案, 避免整段 JSON 直接抛给用户
+    elif detail and not _looks_like_json(detail):
+        message = detail
+    else:
+        message = fallback
     if status:
         return f"AI 服务请求失败({status}): {message}"
     return f"AI 服务请求失败: {message}"
@@ -808,6 +819,12 @@ def _compact_error_text(text: str) -> str:
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text[:500]
+
+
+def _looks_like_json(text: str) -> bool:
+    """判断上游错误片段是否为一整段原始 JSON（如 {"error":{...}}）。"""
+    s = text.lstrip()
+    return s.startswith("{") or s.startswith("[")
 
 
 async def _run_codex_cli(

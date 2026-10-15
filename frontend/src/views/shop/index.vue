@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
     <div class="mx-auto max-w-6xl">
-      <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center justify-between mb-8" data-voice-target>
         <h1 class="text-3xl font-bold bg-gradient-to-r from-cyan-300 to-purple-400 bg-clip-text text-transparent">在线商城</h1>
         <router-link to="/shop/cart" class="web3-btn text-sm relative">
           🛒 购物车

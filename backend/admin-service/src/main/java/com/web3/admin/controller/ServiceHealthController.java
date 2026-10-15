@@ -7,6 +7,8 @@ import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +28,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/services")
 public class ServiceHealthController {
+    private static final Logger log = LoggerFactory.getLogger(ServiceHealthController.class);
     private final ServiceHealthService healthService;
     private final AdminService adminService;
     private final JwtUtil jwtUtil;
@@ -90,8 +93,9 @@ public class ServiceHealthController {
             String detail = "result=" + result.get("message");
             adminService.logOperation(operatorId, operatorName, module, action,
                     serviceName, serviceName, detail, ip, ua);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // 审计写失败不影响业务操作
+            log.debug("[health] audit log write failed: {}", e.getMessage());
         }
     }
 }

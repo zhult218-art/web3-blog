@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * MusicService —— 音乐业务服务
@@ -223,6 +224,7 @@ extends ServiceImpl<MusicMapper, Music> {
     /**
      * 记录播放历史（单用户单首歌保留最新一条：先删后插，避免重复堆积）
      */
+    @Transactional
     public void addHistory(Long userId, Long musicId) {
         if (this.baseMapper.selectById(musicId) == null) return;
         this.historyMapper.delete(

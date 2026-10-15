@@ -30,5 +30,7 @@ export const uploadMedia = (file, config) => {
   formData.append('file', file)
   return request.post('/video/upload', formData, { ...config })
 }
-// 通过 yt-dlp 从 URL 下载视频（YouTube/B站/抖音等）
+// 创建「从 URL 下载视频」任务（后台异步执行 yt-dlp），返回 { taskId, status, percent, speed, eta }
 export const downloadVideoFromUrl = data => request.post('/video/download', data)
+// 查询下载任务进度（前端轮询）
+export const getDownloadTask = taskId => request.get(`/video/download/${taskId}`)

@@ -2,29 +2,14 @@
 from __future__ import annotations
 
 import os
-import sys
-import json
-import random
 import time
-import uuid
 import logging
-import re
-import asyncio
-import hashlib
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, field, asdict
-from enum import Enum
+from datetime import datetime
+from typing import Dict
 
-import numpy as np
-import pandas as pd
 import requests
-from fastapi import HTTPException, Query, Request, Body
-from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from fastapi import Query
 
 logger = logging.getLogger("quant")
 
@@ -39,7 +24,7 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-_EODHD_TOKEN = os.environ.get("EODHD_TOKEN", "6aae8aba0e5001.11785774")
+_EODHD_TOKEN = os.environ.get("EODHD_TOKEN", "")
 _eodhd_news_cache: Dict[str, tuple] = {}  # key -> (ts, rows)
 _EODHD_LOCK = threading.Lock()
 

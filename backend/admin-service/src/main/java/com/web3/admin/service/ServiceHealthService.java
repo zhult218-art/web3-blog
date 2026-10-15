@@ -13,9 +13,12 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ServiceHealthService {
+    private static final Logger log = LoggerFactory.getLogger(ServiceHealthService.class);
     private final ServiceRegistry registry;
     private final String resolvedBaseDir;
     private final Map<String, Long> pidMap = new ConcurrentHashMap<>();
@@ -49,7 +52,9 @@ public class ServiceHealthService {
                 }
                 dir = dir.getParentFile();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.debug("[health] resolve base dir from code source skipped: {}", e.getMessage());
+        }
         return System.getProperty("user.dir");
     }
 
@@ -114,7 +119,9 @@ public class ServiceHealthService {
             executor.submit(() -> {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     while (reader.readLine() != null) { /* consume */ }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.debug("[health] read process output skipped: {}", e.getMessage());
+                }
             });
             // 等待最多15秒端口开放
             long deadline = System.currentTimeMillis() + 15000;

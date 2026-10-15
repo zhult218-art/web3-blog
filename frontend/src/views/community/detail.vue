@@ -128,6 +128,10 @@
                 {{ currentUserInitial }}
               </div>
               <div class="flex-1">
+                <div v-if="replyTo" class="mb-2 flex items-center gap-2 text-xs text-purple-400 bg-purple-500/10 rounded-lg px-3 py-1.5 border border-purple-400/15">
+                  <span>回复 @{{ replyTo.authorName || '匿名用户' }}</span>
+                  <button @click="replyTo = null" class="ml-auto text-gray-500 hover:text-white">×</button>
+                </div>
                 <textarea v-model="commentText" class="web3-input !min-h-[80px] resize-none" placeholder="写下你的评论... 支持 Markdown 语法" rows="3"></textarea>
                 <div class="flex items-center justify-between mt-3">
                   <span class="text-[10px] text-gray-600">{{ commentText.length }}/500</span>
@@ -154,11 +158,13 @@
                   </div>
                   <p class="text-sm text-gray-300 leading-relaxed">{{ comment.content }}</p>
                   <div class="flex items-center gap-4 mt-3">
-                    <button class="text-[11px] text-gray-600 hover:text-pink-400 transition-colors flex items-center gap-1">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    <button class="text-[11px] transition-colors flex items-center gap-1"
+                      :class="likedComments.has(comment.id) ? 'text-pink-400' : 'text-gray-600 hover:text-pink-400'"
+                      @click="doCommentLike(comment)">
+                      <svg class="w-3.5 h-3.5" :class="likedComments.has(comment.id) ? 'fill-pink-400/20' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                       {{ comment.likeCount || 0 }}
                     </button>
-                    <button class="text-[11px] text-gray-600 hover:text-cyan-400 transition-colors">回复</button>
+                    <button class="text-[11px] text-gray-600 hover:text-cyan-400 transition-colors" @click="replyTo = comment">回复</button>
                   </div>
                 </div>
               </div>
@@ -179,7 +185,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getBlogDetail, likeBlog, favoriteBlog, checkBlogFavorite, checkBlogLike } from '@/api/blog'
 import { getForumDetail } from '@/api/forum'
-import { likePost, getCommentList, createComment } from '@/api/forum'
+import { likePost, getCommentList, createComment, checkPostLike, checkPostFavorite, likeComment } from '@/api/forum'
 import { renderMarkdown } from '@/utils/markdown'
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
@@ -195,7 +201,9 @@ const comments = ref([])
 const liked = ref(false)
 const bookmarked = ref(false)
 const commentText = ref('')
+const replyTo = ref(null)
 const readingProgress = ref(0)
+const likedComments = ref(new Set())
 const type = route.params.type
 const id = route.params.id
 const isArticle = type === 'article' || type === 'blog'
@@ -234,7 +242,7 @@ async function loadComments() {
     const res = await getCommentList(id, 'post', { page: 1, size: 100 })
     comments.value = res.data?.records || res.records || []
   } catch (e) {
-    console.warn('Failed to load comments:', e)
+    if (import.meta.env.DEV) console.warn('Failed to load comments:', e)
   }
 }
 
@@ -250,9 +258,11 @@ async function loadDetail() {
     detail.value = data.article || data
     if (!detail.value || !detail.value.title) {
       toast.error('内容不存在或已被删除')
+    } else {
+      await initLikedState()
     }
   } catch (e) {
-    console.warn('Failed to load detail:', e)
+    if (import.meta.env.DEV) console.warn('Failed to load detail:', e)
     toast.error('加载失败，请稍后重试')
   }
 }
@@ -283,6 +293,34 @@ async function doBookmark() {
   } catch { toast.error('请先登录') }
 }
 
+async function initLikedState() {
+  if (!authStore.isLoggedIn || !detail.value?.id) return
+  try {
+    const [likeRes, favRes] = await Promise.all([
+      checkPostLike(detail.value.id),
+      checkPostFavorite(detail.value.id)
+    ])
+    const likeData = likeRes?.data ?? likeRes
+    const favData = favRes?.data ?? favRes
+    if (likeData) liked.value = !!likeData.liked
+    if (favData) bookmarked.value = !!favData.favorited
+  } catch {}
+}
+
+function doCommentLike(comment) {
+  const cid = comment.id
+  if (likedComments.value.has(cid)) {
+    likedComments.value.delete(cid)
+    comment.likeCount = Math.max(0, (comment.likeCount || 0) - 1)
+  } else {
+    likedComments.value.add(cid)
+    comment.likeCount = (comment.likeCount || 0) + 1
+    if (authStore.isLoggedIn) {
+      likeComment(cid).catch(() => {})
+    }
+  }
+}
+
 function sharePost() {
   const url = window.location.href
   if (navigator.clipboard) {
@@ -307,11 +345,14 @@ async function submitComment() {
       targetId: id,
       targetType: isArticle ? 'article' : 'post',
       content: commentText.value,
-      authorName
+      authorName,
+      parentId: replyTo.value?.id || null,
+      replyToName: replyTo.value?.authorName || null
     })
     const saved = res.data || {}
     const postedText = commentText.value
     commentText.value = ''
+    replyTo.value = null
     if (saved.status === 'pending') {
       toast.success('评论发布成功，等待管理员审核通过后展示')
     } else {
@@ -340,61 +381,3 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
-.prose-content {
-  line-height: 1.85;
-  word-break: break-word;
-}
-.prose-content p {
-  margin-bottom: 1em;
-}
-.prose-content h1, .prose-content h2, .prose-content h3 {
-  color: #fff;
-  font-weight: 700;
-  margin: 1.5em 0 0.75em;
-}
-.prose-content h1 { font-size: 1.5em; }
-.prose-content h2 { font-size: 1.3em; }
-.prose-content h3 { font-size: 1.15em; }
-.prose-content code {
-  background: rgba(255,255,255,0.06);
-  padding: 0.15em 0.4em;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
-.prose-content pre {
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 1em;
-  overflow-x: auto;
-  margin: 1em 0;
-}
-.prose-content pre code {
-  background: none;
-  padding: 0;
-}
-.prose-content blockquote {
-  border-left: 3px solid rgba(168,85,247,0.4);
-  padding-left: 1em;
-  color: #9ca3af;
-  margin: 1em 0;
-}
-.prose-content a {
-  color: #22d3ee;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.prose-content ul, .prose-content ol {
-  padding-left: 1.5em;
-  margin: 1em 0;
-}
-.prose-content li {
-  margin-bottom: 0.4em;
-}
-.prose-content img {
-  border-radius: 8px;
-  max-width: 100%;
-  margin: 1em 0;
-}
-</style>

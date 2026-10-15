@@ -82,12 +82,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS：默认放行（本地开发，经 Vite 同源代理）；生产用 CORS_ALLOWED_ORIGINS 收紧。
+# CORS：生产环境必须通过 CORS_ALLOWED_ORIGINS 显式配置，未配置时仅允许同源请求。
+_cors_origins = settings.cors_origins or []
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins or ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=_cors_origins,
+    allow_credentials=bool(_cors_origins),
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

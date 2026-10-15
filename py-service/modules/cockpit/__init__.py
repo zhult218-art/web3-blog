@@ -49,11 +49,17 @@ _state: dict = {}
 
 def health() -> dict:
     """模块健康检查。"""
+    # capabilities 为 CapabilitySet（探测成功）或 list（探测失败兜底），两者都无 len()
+    caps = _state.get("capabilities")
+    try:
+        n = len(caps.all()) if hasattr(caps, "all") else len(caps or [])
+    except Exception:  # noqa: BLE001
+        n = 0
     return {
         "ok": _state.get("ready", False),
         "service": "cockpit",
         "version": MODULE_META["version"],
-        "capabilities": len(_state.get("capabilities", []) or []),
+        "capabilities": n,
     }
 
 

@@ -210,13 +210,36 @@ public class MusicController {
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (web3-blog music streamer)");
-        conn.setInstanceFollowRedirects(true);
+        conn.setInstanceFollowRedirects(false);
         if (range != null && !range.isBlank()) {
             conn.setRequestProperty("Range", range);
         }
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(60000);
         int status = conn.getResponseCode();
+        // Handle redirects (301/302) manually to ensure we return the final response code
+        if (status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_MOVED_TEMP) {
+            String location = conn.getHeaderField("Location");
+            conn.disconnect();
+            if (location == null || location.isBlank()) {
+                return ResponseEntity.status(502).build();
+            }
+            URL redirectUrl = new URL(location);
+            conn = (HttpURLConnection) redirectUrl.openConnection();
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (web3-blog music streamer)");
+            conn.setInstanceFollowRedirects(false);
+            if (range != null && !range.isBlank()) {
+                conn.setRequestProperty("Range", range);
+            }
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(60000);
+            status = conn.getResponseCode();
+        }
+        // Pass through upstream error status (4xx/5xx) to the client
+        if (status >= 400) {
+            conn.disconnect();
+            return ResponseEntity.status(status).build();
+        }
         HttpHeaders headers = new HttpHeaders();
         String contentRange = conn.getHeaderField("Content-Range");
         String acceptRanges = conn.getHeaderField("Accept-Ranges");

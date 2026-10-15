@@ -21,6 +21,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -39,6 +41,7 @@ import org.springframework.web.client.RestTemplate;
  */
 @Service
 public class UserService {
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private final UserMapper userMapper;
     private final StringRedisTemplate redisTemplate;
     private final JwtUtil jwtUtil;
@@ -87,8 +90,9 @@ public class UserService {
             if (avatar != null) body.put("avatar", avatar);
             restTemplate.postForEntity(forumUrl + "/chat/internal/auto-join",
                     new HttpEntity<>(body, headers), String.class);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // forum-service 不可用或内部密钥不匹配时静默失败，不影响注册
+            log.debug("[user] auto-join chat rooms failed (forum-service unavailable): {}", e.getMessage());
         }
     }
 
@@ -377,8 +381,9 @@ public class UserService {
                     this.redisTemplate.delete("token:" + userId);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // 令牌已失效时无需作废
+            log.debug("[user] logout token invalidate skipped: {}", e.getMessage());
         }
     }
 

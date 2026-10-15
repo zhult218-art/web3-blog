@@ -1,6 +1,11 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
     <div class="mx-auto max-w-5xl">
+      <nav class="flex items-center gap-1.5 text-sm text-white/50 mb-4">
+        <router-link to="/" class="hover:text-white/80">首页</router-link>
+        <span class="text-white/30">/</span>
+        <span class="text-white/70">资源分享</span>
+      </nav>
       <h1 class="text-3xl font-bold mb-2 text-gradient-cyber">资源中心</h1>
       <p class="text-sm text-gray-500 matrix-text mb-8">File Sharing · Downloads · Categories</p>
 
@@ -25,6 +30,7 @@
           <span class="col-span-1"></span>
         </div>
         <div v-for="item in list" :key="item.id"
+          @click="openDetail(item)"
           class="glass-panel-sm grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 p-4 items-center hover:border-cyan-400/30 transition cursor-pointer group">
           <div class="md:col-span-5 flex items-center gap-3">
             <span class="text-lg flex-shrink-0">{{ fileIcon(item.contentType) }}</span>
@@ -63,6 +69,41 @@
       <div class="mt-6" v-if="total > 0">
         <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="fetch" />
       </div>
+
+      <!-- Detail Modal -->
+      <Modal v-model="showDetail" :title="selectedResource?.title || '资源详情'">
+        <div v-if="selectedResource" class="space-y-4">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">{{ fileIcon(selectedResource.contentType) }}</span>
+            <div>
+              <h3 class="text-white font-semibold">{{ selectedResource.title }}</h3>
+              <span class="text-xs text-gray-500">{{ selectedResource.category || '未分类' }}</span>
+            </div>
+          </div>
+          <p v-if="selectedResource.description" class="text-sm text-white/70">{{ selectedResource.description }}</p>
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div class="glass-panel rounded-lg p-3">
+              <span class="text-white/50 text-xs">文件名</span>
+              <p class="text-white/80 truncate text-sm mt-0.5">{{ selectedResource.originalFilename || selectedResource.filename }}</p>
+            </div>
+            <div class="glass-panel rounded-lg p-3">
+              <span class="text-white/50 text-xs">大小</span>
+              <p class="text-white/80 text-sm mt-0.5">{{ formatSize(selectedResource.size) }}</p>
+            </div>
+            <div class="glass-panel rounded-lg p-3">
+              <span class="text-white/50 text-xs">下载次数</span>
+              <p class="text-white/80 text-sm mt-0.5">{{ selectedResource.downloadCount || 0 }}</p>
+            </div>
+            <div class="glass-panel rounded-lg p-3">
+              <span class="text-white/50 text-xs">上传时间</span>
+              <p class="text-white/80 text-sm mt-0.5">{{ formatDate(selectedResource.createdAt) }}</p>
+            </div>
+          </div>
+          <button @click="download(selectedResource)" class="w-full py-2.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 transition-colors text-sm">
+            下载资源
+          </button>
+        </div>
+      </Modal>
 
       <!-- Edit Modal -->
       <Modal v-model="showEditModal" :title="'编辑资源'">
@@ -115,6 +156,8 @@ const auth = useAuthStore()
 const isAdmin = computed(() => auth.user?.role === 'ADMIN')
 const showEditModal = ref(false)
 const editingItem = ref(null)
+const showDetail = ref(false)
+const selectedResource = ref(null)
 const form = reactive({ title: '', category: '', description: '' })
 
 // 下载资源：先调用后端计数接口，再触发浏览器下载
@@ -151,6 +194,9 @@ function fileIcon(type) {
   if (type.includes('pdf')) return '📕'
   return '📄'
 }
+
+// 打开资源详情弹窗
+function openDetail(item) { selectedResource.value = item; showDetail.value = true }
 
 // 打开编辑资源弹窗并回填数据
 function editItem(item) { editingItem.value = item; Object.assign(form, { title: item.title, category: item.category || '', description: item.description || '' }); showEditModal.value = true }

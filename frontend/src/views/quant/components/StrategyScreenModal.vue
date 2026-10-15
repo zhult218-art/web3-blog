@@ -249,7 +249,7 @@ function saveToPortfolio() {
       setTimeout(() => { btn.textContent = orig }, 1500)
     }
   } catch (e) {
-    console.warn('save to portfolio failed', e)
+    if (import.meta.env.DEV) console.warn('save to portfolio failed', e)
   }
 }
 

@@ -8,6 +8,8 @@ import com.web3.aiproxy.mapper.ProxyChannelMapper;
 import com.web3.aiproxy.mapper.ProxyRequestLogMapper;
 import com.web3.aiproxy.mapper.ProxyTokenMapper;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -30,6 +32,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DashboardService {
 
+    private static final Logger log = LoggerFactory.getLogger(DashboardService.class);
     private final ProxyRequestLogMapper logMapper;
     private final ProxyTokenMapper tokenMapper;
     private final ProxyChannelMapper channelMapper;
@@ -50,7 +53,8 @@ public class DashboardService {
         result.put("errorDist", logMapper.errorDist(now.minusHours(24)));
         try {
             result.put("alerts", alertMapper.recent(20));
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("[dashboard] fetch recent alerts failed: {}", e.getMessage());
         }
         return result;
     }

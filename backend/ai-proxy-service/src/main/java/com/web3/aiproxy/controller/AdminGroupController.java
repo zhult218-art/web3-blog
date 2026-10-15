@@ -9,6 +9,8 @@ import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,6 +37,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminGroupController {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminGroupController.class);
     private final ProxyUserGroupMapper groupMapper;
     private final UserGroupService userGroupService;
     private final JwtUtil jwtUtil;
@@ -73,7 +76,8 @@ public class AdminGroupController {
             try {
                 BigDecimal rate = new BigDecimal(String.valueOf(body.get("rate")));
                 if (rate.signum() > 0) exist.setRate(rate);
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException e) {
+                log.debug("[admin-group] parse rate value failed, keeping current rate: {}", e.getMessage());
             }
         }
         if (body.containsKey("description")) exist.setDescription((String) body.get("description"));

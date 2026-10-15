@@ -134,6 +134,10 @@ export const usePlayerStore = defineStore('player', () => {
   const lyricsLoading = ref(false)
 
   let audio = null
+  let trackDuration = 0   // known duration from track object (fallback for Infinity)
+  let playSeq = 0         // race-condition guard for play() URL fetches
+  let playRetryCount = 0  // retry counter for current track playback
+  let autoSkipUsed = false // prevent infinite auto-skip loop on repeated errors
 
   // 懒创建全局唯一的 Audio 元素并绑定进度 / 结束 / 错误事件
   function ensureAudio() {
@@ -145,14 +149,62 @@ export const usePlayerStore = defineStore('player', () => {
       currentTime.value = audio.currentTime
     })
     audio.addEventListener('loadedmetadata', () => {
-      duration.value = audio.duration || 0
+      // Netease proxy streams can return Infinity for duration — fall back to track metadata
+      duration.value = (audio.duration && isFinite(audio.duration)) ? audio.duration : (trackDuration || 0)
     })
     audio.addEventListener('durationchange', () => {
-      duration.value = audio.duration || 0
+      duration.value = (audio.duration && isFinite(audio.duration)) ? audio.duration : (trackDuration || 0)
     })
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('error', () => {
+      const failedTrack = currentTrack.value
       isPlaying.value = false
+      updatePlaybackState('paused')
+
+      // Retry 1: re-fetch URL for Netease tracks (stale/expired URL)
+      if (playRetryCount < 1 && failedTrack && /^\d+$/.test(String(failedTrack.neteaseId || ''))) {
+        playRetryCount++
+        getNeteaseSongUrl(failedTrack.neteaseId).then(r => {
+          const newUrl = r?.data?.[0]?.url
+          if (newUrl && currentTrack.value?.id === failedTrack.id) {
+            audio.crossOrigin = 'anonymous'
+            audio.src = newUrl
+            currentTrack.value = { ...failedTrack, url: newUrl }
+            audio.play().catch(() => {
+              isPlaying.value = false
+              updatePlaybackState('paused')
+            })
+          }
+        }).catch(() => { /* re-fetch failed, fall through */ })
+        return
+      }
+
+      // Retry 2: try without crossOrigin (CORS misconfiguration on backend proxy)
+      if (playRetryCount < 2 && audio.crossOrigin === 'anonymous') {
+        playRetryCount++
+        audio.crossOrigin = null
+        audio.play().catch(() => {
+          isPlaying.value = false
+          updatePlaybackState('paused')
+        })
+        return
+      }
+
+      // All retries exhausted — auto-skip to next track
+      if (!autoSkipUsed) {
+        autoSkipUsed = true
+        errorOnce('播放失败，正在切换...')
+        setTimeout(() => {
+          const list = playlist.value
+          if (list.length > 1 && currentTrack.value) {
+            const idx = list.findIndex(t => t.id === currentTrack.value?.id)
+            const nextTrack = list[idx + 1] || list[0]
+            if (nextTrack && nextTrack.id !== currentTrack.value?.id) {
+              play(nextTrack)
+            }
+          }
+        }, 1000)
+      }
     })
     return audio
   }
@@ -193,10 +245,12 @@ export const usePlayerStore = defineStore('player', () => {
   // 播放指定曲目（本地曲库仅有 neteaseId、缺播放地址时按需取网易云流）
   async function play(track) {
     if (!track) return
+    const seq = ++playSeq
     let target = track
     if (!target.url && /^\d+$/.test(String(target.neteaseId || ''))) {
       try {
         const r = await getNeteaseSongUrl(target.neteaseId)
+        if (seq !== playSeq) return // stale — a newer play() already took over
         if (r?.data?.[0]?.url) target = { ...target, url: r.data[0].url }
       } catch { /* 取流失败则按原样处理 */ }
     }
@@ -205,13 +259,13 @@ export const usePlayerStore = defineStore('player', () => {
       errorOnce('该曲目缺少播放地址')
       return
     }
-    // 跨域音频必须显式声明 anonymous：否则一旦接入 Web Audio 分析器会整条静音；
-    // 同源（相对路径）与已确认带 CORS 头的源（如 Audius）才加，避免外部源无 CORS 头时反而播不了
-    if (!/^https?:\/\//i.test(target.url) || target.cors) {
-      el.crossOrigin = 'anonymous'
-    } else {
-      el.crossOrigin = null
-    }
+    // 始终声明 crossOrigin = anonymous，保证 Web Audio 分析器不会静音；
+    // 若实际播放因 CORS 失败，error handler 会去掉 crossOrigin 重试一次
+    el.crossOrigin = 'anonymous'
+    // Reset per-track state
+    playRetryCount = 0
+    autoSkipUsed = false
+    trackDuration = target.duration || 0
     currentTrack.value = target
     el.src = target.url
     currentTime.value = 0
@@ -231,6 +285,21 @@ export const usePlayerStore = defineStore('player', () => {
     }).catch(() => {
       isPlaying.value = false
       updatePlaybackState('paused')
+      errorOnce('播放失败，正在切换...')
+      // Auto-skip to next track after short delay
+      if (!autoSkipUsed) {
+        autoSkipUsed = true
+        setTimeout(() => {
+          const list = playlist.value
+          if (list.length > 1 && currentTrack.value) {
+            const idx = list.findIndex(t => t.id === currentTrack.value?.id)
+            const nextTrack = list[idx + 1] || list[0]
+            if (nextTrack && nextTrack.id !== currentTrack.value?.id) {
+              play(nextTrack)
+            }
+          }
+        }, 1000)
+      }
     })
   }
 

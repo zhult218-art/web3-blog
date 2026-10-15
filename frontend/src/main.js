@@ -14,7 +14,7 @@ const app = createApp(App)
 // 抑制 Vue 开发模式非关键警告（Suspense experimental、异步组件等）
 app.config.warnHandler = (msg) => {
   if (msg.includes('experimental') || msg.includes('Suspense')) return
-  console.warn(msg)
+  if (import.meta.env.DEV) console.warn(msg)
 }
 app.use(createPinia())
 app.use(router)

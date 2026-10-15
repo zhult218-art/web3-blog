@@ -2,7 +2,7 @@
   <div class="min-h-screen px-4 md:px-6 py-6">
     <div class="mx-auto max-w-7xl">
       <!-- Header -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" data-voice-target>
         <div>
           <h1 class="text-3xl md:text-4xl font-black text-gradient-cyber">社区广场</h1>
           <p class="text-xs text-gray-500 matrix-text mt-1.5 tracking-wider">TECHNICAL COMMUNITY · 探索 · 创作 · 交流</p>
@@ -288,6 +288,7 @@ const sorts = [
 
 const trendingTags = ref([])
 const activeAuthors = ref([])
+const savedBookmarkIds = new Set()
 
 // 格式化时间：1 分钟内显示「刚刚」，1 小时内显示「x 分钟前」，今天显示「HH:mm」，其余显示短日期
 function formatDate(d) {
@@ -330,10 +331,14 @@ async function fetch({ append = false } = {}) {
     }
     total.value = Number(data.total) || filtered.length
   } catch (e) {
-    console.warn('fetch fail', e)
+    if (import.meta.env.DEV) console.warn('fetch fail', e)
   } finally {
     loading.value = false
     loadingMore.value = false
+    // Sync bookmark states from localStorage
+    for (const item of list.value) {
+      item.bookmarked = savedBookmarkIds.has(item.id)
+    }
   }
 }
 
@@ -353,6 +358,7 @@ async function loadStats() {
 // 切换顶部 tab（全部/文章/讨论/视频/热门）并重新加载列表
 function switchTab(key) {
   activeTab.value = key
+  keyword.value = ''
   page.value = 1
   fetch()
 }
@@ -375,12 +381,30 @@ async function like(item) {
 // 收藏/取消收藏：保存在本地 localStorage
 function bookmark(item) {
   item.bookmarked = !item.bookmarked
+  if (item.bookmarked) {
+    savedBookmarkIds.add(item.id)
+  } else {
+    savedBookmarkIds.delete(item.id)
+  }
+  try { localStorage.setItem('bookmarkedPostIds', JSON.stringify([...savedBookmarkIds])) } catch {}
   toast.success(item.bookmarked ? '已加入收藏' : '已取消收藏')
 }
 
 // 点击热门标签跳转到搜索页
 function searchTag(tag) {
-  toast.info(`搜索标签: ${tag}`)
+  keyword.value = ''
+  activeTab.value = 'all'
+  page.value = 1
+  // Filter current list to show only posts with this tag
+  const all = [...list.value]
+  list.value = all.filter(item => item.tags && item.tags.includes(tag))
+  if (list.value.length === 0) {
+    // Restore list and show info if no matches in cached data
+    list.value = all
+    toast.info(`标签「${tag}」在当前列表中暂无结果`)
+  } else {
+    toast.success(`已筛选标签「${tag}」，共 ${list.value.length} 条`)
+  }
 }
 
 // 滚动到底部加载下一页数据（追加，不清空已有列表）
@@ -413,6 +437,11 @@ function stopOnlineTimer() {
 }
 
 onMounted(() => {
+  // Load persisted bookmark IDs
+  try {
+    const saved = JSON.parse(localStorage.getItem('bookmarkedPostIds') || '[]')
+    if (Array.isArray(saved)) saved.forEach(id => savedBookmarkIds.add(id))
+  } catch {}
   fetch()
   loadStats()
   // 首次挂载也启动一次；onActivated 在首次挂载后同样会触发，startOnlineTimer 内部先清后建，幂等

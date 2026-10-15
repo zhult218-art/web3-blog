@@ -126,9 +126,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { getSiteList, getSiteCategories } from '@/api/sites'
 import { aiSiteCategories } from '@/data/aiSites'
+import { useAuthStore } from '@/stores/modules/auth'
 import Loading from '@/components/common/Loading.vue'
 import PageBack from '@/components/PageBack.vue'
 
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
 const sites = ref([])
 const categories = ref([])
 const tab = ref('全部')

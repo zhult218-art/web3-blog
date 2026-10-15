@@ -33,9 +33,11 @@ export default defineConfig({
         timeout: 120000,
         proxyTimeout: 120000
       },
-      // 群聊 WebSocket：直连 forum-service（REST 走 /api/chat，互不冲突）
-      '/chat': {
-        target: 'http://localhost:8083',
+      // 聊天实时通道：Socket.IO 网关（node-service/chat-gateway，:3010）。
+      // 默认 polling 起手 + 自动升级 websocket，故 ws 与 http 都要放行；
+      // 同源代理使 httpOnly Cookie 随握手自动携带，前端无需（也不允许）传 token。
+      '/socket.io': {
+        target: 'http://127.0.0.1:3010',
         changeOrigin: true,
         ws: true
       },
@@ -101,6 +103,17 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
         rewrite: path => path.replace(/^\/osintapi/, '/api/osint'),
+        timeout: 120000,
+        proxyTimeout: 120000
+      },
+      // 星图助手语音全双工（统一 py-service 9006 的 voice 模块）。
+      // 网关（8080）无 WebSocket 路由，故前端 WS 必须经 Vite 直连 9006；
+      // /voiceapi/ws -> /api/voice/ws。
+      '/voiceapi': {
+        target: 'http://127.0.0.1:9006',
+        changeOrigin: true,
+        ws: true,
+        rewrite: path => path.replace(/^\/voiceapi/, '/api/voice'),
         timeout: 120000,
         proxyTimeout: 120000
       },

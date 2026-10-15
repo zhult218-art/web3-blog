@@ -1,6 +1,11 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
     <div class="mx-auto max-w-5xl">
+      <nav class="flex items-center gap-1.5 text-sm text-white/50 mb-4">
+        <router-link to="/" class="hover:text-white/80">首页</router-link>
+        <span class="text-white/30">/</span>
+        <span class="text-white/70">软件下载</span>
+      </nav>
       <h1 class="text-3xl font-bold mb-2 text-gradient-cyber">软件资源</h1>
       <p class="text-sm text-gray-500 matrix-text mb-8">Software Downloads · Cross-Platform · Developer Tools</p>
 
@@ -112,13 +117,59 @@
 
       <Modal v-model="showModal" :title="detailItem?.name">
         <div v-if="detailItem" class="space-y-4">
-          <p class="text-sm text-gray-400">{{ detailItem.description }}</p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div class="glass-panel-sm p-3"><span class="text-gray-500">版本</span><p class="text-white mt-1">{{ detailItem.version || 'v1.0.0' }}</p></div>
-            <div class="glass-panel-sm p-3"><span class="text-gray-500">系统</span><p class="text-white mt-1">{{ detailItem.os || '跨平台' }}</p></div>
-            <div class="glass-panel-sm p-3"><span class="text-gray-500">大小</span><p class="text-white mt-1">{{ formatSize(detailItem.size || 0) }}</p></div>
-            <div class="glass-panel-sm p-3"><span class="text-gray-500">下载量</span><p class="text-white mt-1">{{ detailItem.downloadCount || 0 }}</p></div>
+          <!-- Header with icon and version badge -->
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center text-xl flex-shrink-0">
+              <img v-if="iconSrc(detailItem)" :src="iconSrc(detailItem)" :alt="detailItem.name"
+                :style="iconStage(detailItem.id) === 1 ? 'filter:invert(1)' : ''"
+                class="w-7 h-7 object-contain" @error="onIconError(detailItem)" />
+              <span v-else>{{ (detailItem.name || '?')[0]?.toUpperCase() }}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-white font-semibold">{{ detailItem.name }}</h3>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/20">{{ detailItem.version || 'v1.0.0' }}</span>
+              </div>
+              <span class="text-xs text-gray-500">{{ detailItem.category || '工具' }}</span>
+            </div>
           </div>
+
+          <p v-if="detailItem.description" class="text-sm text-gray-400">{{ detailItem.description }}</p>
+
+          <!-- Info cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="glass-panel-sm p-3">
+              <span class="text-gray-500">版本</span>
+              <p class="text-white mt-1">{{ detailItem.version || 'v1.0.0' }}</p>
+            </div>
+            <div class="glass-panel-sm p-3">
+              <span class="text-gray-500">系统</span>
+              <p class="text-white mt-1">{{ detailItem.os || '跨平台' }}</p>
+            </div>
+            <div class="glass-panel-sm p-3">
+              <span class="text-gray-500">大小</span>
+              <p class="text-white mt-1">{{ formatSize(detailItem.size || 0) }}</p>
+            </div>
+            <div class="glass-panel-sm p-3">
+              <span class="text-gray-500">下载量</span>
+              <p class="text-white mt-1">{{ detailItem.downloadCount || 0 }}</p>
+            </div>
+          </div>
+
+          <!-- Screenshot / Preview placeholder -->
+          <div class="glass-panel-sm rounded-lg p-4 flex items-center justify-center border border-dashed border-white/10">
+            <div class="text-center">
+              <svg class="w-8 h-8 text-gray-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <p class="text-xs text-gray-500">软件截图预览</p>
+            </div>
+          </div>
+
+          <!-- Changelog section -->
+          <div v-if="detailItem.changelog">
+            <h4 class="text-xs text-gray-500 mb-2">更新日志</h4>
+            <div class="glass-panel-sm rounded-lg p-3 text-xs text-gray-400 whitespace-pre-line max-h-32 overflow-y-auto">{{ detailItem.changelog }}</div>
+          </div>
+
           <button class="web3-btn w-full block text-center" @click="download(detailItem)">下载文件</button>
         </div>
       </Modal>

@@ -347,7 +347,7 @@ async function loadDashboard() {
     await nextTick()
     renderCharts()
   } catch (e) {
-    console.error('dashboard load failed', e)
+    if (import.meta.env.DEV) console.error('dashboard load failed', e)
   }
 }
 

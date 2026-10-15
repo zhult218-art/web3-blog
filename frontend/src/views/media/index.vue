@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
     <div class="mx-auto max-w-6xl space-y-8">
-      <div class="flex flex-wrap items-end justify-between gap-4">
+      <div class="flex flex-wrap items-end justify-between gap-4" data-voice-target>
         <h1 class="text-3xl font-bold text-gradient-cyber">在线媒体</h1>
         <!-- 顶部标签页：音乐馆 / 图书 / 视频 -->
         <div class="flex gap-1 p-1 rounded-xl glass-panel-sm">
@@ -40,7 +40,9 @@
           <!-- 在线视频（后端上传） -->
           <template v-if="videoTab === 'online'">
             <div v-if="videoList.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div v-for="item in videoList" :key="item.id" class="glass-panel-sm overflow-hidden group cursor-pointer">
+              <div v-for="item in videoList" :key="item.id"
+                class="glass-panel-sm overflow-hidden group cursor-pointer transition"
+                :class="dlHighlightId && String(item.id) === dlHighlightId ? 'ring-1 ring-cyan-400/60' : ''">
                 <div class="relative">
                   <EnhancedVideoPlayer :src="item.url" :poster="item.cover" :video-id="item.id" @play="onVideoPlay" />
                 </div>
@@ -85,15 +87,31 @@
                 </div>
                 <button class="web3-btn px-6" :disabled="dlLoading || !dlUrl" @click="startDownload">
                   <span v-if="dlLoading" class="inline-block h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin"></span>
-                  {{ dlLoading ? '下载中...' : '开始下载' }}
+                  {{ dlLoading ? (dlTask?.status === 'merging' ? '合并音视频中...' : `下载中 ${dlTask?.percent || 0}%`) : '开始下载' }}
                 </button>
+
+                <!-- 下载进度：后端后台任务轮询上报 -->
+                <div v-if="dlLoading && dlTask" class="space-y-1.5">
+                  <div class="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-purple-400 transition-all duration-300"
+                      :style="{ width: (dlTask.percent || 0) + '%' }"></div>
+                  </div>
+                  <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                    <span>{{ dlTask.status === 'merging' ? '正在合并音视频…' : '下载中' }} {{ dlTask.percent || 0 }}%</span>
+                    <span v-if="dlTask.speed">⬇ {{ dlTask.speed }}</span>
+                    <span v-if="dlTask.eta">剩余 {{ dlTask.eta }}</span>
+                    <span v-if="dlTask.title" class="truncate max-w-[240px]">🎬 {{ dlTask.title }}</span>
+                  </div>
+                </div>
+
                 <div v-if="dlResult" class="text-xs mt-2" :class="dlResult.ok ? 'text-emerald-400' : 'text-red-400'">
                   {{ dlResult.msg }}
                 </div>
               </div>
               <div class="mt-5 pt-4 border-t border-white/5">
                 <p class="text-[11px] text-gray-600 leading-relaxed">
-                  💡 提示：后端需安装 <code class="text-cyan-400">yt-dlp</code> 与 <code class="text-cyan-400">ffmpeg</code>。下载可能需要数秒到数分钟，完成后视频会出现在「在线视频」列表。
+                  💡 提示：依赖 <code class="text-cyan-400">yt-dlp</code> 与 <code class="text-cyan-400">ffmpeg</code>（已配置在根 .env）。
+                  下载在后台执行，可实时看到进度；完成后自动跳转到「在线视频」。
                 </p>
               </div>
             </div>
@@ -180,11 +198,11 @@
 // 音乐馆为完整音乐馆组件；图书与视频在此内联
 // 播放条由 App.vue 级 GlobalPlayer 承载
 // ============================================================
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import MusicHall from './MusicHall.vue'
 import BookDesk from '@/components/media/BookDesk.vue'
 import EnhancedVideoPlayer from '@/components/EnhancedVideoPlayer.vue'
-import { getVideoList, downloadVideoFromUrl } from '@/api/media'
+import { getVideoList, downloadVideoFromUrl, getDownloadTask } from '@/api/media'
 import { usePlayerStore } from '@/stores/modules/player'
 import { VIDEO_TABS, ANIME_RECOMMENDS, MOVIE_LINKS, MAGNET_RESOURCES } from '@/data/mediaResources'
 
@@ -193,17 +211,75 @@ const videoList = ref([])
 const videoTab = ref('online')
 const copiedHash = ref('')
 
-// 视频下载（HomeTube 风格）
+// 视频下载：后台任务 + 进度轮询（后端 DownloadTaskManager 执行 yt-dlp）
 const dlUrl = ref('')
 const dlQuality = ref('best')
 const dlSubtitle = ref(false)
 const dlTags = ref('')
 const dlLoading = ref(false)
 const dlResult = ref(null)
+const dlTask = ref(null)         // 后台下载任务快照 { status, percent, speed, eta, title }
+const dlHighlightId = ref('')    // 下载完成的新视频 ID，用于列表高亮
+let dlTimer = null               // 进度轮询定时器
+const DL_POLL_MS = 1000
+
+// 停止轮询（组件卸载时必须调用，避免定时器泄漏）
+function stopDlPoll() {
+  if (dlTimer) {
+    clearTimeout(dlTimer)
+    dlTimer = null
+  }
+}
+
+// 轮询任务状态直到 success / failed
+function pollDownloadTask(taskId) {
+  stopDlPoll()
+  dlTimer = setTimeout(async () => {
+    let res
+    try {
+      res = await getDownloadTask(taskId)
+    } catch (e) {
+      dlLoading.value = false
+      dlResult.value = { ok: false, msg: '✗ 下载失败：' + (e?.response?.data?.message || e?.message || '网络错误') }
+      stopDlPoll()
+      return
+    }
+    // 后端错误体是 HTTP 200 + { code, message }，必须显式校验 code 才不会误判
+    if (!res || res.code !== 200 || !res.data) {
+      dlLoading.value = false
+      dlResult.value = { ok: false, msg: '✗ 下载失败：' + (res?.message || '任务状态查询失败') }
+      stopDlPoll()
+      return
+    }
+    const task = res.data
+    dlTask.value = task
+    if (task.status === 'success') {
+      dlLoading.value = false
+      dlHighlightId.value = task.videoId ? String(task.videoId) : ''
+      dlResult.value = { ok: true, msg: `✓ 下载完成：${task.title || '视频已入库'}` }
+      dlUrl.value = ''
+      stopDlPoll()
+      await loadVideos()
+      // 自动切到「在线视频」，否则用户看不到下载结果
+      videoTab.value = 'online'
+      return
+    }
+    if (task.status === 'failed') {
+      dlLoading.value = false
+      dlResult.value = { ok: false, msg: '✗ 下载失败：' + (task.error || '未知错误') }
+      stopDlPoll()
+      return
+    }
+    pollDownloadTask(taskId)
+  }, DL_POLL_MS)
+}
+
 async function startDownload() {
-  if (!dlUrl.value.trim()) return
+  if (!dlUrl.value.trim() || dlLoading.value) return
   dlLoading.value = true
   dlResult.value = null
+  dlTask.value = null
+  dlHighlightId.value = ''
   try {
     const res = await downloadVideoFromUrl({
       url: dlUrl.value.trim(),
@@ -211,16 +287,20 @@ async function startDownload() {
       subtitle: dlSubtitle.value,
       tags: dlTags.value || '网络下载',
     })
-    const data = res?.data || res
-    dlResult.value = { ok: true, msg: `✓ 下载成功：${data?.title || '视频已入库'}，去「在线视频」查看` }
-    dlUrl.value = ''
-    // 刷新列表
-    await loadVideos()
+    // 校验业务 code：后端失败返回 HTTP 200 + { code:500 }，axios 不抛异常，
+    // 不判断 code 会把失败当成功（原「提示成功但没有视频」的根因之一）
+    if (!res || res.code !== 200 || !res.data?.taskId) {
+      throw new Error(res?.message || '下载任务创建失败')
+    }
+    dlTask.value = res.data
+    pollDownloadTask(res.data.taskId)
   } catch (e) {
+    dlLoading.value = false
     dlResult.value = { ok: false, msg: '✗ 下载失败：' + (e?.response?.data?.message || e?.message || '网络错误') }
   }
-  dlLoading.value = false
 }
+
+onUnmounted(() => stopDlPoll())
 
 const tabs = [
   { key: 'music', label: '音乐馆', icon: '🎵' },

@@ -25,6 +25,7 @@
       </router-view>
     </main>
     <SiteFooter v-if="!route.meta.hideSiteFooter" />
+    <BackToTop />
     <audio ref="audioEl" preload="auto" @ended="onEnded" @timeupdate="onTimeUpdate"></audio>
   </div>
 </template>
@@ -45,6 +46,7 @@ import ParticleBackground from '@/components/layout/ParticleBackground.vue'
 import ThreeBackground from '@/components/layout/ThreeBackground.vue'
 import Web3Nav from '@/components/layout/Web3Nav.vue'
 import SiteFooter from '@/components/layout/SiteFooter.vue'
+import BackToTop from '@/components/common/BackToTop.vue'
 
 const player = usePlayerStore()
 const site = useSiteSettingsStore()

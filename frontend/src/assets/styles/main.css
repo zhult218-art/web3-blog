@@ -180,10 +180,6 @@
   }
 
   ::selection { background: var(--color-glow-soft); color: #fff; }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.3); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(168,85,247,0.6); }
 }
 
 /* ================================================================
@@ -740,23 +736,6 @@ a, button {
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-/* ============================================================
-   LOADING SKELETON ENHANCED
-   ============================================================ */
-@keyframes skeleton-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.skeleton {
-  background: linear-gradient(90deg,
-    rgba(255,255,255,0.03) 0%,
-    rgba(255,255,255,0.07) 50%,
-    rgba(255,255,255,0.03) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 2s ease-in-out infinite;
-  border-radius: 8px;
-}
 
 /* ============================================================
    AURORA（明亮）主题的全局文字/面板适配

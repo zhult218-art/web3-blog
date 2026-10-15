@@ -11,6 +11,8 @@ import com.web3.tool.vo.ScriptVO;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -78,6 +80,37 @@ public class ScriptController {
     public ApiResponse<ScriptVO> create(@RequestBody Script script, @RequestHeader(value="Authorization") String authorization) {
         AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
         return ApiResponse.ok(this.scriptService.create(script));
+    }
+
+    /**
+     * 更新脚本（PUT /script/{id}），仅管理员可操作。
+     *
+     * @param id            脚本 ID
+     * @param script        脚本信息（request body）
+     * @param authorization 登录令牌（请求头），需具备管理员角色
+     * @return 更新成功后的脚本详情
+     */
+    @PutMapping(value={"/{id}"})
+    public ApiResponse<ScriptVO> update(@PathVariable Long id, @RequestBody Script script,
+                                        @RequestHeader("Authorization") String authorization) {
+        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
+        script.setId(id);
+        return ApiResponse.ok(this.scriptService.update(script));
+    }
+
+    /**
+     * 删除脚本（DELETE /script/{id}），仅管理员可操作。
+     *
+     * @param id            脚本 ID
+     * @param authorization 登录令牌（请求头），需具备管理员角色
+     * @return 成功提示
+     */
+    @DeleteMapping(value={"/{id}"})
+    public ApiResponse<Object> delete(@PathVariable Long id,
+                                      @RequestHeader("Authorization") String authorization) {
+        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
+        this.scriptService.delete(id);
+        return ApiResponse.ok();
     }
 
     /**

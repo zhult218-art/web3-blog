@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class JarvisService {
+    private static final Logger log = LoggerFactory.getLogger(JarvisService.class);
     /** 语音指令表 Mapper */
     private final VoiceCommandMapper commandMapper;
     /** 语音会话表 Mapper */
@@ -173,6 +176,7 @@ public class JarvisService {
         }
         catch (RuntimeException e) {
             // MQ 不可用时不影响语音应答
+            log.debug("[jarvis] execute command via MQ failed: {}", e.getMessage());
         }
         Object response = matched.getTtsResponse() != null ? matched.getTtsResponse() : "Done: " + matched.getDescription();
         this.updateSession(sessionId, text, (String)response);

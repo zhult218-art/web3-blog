@@ -7,7 +7,7 @@
     <main class="relative z-10">
       <div class="mx-auto max-w-[1400px] px-4 md:px-6 py-8 grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-6 items-start">
         <!-- 主内容 -->
-        <main class="min-w-0">
+        <div class="min-w-0">
           <router-view v-slot="{ Component }">
             <!-- Suspense > keep-alive > component（无 transition、无 v-if）。
                  此前 <Suspense> 外包 <transition mode="out-in">，导航时离场与挂起互相阻塞，
@@ -24,7 +24,7 @@
               </template>
             </Suspense>
           </router-view>
-        </main>
+        </div>
         <!-- 右栏 -->
         <aside class="hidden xl:block">
           <div class="space-y-5 sticky top-24">

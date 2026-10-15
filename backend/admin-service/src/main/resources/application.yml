@@ -16,8 +16,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:3306/web3_admin?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:root}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
 
   data:
     redis:

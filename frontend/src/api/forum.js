@@ -31,6 +31,14 @@ export const getForumDetail = id => request.get(`/post/${id}`)
 export const createPost = data => request.post('/post', data)
 // 点赞帖子
 export const likePost = id => request.post(`/post/${id}/like`)
+// 检查是否已点赞帖子
+export const checkPostLike = id => request.get(`/post/${id}/like/check`, { suppressError: true })
+// 收藏帖子
+export const favoritePost = id => request.post(`/post/${id}/favorite`)
+// 检查是否已收藏帖子
+export const checkPostFavorite = id => request.get(`/post/${id}/favorite/check`, { suppressError: true })
+// 点赞评论
+export const likeComment = id => request.post(`/comment/${id}/like`)
 // 删除帖子
 export const deletePost = id => request.delete(`/post/${id}`)
 // 查询评论列表（targetId + targetType 区分评论对象类型）

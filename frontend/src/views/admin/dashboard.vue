@@ -66,27 +66,8 @@
         <!-- Quick Stats -->
         <div class="glass-panel p-6 motions-reveal delay-500" v-reveal>
           <h3 class="text-sm font-bold text-white mb-4">System Info</h3>
-          <div class="space-y-3">
-            <div class="flex justify-between items-center py-2 border-b border-white/[0.04]">
-              <span class="text-xs text-gray-500">运行时间</span>
-              <span class="text-xs text-white/70 matrix-text">72h 15m</span>
-            </div>
-            <div class="flex justify-between items-center py-2 border-b border-white/[0.04]">
-              <span class="text-xs text-gray-500">CPU 使用率</span>
-              <span class="text-xs text-white/70 matrix-text">23.4%</span>
-            </div>
-            <div class="flex justify-between items-center py-2 border-b border-white/[0.04]">
-              <span class="text-xs text-gray-500">内存使用</span>
-              <span class="text-xs text-white/70 matrix-text">4.2 / 8 GB</span>
-            </div>
-            <div class="flex justify-between items-center py-2 border-b border-white/[0.04]">
-              <span class="text-xs text-gray-500">Redis 命中率</span>
-              <span class="text-xs text-green-400 matrix-text">98.7%</span>
-            </div>
-            <div class="flex justify-between items-center py-2">
-              <span class="text-xs text-gray-500">MQ 队列</span>
-              <span class="text-xs text-white/70 matrix-text">12 条</span>
-            </div>
+          <div class="py-8 text-center">
+            <p class="text-xs text-gray-500">接入监控后展示真实数据</p>
           </div>
         </div>
       </div>
@@ -173,7 +154,7 @@ onMounted(async () => {
       }
     }
   } catch (e) {
-    console.warn('Admin dashboard API unavailable:', e.message)
+    if (import.meta.env.DEV) console.warn('Admin dashboard API unavailable:', e.message)
   }
 
   try {
@@ -182,7 +163,7 @@ onMounted(async () => {
       recentLogs.value = res.data
     }
   } catch (e) {
-    console.warn('Admin logs API unavailable:', e.message)
+    if (import.meta.env.DEV) console.warn('Admin logs API unavailable:', e.message)
   }
 
   try {
@@ -203,7 +184,7 @@ async function refreshServices() {
       services.value = mergeServices(res.data)
     }
   } catch (e) {
-    console.warn('Service health API unavailable, using registry fallback:', e.message)
+    if (import.meta.env.DEV) console.warn('Service health API unavailable, using registry fallback:', e.message)
   }
 }
 

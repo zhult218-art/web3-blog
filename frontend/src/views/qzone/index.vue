@@ -532,7 +532,7 @@ const failedHint = computed(() => {
   return ''
 })
 
-const healthText = ref('9012')
+const healthText = computed(() => '9006')
 const nowTime = ref('')
 let clockTimer = null
 

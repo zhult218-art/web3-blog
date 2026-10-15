@@ -3,6 +3,8 @@ package com.web3.common.core;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -10,6 +12,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +90,34 @@ public class GlobalExceptionHandler {
   @ResponseStatus(value = HttpStatus.CONFLICT)
   public ApiResponse<Object> handleDuplicateKey(DuplicateKeyException ex) {
     return ApiResponse.fail(409, "数据已存在");
+  }
+
+  /* 处理请求体 JSON 格式错误/反序列化失败异常，HTTP 400 */
+  @ExceptionHandler(value = {HttpMessageNotReadableException.class})
+  @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+  public ApiResponse<Object> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+    return ApiResponse.fail(400, "请求数据格式错误");
+  }
+
+  /* 处理请求方法不支持异常（如 GET 接口收到 POST），HTTP 405 */
+  @ExceptionHandler(value = {HttpRequestMethodNotSupportedException.class})
+  @ResponseStatus(value = HttpStatus.METHOD_NOT_ALLOWED)
+  public ApiResponse<Object> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+    return ApiResponse.fail(405, "不支持的请求方法: " + ex.getMethod());
+  }
+
+  /* 处理上传文件大小超出限制异常，HTTP 400 */
+  @ExceptionHandler(value = {MaxUploadSizeExceededException.class})
+  @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+  public ApiResponse<Object> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+    return ApiResponse.fail(400, "文件大小超出限制");
+  }
+
+  /* 处理权限不足异常（已登录但无权限），HTTP 403 */
+  @ExceptionHandler(value = {AccessDeniedException.class})
+  @ResponseStatus(value = HttpStatus.FORBIDDEN)
+  public ApiResponse<Object> handleAccessDenied(AccessDeniedException ex) {
+    return ApiResponse.fail(403, "无权限");
   }
 
   /* 兜底处理运行时异常，记录日志并返回 HTTP 500 */

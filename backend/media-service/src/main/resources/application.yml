@@ -17,14 +17,24 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:3306/web3_media?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:root}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
 server:
   port: 8085
 media:
   upload:
     dir: runtime/uploads
     max-size: 524288000
+  download:
+    # yt-dlp / ffmpeg / ffprobe 可执行文件路径（根 .env 的 YTDLP_PATH / FFMPEG_PATH / FFPROBE_PATH）
+    ytdlp-path: ${YTDLP_PATH:yt-dlp}
+    ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
+    ffprobe-path: ${FFPROBE_PATH:ffprobe}
+    # 下载代理（YouTube 等站点需要）；留空表示直连。复用 .env 中的 HTTPS_PROXY
+    proxy: ${MEDIA_DOWNLOAD_PROXY:}
+    # 单个任务最长下载时间（分钟）与并发任务数
+    timeout-minutes: 30
+    concurrency: 2
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

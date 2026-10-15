@@ -69,11 +69,19 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
+function isSafeUrl(url) {
+  return /^(https?:\/\/|\/|#|mailto:|tel:|data:image\/)/i.test(url)
+}
+
 // 行内元素：粗体/斜体/行内代码/链接/图片
 function renderInline(text) {
   let t = escapeHtml(text)
-  t = t.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (m, alt, src) => `<img src="${src}" alt="${alt}" loading="lazy">`)
+  t = t.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (m, alt, src) => {
+    if (!isSafeUrl(src)) return `![${alt}]()`
+    return `<img src="${src}" alt="${alt}" loading="lazy">`
+  })
   t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, label, href) => {
+    if (!isSafeUrl(href)) return label
     const isExternal = /^https?:\/\//.test(href)
     return `<a href="${href}"${isExternal ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`
   })

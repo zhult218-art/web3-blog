@@ -8,14 +8,15 @@
 <script setup>
 // ============================================================
 // 全局 Three.js 背景（ThreeBackground）
-// 固定全屏：1800 颗粒子云 + 三层旋转圆环（紫/青/粉）
+// 固定全屏：粒子云 + 三层科技光环（着色器立体发光环：紫/青/粉）
 // 相机随鼠标位置轻微平移，营造沉浸式空间感
 // ============================================================
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
 
 const canvas = ref(null)
-let scene, camera, renderer, particles, ring, ring2, ring3, raf, clock
+let scene, camera, renderer, particles, raf, clock
+let ringMeshes = []
 let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0
 
 // 生成雪花精灵贴图：离屏 canvas 绘制六臂雪花，作为粒子贴图
@@ -49,6 +50,70 @@ function makeSnowflakeTexture() {
   tex.needsUpdate = true
   return tex
 }
+
+// ============================================================
+// 科技光环着色器：把普通 MeshBasicMaterial 的"平环"升级为立体发光环——
+// 管壁伪光照（圆管体积感）+ 沿环双色渐变扫色 + 科技分段虚线 +
+// 锐利刻度点 + 沿环行进扫描高亮。
+// ============================================================
+const RING_VERT = /* glsl */`
+varying vec2 vUv;
+varying vec3 vN;
+void main() {
+  vUv = uv;
+  vN = normalize(normalMatrix * normal);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+
+const RING_FRAG = /* glsl */`
+uniform vec3 uColorA;
+uniform vec3 uColorB;
+uniform vec3 uScan;
+uniform float uTime;
+uniform float uOpacity;
+uniform float uSegments;
+uniform float uScanSpeed;
+varying vec2 vUv;
+varying vec3 vN;
+
+void main() {
+  float ang = vUv.x;                 // 0..1 绕主环一周
+
+  // 沿圆周缓慢流动的双色渐变 → 科技扫色
+  vec3 base = mix(uColorA, uColorB, 0.5 + 0.5 * sin(ang * 6.28318 + uTime * 0.35));
+
+  // 管壁伪光照：朝向相机的管面更亮、背向更暗，营造圆管立体感
+  vec3 n = normalize(vN);
+  float lambert = 0.28 + 0.72 * pow(abs(n.z), 0.65);
+  float tubeSheen = 0.60 + 0.40 * sin(vUv.y * 3.14159);  // 管截面周向微高光
+  base *= lambert * tubeSheen * 1.5;
+
+  // 科技分段虚线：沿圆周切成 uSegments 段，段内亮、段间暗
+  float seg = fract(ang * uSegments);
+  float dash = smoothstep(0.06, 0.22, seg) * (1.0 - smoothstep(0.78, 0.94, seg));
+  dash = mix(0.18, 1.0, dash);
+
+  // 锐利刻度点：每段一个亮点，形成仪表环刻度
+  float ticks = pow(max(0.0, sin(ang * 6.28318 * uSegments)), 22.0);
+
+  // 沿环行进扫描高亮（主束 + 对侧次束）
+  float s1 = fract(ang - uTime * uScanSpeed);
+  float beam = smoothstep(0.0, 0.05, s1) * (1.0 - smoothstep(0.05, 0.20, s1));
+  float s2 = fract(ang - uTime * uScanSpeed + 0.5);
+  float beam2 = smoothstep(0.0, 0.03, s2) * (1.0 - smoothstep(0.03, 0.10, s2));
+
+  vec3 col = base * dash;
+  col += uScan * ticks * 0.55;
+  col += uScan * (beam * 1.0 + beam2 * 0.35);
+
+  float alpha = uOpacity * dash * (0.70 + 0.30 * lambert)
+              + uOpacity * ticks * 0.50
+              + uOpacity * (beam * 0.90 + beam2 * 0.30);
+
+  gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
+}
+`
 
 // 初始化场景：相机、渲染器、粒子云与三层圆环
 function init() {
@@ -97,27 +162,56 @@ function init() {
   particles = new THREE.Points(geo, mat)
   scene.add(particles)
 
-  // Triple rings（提亮：三层圆环不透明度上调）
-  const ringGeo1 = new THREE.TorusGeometry(3.8, 0.015, 16, 140)
-  const ringMat1 = new THREE.MeshBasicMaterial({ color: 0xa855f7, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.72 })
-  ring = new THREE.Mesh(ringGeo1, ringMat1)
-  ring.rotation.x = Math.PI * 0.45
-  ring.rotation.y = Math.PI * 0.2
-  scene.add(ring)
+  // ===== 三层科技光环 =====
+  // 立体感 + 科技感来源：
+  //   ① 外发光层：略粗的低透明度加色圆管，模拟 bloom 光晕；
+  //   ② 主体层：细管 + 自定义 ShaderMaterial —— 沿圆周双色渐变扫色、
+  //      管壁伪光照（朝相机的管面更亮 → 圆管立体）、科技分段虚线、
+  //      刻度亮点、沿环行进扫描高亮；
+  //   ③ 每层独立倾斜角 + 自转/进动，形成交错的空间轨道感。
+  const RING_DEFS = [
+    { radius: 3.8, tube: 0.018, colorA: 0x7c3aed, colorB: 0x22d3ee, scan: 0xffffff, opacity: 0.95, segments: 48, scanSpeed: 0.10, rx: Math.PI * 0.45, ry: Math.PI * 0.2,  spin: 1 },
+    { radius: 4.5, tube: 0.015, colorA: 0x06b6d4, colorB: 0x3b82f6, scan: 0x9bffea, opacity: 0.80, segments: 64, scanSpeed: 0.07, rx: Math.PI * 0.25, ry: -Math.PI * 0.3, spin: -1 },
+    { radius: 5.2, tube: 0.013, colorA: 0xec4899, colorB: 0xa855f7, scan: 0xffd6f2, opacity: 0.68, segments: 80, scanSpeed: 0.05, rx: Math.PI * 0.55, ry: Math.PI * 0.4,  spin: 1 }
+  ]
 
-  const ringGeo2 = new THREE.TorusGeometry(4.5, 0.012, 16, 160)
-  const ringMat2 = new THREE.MeshBasicMaterial({ color: 0x06b6d4, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.58 })
-  ring2 = new THREE.Mesh(ringGeo2, ringMat2)
-  ring2.rotation.x = Math.PI * 0.25
-  ring2.rotation.y = -Math.PI * 0.3
-  scene.add(ring2)
+  ringMeshes = RING_DEFS.map((def) => {
+    const group = new THREE.Group()
 
-  const ringGeo3 = new THREE.TorusGeometry(5.2, 0.01, 16, 180)
-  const ringMat3 = new THREE.MeshBasicMaterial({ color: 0xec4899, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.46 })
-  ring3 = new THREE.Mesh(ringGeo3, ringMat3)
-  ring3.rotation.x = Math.PI * 0.55
-  ring3.rotation.y = Math.PI * 0.4
-  scene.add(ring3)
+    // ① 外发光层（bloom 光晕）
+    group.add(new THREE.Mesh(
+      new THREE.TorusGeometry(def.radius, def.tube * 5, 12, 200),
+      new THREE.MeshBasicMaterial({
+        color: def.colorA, blending: THREE.AdditiveBlending,
+        depthWrite: false, transparent: true, opacity: def.opacity * 0.15
+      })
+    ))
+
+    // ② 主体层（着色器细管）
+    const coreMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uColorA: { value: new THREE.Color(def.colorA) },
+        uColorB: { value: new THREE.Color(def.colorB) },
+        uScan: { value: new THREE.Color(def.scan) },
+        uTime: { value: 0 },
+        uOpacity: { value: def.opacity },
+        uSegments: { value: def.segments },
+        uScanSpeed: { value: def.scanSpeed }
+      },
+      vertexShader: RING_VERT,
+      fragmentShader: RING_FRAG,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+    group.add(new THREE.Mesh(new THREE.TorusGeometry(def.radius, def.tube, 10, 240), coreMat))
+
+    // ③ 独立倾斜角 → 三层交错的空间轨道
+    group.rotation.x = def.rx
+    group.rotation.y = def.ry
+    scene.add(group)
+    return { group, coreMat, spin: def.spin }
+  })
 
   camera.position.z = 8
 }
@@ -140,18 +234,13 @@ function animate() {
     particles.rotation.x += dt * 0.04
     particles.rotation.z += dt * 0.02
   }
-  if (ring) {
-    ring.rotation.z += dt * 0.15
-    ring.rotation.x += dt * 0.06
-  }
-  if (ring2) {
-    ring2.rotation.z -= dt * 0.12
-    ring2.rotation.y += dt * 0.08
-  }
-  if (ring3) {
-    ring3.rotation.z += dt * 0.1
-    ring3.rotation.x -= dt * 0.07
-  }
+  ringMeshes.forEach((r, i) => {
+    r.coreMat.uniforms.uTime.value = t
+    // 绕环自转（交替方向）+ 轻微进动 → 轨道立体运动
+    r.group.rotation.z += dt * (0.16 - i * 0.03) * r.spin
+    r.group.rotation.x += dt * 0.05 * (i === 1 ? -1 : 1)
+    if (i === 2) r.group.rotation.y += dt * 0.04
+  })
 
   renderer.render(scene, camera)
 }
@@ -188,6 +277,14 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
   window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onMouse)
+  // 显式销毁三层光环的几何体与着色器材质，避免 WebGL 资源泄漏
+  ringMeshes.forEach((r) => {
+    r.group.traverse((o) => {
+      if (o.geometry) o.geometry.dispose()
+      if (o.material) o.material.dispose()
+    })
+  })
+  ringMeshes = []
   if (renderer) renderer.dispose()
   if (scene) scene.clear()
 })

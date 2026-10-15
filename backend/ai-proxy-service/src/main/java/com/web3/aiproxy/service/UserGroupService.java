@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.web3.aiproxy.entity.ProxyUserGroup;
 import com.web3.aiproxy.mapper.ProxyUserGroupMapper;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -20,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class UserGroupService {
 
+    private static final Logger log = LoggerFactory.getLogger(UserGroupService.class);
     private final ProxyUserGroupMapper groupMapper;
     private final RedisCacheService redisCacheService;
     private final Map<String, CachedRate> localCache = new ConcurrentHashMap<>();
@@ -41,6 +44,7 @@ public class UserGroupService {
             }
         } catch (Exception e) {
             // DB 异常按 1 计费，不阻断请求
+            log.debug("[user-group] query group rate for '{}' failed, defaulting to 1: {}", groupName, e.getMessage());
         }
         localCache.put(groupName, new CachedRate(rate, now));
         return rate;

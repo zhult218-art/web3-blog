@@ -11,6 +11,7 @@ import com.web3.media.entity.NailWork;
 import com.web3.media.service.NailService;
 import io.jsonwebtoken.Claims;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,8 +40,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value={"/nail"})
 public class NailController {
-    /** 店主用户名：该用户与管理员均可管理美甲数据 */
-    private static final String OWNER_USERNAME = "nailqueen";
+    /** 店主用户名：该用户与管理员均可管理美甲数据（可通过配置 nail.owner-username 覆盖） */
+    @Value("${nail.owner-username:nailqueen}")
+    private String ownerUsername;
     /** 美甲小铺业务服务 */
     private final NailService nailService;
     /** JWT 令牌校验工具 */
@@ -223,7 +225,7 @@ public class NailController {
             String token = AuthUtils.resolveToken(authorization, this.jwtProperties);
             Claims claims = this.jwtUtil.parseClaims(token);
             String username = claims.getSubject();
-            if (OWNER_USERNAME.equals(username)) {
+            if (ownerUsername.equals(username)) {
                 return username;
             }
             throw e;

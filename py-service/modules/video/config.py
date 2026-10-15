@@ -12,7 +12,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 BASE_DIR = PACKAGE_DIR.resolve().parents[1]                  # py-service 根目录
 
 # ─── 管理员 Token（生产环境务必用环境变量覆盖！见 README） ───
-ADMIN_TOKEN = os.getenv("VIDEO_ADMIN_TOKEN", "change-me-admin-token")
+ADMIN_TOKEN = os.getenv("VIDEO_ADMIN_TOKEN", "")
 
 # ─── 存储目录 ───
 DATA_DIR = BASE_DIR / "data" / "video"                       # SQLite 与本地媒体根目录

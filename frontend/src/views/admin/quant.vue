@@ -505,7 +505,7 @@ async function loadQuotes() {
       filterStocks()
     }
   } catch (e) {
-    console.error('[quant] loadQuotes failed:', e)
+    if (import.meta.env.DEV) console.error('[quant] loadQuotes failed:', e)
   } finally {
     quotesLoaded.value = true
   }
@@ -534,42 +534,42 @@ async function loadSectors() {
       sectorHeat.value = res.data
       sectorSource.value = res.source || ''
     }
-  } catch (e) { console.error('[quant] loadSectors:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadSectors:', e) }
 }
 
 async function loadSectorTrends() {
   try {
     const res = await getPySectorTrends(30, 10)
     if (res?.data) sectorTrends.value = res.data
-  } catch (e) { console.error('[quant] loadSectorTrends:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadSectorTrends:', e) }
 }
 
 async function loadFundFlow() {
   try {
     const res = await getPyFundFlow()
     if (res?.data) fundFlow.value = res.data
-  } catch (e) { console.error('[quant] loadFundFlow:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadFundFlow:', e) }
 }
 
 async function loadLimitPools() {
   try {
     const res = await getPyLimitPools()
     if (res?.data) limitPools.value = res.data
-  } catch (e) { console.error('[quant] loadLimitPools:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadLimitPools:', e) }
 }
 
 async function loadBoardProgress() {
   try {
     const res = await getPyBoardProgress()
     if (res?.data) boardProgress.value = res.data
-  } catch (e) { console.error('[quant] loadBoardProgress:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadBoardProgress:', e) }
 }
 
 async function loadRecommend() {
   try {
     const res = await getPyRecommend(10, false)
     if (res?.data) recommend.value = res.data
-  } catch (e) { console.error('[quant] loadRecommend:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadRecommend:', e) }
   finally { recommendLoaded.value = true }
 }
 
@@ -577,7 +577,7 @@ async function loadReports() {
   try {
     const res = await getPyReportsLatest(20)
     if (res?.data) reports.value = res.data
-  } catch (e) { console.error('[quant] loadReports:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadReports:', e) }
   finally { reportsLoaded.value = true }
 }
 
@@ -585,7 +585,7 @@ async function loadNews() {
   try {
     const res = await getPyNews(30)
     if (res?.data) news.value = res.data
-  } catch (e) { console.error('[quant] loadNews:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadNews:', e) }
   finally { newsLoaded.value = true }
 }
 
@@ -601,7 +601,7 @@ async function loadStrategies() {
         : 0
       marketStats.value[7].value = avgRet.toFixed(1) + '%'
     }
-  } catch (e) { console.error('[quant] loadStrategies:', e) }
+  } catch (e) { if (import.meta.env.DEV) console.error('[quant] loadStrategies:', e) }
   finally { strategiesLoaded.value = true }
 }
 

@@ -13,10 +13,8 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-websocket</artifactId>
-    </dependency>
+    <!-- 实时聊天已迁至 node-service/chat-gateway（Socket.IO），
+         本服务不再注册任何 JSR-356 @ServerEndpoint，故移除 websocket starter。 -->
     <dependency>
       <groupId>com.alibaba.cloud</groupId>
       <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>

@@ -23,6 +23,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -35,6 +37,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class StockPriceService {
+    private static final Logger log = LoggerFactory.getLogger(StockPriceService.class);
     private volatile Map<String, String> stockPool = new LinkedHashMap<>();
     private volatile long poolLoadTime = 0;
     private static final long POOL_CACHE_TTL = 5 * 60 * 1000L;
@@ -357,7 +360,8 @@ public class StockPriceService {
             wrapper.eq(StockPrice::getSymbol, symbol).orderByDesc(StockPrice::getTimestamp).last("LIMIT 1");
             StockPrice dbRow = this.stockPriceMapper.selectOne(wrapper);
             if (dbRow != null) latest = dbRow;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("[stock] query latest price from DB failed for {}: {}", symbol, e.getMessage());
         }
         return this.applyRealQuote(latest, StockPriceService.gatewayGet("/api/quant/market/quote/" + symbol));
     }
@@ -397,7 +401,8 @@ public class StockPriceService {
                     sp.setTurnoverRate(bar.path("change_percent").isNumber() ? new BigDecimal(bar.path("change_percent").asText()) : BigDecimal.ZERO);
                     sp.setCreatedAt(LocalDateTime.now());
                     list.add(sp);
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    log.warn("[stock] parse kline bar failed for {}: {}", symbol, e.getMessage());
                 }
             }
             if (!list.isEmpty()) return list;

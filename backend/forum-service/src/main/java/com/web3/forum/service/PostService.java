@@ -17,6 +17,8 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PostService
 extends ServiceImpl<PostMapper, Post> {
+    private static final Logger log = LoggerFactory.getLogger(PostService.class);
     /** 点赞记录 Mapper（点赞/取消点赞） */
     private final LikeRecordMapper likeRecordMapper;
     /** 评论 Mapper（统计数据用） */
@@ -256,6 +259,8 @@ extends ServiceImpl<PostMapper, Post> {
             post.setCategory(dto.getCategory());
         }
         this.baseMapper.updateById(post);
+        // 分类变更会影响 stats() 的 topTags 聚合，更新后同步失效缓存
+        invalidateStatsCache();
         return this.toVO(post);
     }
 
@@ -413,8 +418,9 @@ extends ServiceImpl<PostMapper, Post> {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // user 库不可达或权限不足时静默跳过，列表仍正常返回
+            log.debug("[post] fill author names from user DB skipped: {}", e.getMessage());
         }
     }
 }

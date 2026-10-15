@@ -286,7 +286,7 @@ async function loadNotices() {
       saveAck(new Set())
     }
   } catch (e) {
-    console.warn('[NoticePanel] load failed:', e?.message || e)
+    if (import.meta.env.DEV) console.warn('[NoticePanel] load failed:', e?.message || e)
   }
 }
 

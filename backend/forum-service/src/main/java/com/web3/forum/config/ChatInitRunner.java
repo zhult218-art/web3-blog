@@ -2,6 +2,8 @@ package com.web3.forum.config;
 
 import com.web3.forum.service.ChatService;
 import com.web3.forum.service.ChatSwitchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ChatInitRunner implements CommandLineRunner {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatInitRunner.class);
     private final JdbcTemplate jdbc;
     private final ChatService chatService;
     private final ChatSwitchService chatSwitchService;
@@ -71,6 +74,7 @@ public class ChatInitRunner implements CommandLineRunner {
                 """);
         } catch (Exception e) {
             // 表已存在或无 DDL 权限时忽略
+            log.debug("[chat-init] create core tables skipped: {}", e.getMessage());
         }
         // 聊天开关配置表（管理员可关闭群聊）
         try {
@@ -82,19 +86,25 @@ public class ChatInitRunner implements CommandLineRunner {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 """);
             jdbc.update("INSERT IGNORE INTO chat_config (`key`, `value`, updated_at) VALUES ('chatEnabled', '1', NOW())");
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.debug("[chat-init] create chat_config table skipped: {}", e.getMessage());
+        }
         try {
             chatService.ensureDefaultRoom();
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.debug("[chat-init] ensure default room skipped: {}", e.getMessage());
+        }
         // 增量列：头像冗余（已存在时忽略 Duplicate column 报错）
-        try { jdbc.execute("ALTER TABLE chat_room_member ADD COLUMN avatar VARCHAR(500) NULL AFTER nickname"); } catch (Exception ignored) {}
-        try { jdbc.execute("ALTER TABLE chat_message ADD COLUMN avatar VARCHAR(500) NULL AFTER nickname"); } catch (Exception ignored) {}
+        try { jdbc.execute("ALTER TABLE chat_room_member ADD COLUMN avatar VARCHAR(500) NULL AFTER nickname"); } catch (Exception e) { log.debug("[chat-init] add avatar column to chat_room_member skipped: {}", e.getMessage()); }
+        try { jdbc.execute("ALTER TABLE chat_message ADD COLUMN avatar VARCHAR(500) NULL AFTER nickname"); } catch (Exception e) { log.debug("[chat-init] add avatar column to chat_message skipped: {}", e.getMessage()); }
         // 固定单群策略：默认群免审批，历史 pending/rejected 成员全部转为 approved
         try {
             jdbc.update("UPDATE chat_room SET require_approval = 0 WHERE id = (SELECT MIN(id) FROM (SELECT id FROM chat_room) t)");
             jdbc.update("UPDATE chat_room_member SET status = 'approved' WHERE status IN ('pending','rejected')");
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.debug("[chat-init] migrate require_approval/status skipped: {}", e.getMessage());
+        }
         // 建表完成后加载聊天开关状态
-        try { chatSwitchService.load(); } catch (Exception ignored) {}
+        try { chatSwitchService.load(); } catch (Exception e) { log.debug("[chat-init] load chat switch state skipped: {}", e.getMessage()); }
     }
 }

@@ -22,7 +22,7 @@
         <span class="dock-room-name">{{ chat.room?.name || '极光广场' }}</span>
         <span class="dock-room-sub">
           <i :class="['ws-dot', chat.wsConnected ? 'on' : 'off']"></i>
-          {{ chat.wsConnected ? `在线 ${chat.onlineCount}/${chat.members.length}` : '连接中…' }}
+          {{ chat.connLabel }} · {{ chat.onlineCount }}/{{ chat.members.length }}
         </span>
       </div>
       <button class="dock-ic" title="完整模式" @click="goFull">
@@ -74,7 +74,7 @@
               </div>
             </div>
           </template>
-          <div class="m-sys">{{ chat.wsConnected ? '· 已连接 ·' : '· 连接中 ·' }}</div>
+          <div class="m-sys">· {{ chat.connLabel }} ·</div>
         </template>
         <!-- 新消息浮动提示 -->
         <transition name="fade-up">

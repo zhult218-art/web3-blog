@@ -81,7 +81,7 @@ onErrorCaptured((err, _instance, info) => {
     || stack.includes('getNextHostNode')
     || stack.includes('flushJobs')
   if (VUE_NULL_READ.test(msg) && vueInternalStack) {
-    console.warn('[vue] 已忽略挂载/切页竞态的内部良性报错（' + info + '）')
+    if (import.meta.env.DEV) console.warn('[vue] 已忽略挂载/切页竞态的内部良性报错（' + info + '）')
     return false
   }
   return true

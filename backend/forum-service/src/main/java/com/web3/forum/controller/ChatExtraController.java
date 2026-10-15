@@ -1,6 +1,7 @@
 package com.web3.forum.controller;
 
 import com.web3.common.core.ApiResponse;
+import com.web3.common.core.UnauthorizedException;
 import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
@@ -8,6 +9,8 @@ import com.web3.forum.entity.ChatAlbum;
 import com.web3.forum.entity.ChatAnnouncement;
 import com.web3.forum.entity.ChatNotification;
 import com.web3.forum.entity.ChatPhoto;
+import com.web3.forum.entity.ChatRoom;
+import com.web3.forum.mapper.ChatRoomMapper;
 import com.web3.forum.service.ChatExtraService;
 import io.jsonwebtoken.Claims;
 import java.util.List;
@@ -29,11 +32,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChatExtraController {
 
     private final ChatExtraService extraService;
+    private final ChatRoomMapper chatRoomMapper;
     private final JwtUtil jwtUtil;
     private final JwtProperties jwtProperties;
 
-    public ChatExtraController(ChatExtraService extraService, JwtUtil jwtUtil, JwtProperties jwtProperties) {
+    public ChatExtraController(ChatExtraService extraService, ChatRoomMapper chatRoomMapper,
+                               JwtUtil jwtUtil, JwtProperties jwtProperties) {
         this.extraService = extraService;
+        this.chatRoomMapper = chatRoomMapper;
         this.jwtUtil = jwtUtil;
         this.jwtProperties = jwtProperties;
     }
@@ -49,6 +55,24 @@ public class ChatExtraController {
     private String nick(Claims c) {
         String n = c.get("nickname", String.class);
         return n != null ? n : c.get("username", String.class);
+    }
+
+    /** 校验当前用户是群主或站点管理员 */
+    private void requireRoomAdminOrAdmin(String auth, Long roomId) {
+        Long currentUid = uid(auth);
+        try {
+            AuthUtils.requireAdmin(auth, jwtUtil, jwtProperties);
+            return; // 站点管理员放行
+        } catch (UnauthorizedException e) {
+            if (e.getCode() != 403) {
+                throw e; // 401 直接抛出
+            }
+        }
+        // 非站点管理员，检查是否为群主
+        ChatRoom room = chatRoomMapper.selectById(roomId);
+        if (room == null || !currentUid.equals(room.getOwnerId())) {
+            throw new UnauthorizedException(403, "无权限：仅群主或管理员可操作");
+        }
     }
 
     // ========== 群公告 ==========
@@ -70,8 +94,11 @@ public class ChatExtraController {
 
     @PutMapping("/chat/announcements/{id}")
     public ApiResponse<ChatAnnouncement> updateAnnouncement(@PathVariable Long id,
-            @RequestHeader(value = "Authorization", required = false) String auth,
+            @RequestHeader("Authorization") String auth,
             @RequestBody Map<String, Object> body) {
+        Long roomId = extraService.getAnnouncementRoomId(id);
+        if (roomId == null) throw new RuntimeException("公告不存在");
+        requireRoomAdminOrAdmin(auth, roomId);
         return ApiResponse.ok(extraService.updateAnnouncement(id,
                 body.containsKey("title") ? String.valueOf(body.get("title")) : null,
                 body.containsKey("content") ? String.valueOf(body.get("content")) : null,
@@ -79,7 +106,11 @@ public class ChatExtraController {
     }
 
     @DeleteMapping("/chat/announcements/{id}")
-    public ApiResponse<Void> deleteAnnouncement(@PathVariable Long id) {
+    public ApiResponse<Void> deleteAnnouncement(@PathVariable Long id,
+            @RequestHeader("Authorization") String auth) {
+        Long roomId = extraService.getAnnouncementRoomId(id);
+        if (roomId == null) throw new RuntimeException("公告不存在");
+        requireRoomAdminOrAdmin(auth, roomId);
         extraService.deleteAnnouncement(id);
         return ApiResponse.ok();
     }
@@ -100,12 +131,21 @@ public class ChatExtraController {
     }
 
     @PutMapping("/chat/albums/{id}")
-    public ApiResponse<ChatAlbum> renameAlbum(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ApiResponse<ChatAlbum> renameAlbum(@PathVariable Long id,
+            @RequestHeader("Authorization") String auth,
+            @RequestBody Map<String, Object> body) {
+        Long roomId = extraService.getAlbumRoomId(id);
+        if (roomId == null) throw new RuntimeException("相册不存在");
+        requireRoomAdminOrAdmin(auth, roomId);
         return ApiResponse.ok(extraService.renameAlbum(id, String.valueOf(body.getOrDefault("name", "新相册"))));
     }
 
     @DeleteMapping("/chat/albums/{id}")
-    public ApiResponse<Void> deleteAlbum(@PathVariable Long id) {
+    public ApiResponse<Void> deleteAlbum(@PathVariable Long id,
+            @RequestHeader("Authorization") String auth) {
+        Long roomId = extraService.getAlbumRoomId(id);
+        if (roomId == null) throw new RuntimeException("相册不存在");
+        requireRoomAdminOrAdmin(auth, roomId);
         extraService.deleteAlbum(id);
         return ApiResponse.ok();
     }
@@ -131,13 +171,18 @@ public class ChatExtraController {
     }
 
     @PutMapping("/chat/photos/{id}/move")
-    public ApiResponse<ChatPhoto> movePhoto(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ApiResponse<ChatPhoto> movePhoto(@PathVariable Long id,
+            @RequestHeader("Authorization") String auth,
+            @RequestBody Map<String, Object> body) {
+        uid(auth); // require login
         Long target = Long.parseLong(String.valueOf(body.getOrDefault("albumId", "1")));
         return ApiResponse.ok(extraService.movePhoto(id, target));
     }
 
     @DeleteMapping("/chat/photos/{id}")
-    public ApiResponse<Void> deletePhoto(@PathVariable Long id) {
+    public ApiResponse<Void> deletePhoto(@PathVariable Long id,
+            @RequestHeader("Authorization") String auth) {
+        uid(auth); // require login
         extraService.deletePhoto(id);
         return ApiResponse.ok();
     }
@@ -160,7 +205,9 @@ public class ChatExtraController {
     }
 
     @DeleteMapping("/chat/notifications/{id}")
-    public ApiResponse<Void> deleteNotification(@PathVariable Long id) {
+    public ApiResponse<Void> deleteNotification(@PathVariable Long id,
+            @RequestHeader("Authorization") String auth) {
+        uid(auth); // require login
         extraService.deleteNotification(id);
         return ApiResponse.ok();
     }

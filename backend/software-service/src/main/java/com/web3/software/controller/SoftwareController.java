@@ -11,6 +11,8 @@ import com.web3.software.vo.SoftwareVO;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -81,6 +83,37 @@ public class SoftwareController {
                                           @RequestHeader("Authorization") String authorization) {
         AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
         return ApiResponse.ok(this.softwareService.create(software));
+    }
+
+    /**
+     * 更新软件条目（PUT /software/{id}），仅管理员可操作。
+     *
+     * @param id            软件 ID
+     * @param software      软件信息（request body）
+     * @param authorization 登录令牌（请求头），需具备管理员角色
+     * @return 更新成功后的软件详情
+     */
+    @PutMapping("/{id}")
+    public ApiResponse<SoftwareVO> update(@PathVariable Long id, @RequestBody Software software,
+                                          @RequestHeader("Authorization") String authorization) {
+        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
+        software.setId(id);
+        return ApiResponse.ok(this.softwareService.update(software));
+    }
+
+    /**
+     * 删除软件条目（DELETE /software/{id}），仅管理员可操作。
+     *
+     * @param id            软件 ID
+     * @param authorization 登录令牌（请求头），需具备管理员角色
+     * @return 成功提示
+     */
+    @DeleteMapping("/{id}")
+    public ApiResponse<Object> delete(@PathVariable Long id,
+                                      @RequestHeader("Authorization") String authorization) {
+        AuthUtils.requireAdmin(authorization, this.jwtUtil, this.jwtProperties);
+        this.softwareService.delete(id);
+        return ApiResponse.ok();
     }
 
     /**

@@ -14,8 +14,8 @@
             </div>
             <div class="pc-peer-meta">
               <span class="pc-peer-name">{{ peer?.nickname || peer?.username || '私聊' }}</span>
-              <span :class="['pc-ws-pill', wsConnected ? 'on' : 'off']">
-                <i></i>{{ wsConnected ? '在线' : '连接中' }}
+              <span :class="['pc-ws-pill', peerOnline ? 'on' : 'off']">
+                <i></i>{{ peerOnline ? '在线' : (chat.wsConnected ? '离线' : chat.connLabel) }}
               </span>
             </div>
             <button class="pc-icon" @click="inviteToGroup" title="邀请进群聊">
@@ -48,7 +48,7 @@
                   </div>
                 </div>
               </div>
-              <div class="pc-sys">{{ wsConnected ? '· 已连接 ·' : '· 连接中 ·' }}</div>
+              <div class="pc-sys">· {{ wsConnected ? '已连接' : chat.connLabel }} ·</div>
             </template>
           </section>
 
@@ -94,14 +94,14 @@
 </template>
 
 <script setup>
-// 私聊弹窗：与群聊共用 chat_message 表与 WS 端点（/chat/ws/{roomId}?token=xxx）
-// 独立 WS 连接 + 独立消息流，不干扰群聊 store 全局常驻连接
+// 私聊弹窗：复用全局 Socket.IO 共享连接（stores/modules/chat.js），按 roomId 分流消息，
+// 不再自建 WebSocket；与群聊共用 chat_message 表与同一套落库/校验逻辑。
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useToastStore } from '@/stores/modules/toast'
 import { useChatStore } from '@/stores/modules/chat'
-import { createPrivateChat, getChatMessages, uploadChatImage } from '@/api/chat'
+import { createPrivateChat, uploadChatImage } from '@/api/chat'
 
 const router = useRouter()
 
@@ -125,8 +125,6 @@ const canChat = computed(() => {
 
 const peer = ref(null)        // 对方资料
 const roomId = ref(null)
-const messages = ref([])
-const wsConnected = ref(false)
 const loading = ref(true)
 const draft = ref('')
 const showEmoji = ref(false)
@@ -136,7 +134,18 @@ const inputRef = ref(null)
 const msgsRef = ref(null)
 const fileRef = ref(null)
 
-let ws = null
+// 消息与连接状态全部来自共享连接中的私聊会话
+const session = computed(() => (roomId.value ? chat.privateSessions[roomId.value] : null))
+const messages = computed(() => session.value?.messages || [])
+const wsConnected = computed(() => !!chat.wsConnected && !!session.value?.joined)
+// 对方真实在线状态：来自网关 join ack 的房间在线集合 + presence 事件实时增删。
+// 之前这里误用自己的连接状态（只要我连着就显示"在线"），对方不在线也显示在线。
+const peerOnline = computed(() => {
+  if (!wsConnected.value) return false
+  const uid = String(props.target?.userId ?? '')
+  return !!uid && !!session.value?.onlineIds?.has(uid)
+})
+
 const EMOJIS = ['😀','😂','🤣','😊','😍','😘','😎','🤔','😭','😤','👍','👎','👏','🙏','💪','🤝','❤️','💔','💯','🔥','✨','🎉','🌈','⚡','🌙','☀️','🍀','🌸','🐱','🐶','🍉','☕']
 
 const quotePreviewText = computed(() => {
@@ -163,75 +172,49 @@ function onPeerAvatarClick(msg) {
   if (msg.userId === myUserId.value) return
 }
 
-// 打开弹窗时初始化私聊房间
+// 打开弹窗时初始化私聊房间（入群 + 历史消息 + 共享连接订阅）
 watch(() => props.open, async (v) => {
-  if (!v || !props.target) return
+  if (!v || !props.target) {
+    if (roomId.value) chat.closePrivateSession(roomId.value)
+    roomId.value = null
+    return
+  }
   loading.value = true
-  messages.value = []
   peer.value = props.target
   try {
     const res = await createPrivateChat(props.target.userId)
     const data = res?.data ?? res
     roomId.value = data.id
     if (data.peer) peer.value = data.peer
-    // 加载历史消息
-    try {
-      const hisRes = await getChatMessages(roomId.value, 100)
-      messages.value = hisRes?.data ?? hisRes ?? []
-    } catch {}
-    connect()
+    await chat.openPrivateSession(roomId.value)
   } catch (e) {
     toast.error(e?.message || '私聊创建失败')
-    loading.value = false
   } finally {
     loading.value = false
   }
-  nextTick(() => inputRef.value?.focus())
+  nextTick(() => { inputRef.value?.focus(); scrollBottom() })
 }, { immediate: true })
 
-function connect() {
-  if (!roomId.value || !auth.token) return
-  disconnect()
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const url = `${proto}://${location.host}/chat/ws/${roomId.value}?token=${encodeURIComponent(auth.token)}`
-  try {
-    ws = new WebSocket(url)
-    ws.onopen = () => { wsConnected.value = true }
-    ws.onmessage = (e) => {
-      let data
-      try { data = JSON.parse(e.data) } catch { return }
-      if (data.type === 'presence') return
-      if (data.type === 'error') { toast.warning(data.content || '操作被拒绝'); return }
-      messages.value.push(data)
-      if (messages.value.length > 300) messages.value.splice(0, messages.value.length - 300)
-      nextTick(() => scrollBottom())
-    }
-    ws.onclose = () => { wsConnected.value = false }
-    ws.onerror = () => { wsConnected.value = false }
-  } catch { wsConnected.value = false }
-}
-
-function disconnect() {
-  if (ws) { try { ws.onclose = null; ws.close() } catch {} ws = null }
-  wsConnected.value = false
-}
+// 新消息自动滚到底部
+watch(() => messages.value.length, () => scrollBottom())
 
 function send() {
   const text = draft.value.trim()
-  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return
+  if (!text || !roomId.value) return
   if (!canChat.value) { toast.warning('请先完成实名认证'); return }
-  const payload = { type: 'text', content: text }
-  if (quoteMsg.value?.id) payload.quoteId = quoteMsg.value.id
-  ws.send(JSON.stringify(payload))
+  if (!chat.sendPrivate(roomId.value, 'text', text, quoteMsg.value?.id || null)) {
+    toast.warning('连接未就绪，请稍后重试')
+    return
+  }
   draft.value = ''
   clearQuote()
   nextTick(() => autoResize())
 }
 
 function pickEmoji(e) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return
+  if (!roomId.value) return
   if (!canChat.value) { toast.warning('请先完成实名认证'); return }
-  ws.send(JSON.stringify({ type: 'emoji', content: e }))
+  chat.sendPrivate(roomId.value, 'emoji', e)
   showEmoji.value = false
 }
 
@@ -239,13 +222,11 @@ function triggerUpload() { fileRef.value?.click() }
 async function onFile(ev) {
   const file = ev.target.files?.[0]
   ev.target.value = ''
-  if (!file) return
+  if (!file || !roomId.value) return
   try {
     const res = await uploadChatImage(file)
     const url = res?.url ?? res?.data?.url
-    if (url && ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'image', content: url }))
-    }
+    if (url) chat.sendPrivate(roomId.value, 'image', url)
   } catch (e) { toast.error('上传失败') }
 }
 
@@ -274,7 +255,9 @@ function inviteToGroup() {
   router.push('/community/chat')
 }
 
-onBeforeUnmount(() => disconnect())
+onBeforeUnmount(() => {
+  if (roomId.value) chat.closePrivateSession(roomId.value)
+})
 </script>
 
 <style scoped>

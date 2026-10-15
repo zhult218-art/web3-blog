@@ -1,65 +1,52 @@
-// Edge TTS（微软 Edge 在线神经网络语音，WebSocket 直连，纯前端无后端依赖）
-// 失败时返回 false，由调用方回退到浏览器 speechSynthesis
+// Edge TTS 播报：合成下沉到 py-service（官方 edge-tts 客户端），前端只负责播放。
 //
-// 2026-09-23 修订（参考 edge-tts-universal / Azure SSML 官方文档）：
-//   1. SSML 增加 xmlns:mstts 命名空间，启用 mstts:express-as 情感样式与 mstts:silence 句首静默；
-//   2. prosody 参数从 pitch='+1Hz'/rate=0/volume='+10%' 改为 pitch='+2%'/rate='+10%'/volume='+0%'，
-//      中文旁白甜区为 rate +10%~+15%，+1Hz 人耳不可察，volume +10% 易爆音；
-//   3. 长文本按句号/问号/感叹号拆分，每句单独合成后 mp3 拼接，节奏更自然；
-//   4. 句间插入 <break time="300ms"/>，并在每句句首加 mstts:silence type="Leading" 200ms；
-//   5. 默认音色 zh-CN-XiaoxiaoNeural 走 friendly 情感，styledegree 0.8 避免夸张。
-const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4'
-const WSS_BASE = 'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1'
+// 2026-10-15 重构（重要）：
+//   原实现由前端 WebSocket 直连微软 speech.platform.bing.com 自行合成，
+//   但微软已把 DRM 从 v1（日期串 + SHA256）换成 v2（Windows 纪元 ticks +
+//   自定义 CS64 摘要 + `2-` 版本前缀），前端旧算法握手必定 403。
+//   403 被静默吞掉后回退到浏览器 speechSynthesis（Windows 本地音色，听感
+//   极度机械），这就是「星途助手说话很僵硬」的真正原因。
+//   现改为 POST /voiceapi/tts → py-service 用官方客户端合成并回 mp3，
+//   DRM 跟随上游 edge-tts 包升级，不会再静默失效。
+//
+//   同时把音色从 5 个扩到 10 个（含播音腔/东北话/陕西话/粤语/台湾腔）。
+//   失败仍返回 false，由调用方回退本地 TTS，保证「一定能出声」。
 
-// 音色元数据：expressStyle 表示该音色支持的 mstts:express-as 主推情感
+const TTS_URL = '/voiceapi/tts'
+
+// 与 py-service/modules/voice/tts.py 的 TTS_VOICES 白名单保持一致。
+// defaultRate/defaultPitch 供「试听」与后端默认值对齐，仅用于提示，不参与计算。
 export const EDGE_VOICES = [
-  { uri: 'zh-CN-XiaoxiaoNeural', name: '晓晓 · 温柔女声', gender: '女', style: 'friendly' },
-  { uri: 'zh-CN-XiaoyiNeural',  name: '晓伊 · 元气女声', gender: '女', style: 'cheerful' },
-  { uri: 'zh-CN-YunxiNeural',   name: '云希 · 阳光男声', gender: '男', style: 'chat' },
-  { uri: 'zh-CN-YunjianNeural', name: '云健 · 沉稳男声', gender: '男', style: 'narration-relaxed' },
-  { uri: 'zh-CN-YunxiaNeural',  name: '云夏 · 磁性男声', gender: '男', style: 'chat' },
+  { uri: 'zh-CN-XiaoxiaoNeural', name: '晓晓 · 温柔女声', gender: '女', locale: '普通话', desc: '温暖亲切，适合日常对话' },
+  { uri: 'zh-CN-XiaoyiNeural', name: '晓伊 · 元气女声', gender: '女', locale: '普通话', desc: '活泼上扬，适合俏皮回复' },
+  { uri: 'zh-CN-YunxiNeural', name: '云希 · 阳光男声', gender: '男', locale: '普通话', desc: '清爽自然，通用男声' },
+  { uri: 'zh-CN-YunjianNeural', name: '云健 · 沉稳男声', gender: '男', locale: '普通话', desc: '低沉厚实，适合严肃叙述' },
+  { uri: 'zh-CN-YunxiaNeural', name: '云夏 · 磁性男声', gender: '男', locale: '普通话', desc: '磁性偏暖，适合科普讲解' },
+  { uri: 'zh-CN-YunyangNeural', name: '云扬 · 播音男声', gender: '男', locale: '普通话', desc: '新闻播音腔，字正腔圆最自然' },
+  { uri: 'zh-CN-liaoning-XiaobeiNeural', name: '小北 · 东北话女声', gender: '女', locale: '东北方言', desc: '幽默接地气' },
+  { uri: 'zh-CN-shaanxi-XiaoniNeural', name: '小妮 · 陕西话女声', gender: '女', locale: '陕西方言', desc: '明亮爽利' },
+  { uri: 'zh-HK-HiuMaanNeural', name: '曉曼 · 粤语女声', gender: '女', locale: '粤语', desc: '标准粤语' },
+  { uri: 'zh-TW-HsiaoChenNeural', name: '曉臻 · 台湾腔女声', gender: '女', locale: '台湾国语', desc: '柔和台湾腔' },
 ]
+
+export const DEFAULT_VOICE = 'zh-CN-XiaoxiaoNeural'
 
 let currentAudio = null
 let currentAbortController = null
+// 流式播报的取消入口：speakEdgeStream 注册，stopEdgeSpeech 统一触发
+let streamStopFn = null
 
 export function isEdgeTtsSupported() {
-  return typeof WebSocket !== 'undefined' && typeof crypto?.subtle?.digest === 'function' && typeof Audio !== 'undefined'
-}
-
-async function makeSecMsGec() {
-  const now = new Date()
-  const mod = now.getUTCMinutes() % 5
-  if (mod) now.setUTCMinutes(now.getUTCMinutes() - mod)
-  now.setUTCSeconds(0)
-  now.setUTCMilliseconds(0)
-  const dateStr = now.toUTCString()
-  const data = new TextEncoder().encode(TRUSTED_CLIENT_TOKEN + dateStr)
-  const buf = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-function uuid() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = (Math.random() * 16) | 0
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-  })
-}
-
-function isoNow() {
-  return new Date().toISOString()
+  return typeof fetch === 'function' && typeof Audio !== 'undefined' && typeof URL?.createObjectURL === 'function'
 }
 
 export function stopEdgeSpeech() {
+  if (streamStopFn) { try { streamStopFn() } catch { /* ignore */ } streamStopFn = null }
   if (currentAbortController) { try { currentAbortController.abort() } catch { /* ignore */ } currentAbortController = null }
   if (currentAudio) {
     try { currentAudio.pause(); currentAudio.src = '' } catch { /* ignore */ }
     currentAudio = null
   }
-}
-
-function escapeXml(text) {
-  return text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
 }
 
 // 按句末标点（。！？!?…）拆分，保留标点。空句跳过。
@@ -68,153 +55,131 @@ function splitSentences(text) {
   return parts.map(s => s.trim()).filter(Boolean)
 }
 
-// 为单个句子构造 SSML。注入 mstts:silence 句首 200ms + 句末 break 300ms。
-function buildSentenceSsml(sentence, voiceURI, style) {
-  const safe = escapeXml(sentence)
-  const styleBlock = style
-    ? `<mstts:express-as style="${style}" styledegree="0.8">${safe}</mstts:express-as>`
-    : safe
-  return `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'><voice name='${voiceURI}'><mstts:silence type='Leading' value='200ms'/><prosody rate='+10%' pitch='+2%' volume='+0%'>${styleBlock}<break time='300ms'/></prosody></voice></speak>`
-}
-
-function findHeaderEnd(bytes) {
-  for (let i = 0; i + 3 < bytes.length; i++) {
-    if (bytes[i] === 13 && bytes[i + 1] === 10 && bytes[i + 2] === 13 && bytes[i + 3] === 10) return i + 4
+// 长文本按句聚合到 ~MAX_SEG 字一段：整段合成比逐句合成语气更连贯，
+// 同时避免单次请求过大导致首音延迟过高。
+const MAX_SEG = 120
+function chunkText(text) {
+  const sentences = splitSentences(text)
+  if (!sentences.length) return []
+  const segs = []
+  let buf = ''
+  for (const s of sentences) {
+    if (buf && (buf.length + s.length) > MAX_SEG) { segs.push(buf); buf = '' }
+    buf += s
   }
-  return bytes.length
+  if (buf) segs.push(buf)
+  return segs
 }
 
-// 单次 SSML 合成；返回 mp3 Blob 或 null
-function synthesizeOnce(ws, ssml, signal) {
-  return new Promise((resolve, reject) => {
-    const audioChunks = []
-    let finished = false
-    const timer = setTimeout(() => {
-      if (finished) return
-      finished = true
-      reject(new Error('tts timeout'))
-    }, 15000)
-
-    const prevOnMessage = ws.onmessage
-    ws.onmessage = (e) => {
-      const data = e.data
-      if (typeof data === 'string') return
-      const bytes = new Uint8Array(data)
-      const headEnd = findHeaderEnd(bytes)
-      const head = new TextDecoder().decode(bytes.subarray(0, headEnd))
-      if (head.includes('Path:turn.end')) {
-        clearTimeout(timer)
-        finished = true
-        ws.onmessage = prevOnMessage
-        if (!audioChunks.length) { resolve(null); return }
-        resolve(new Blob(audioChunks, { type: 'audio/mpeg' }))
-        return
-      }
-      if (head.includes('Path:audio')) {
-        const payload = bytes.subarray(headEnd)
-        if (payload.length) audioChunks.push(payload.slice())
-      }
-    }
-
-    const prevOnError = ws.onerror
-    ws.onerror = (err) => {
-      if (finished) return
-      clearTimeout(timer)
-      finished = true
-      ws.onmessage = prevOnMessage
-      ws.onerror = prevOnError
-      reject(new Error('tts ws error'))
-    }
-
-    try {
-      ws.send(`X-RequestId:${uuid()}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${isoNow()}\r\nPath:ssml\r\n\r\n${ssml}`)
-    } catch (e) {
-      clearTimeout(timer)
-      finished = true
-      ws.onmessage = prevOnMessage
-      ws.onerror = prevOnError
-      reject(new Error('ws send failed'))
-    }
+// 请求后端合成一段文本，返回 mp3 Blob；失败抛错由调用方兜底
+async function synthesize(text, voiceURI, signal) {
+  const res = await fetch(TTS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice: voiceURI }),
+    signal,
   })
+  if (!res.ok) {
+    let detail = ''
+    try { detail = (await res.json())?.detail || '' } catch { /* ignore */ }
+    throw new Error(`tts ${res.status} ${detail}`)
+  }
+  const blob = await res.blob()
+  if (!blob.size) throw new Error('tts empty audio')
+  return blob
 }
 
 /**
- * Edge TTS 合成并播放。
+ * Edge TTS 流式播报：分段合成、合成完一段立刻播放，不等整段合成完。
+ * 首音延迟 ≈ 单段合成耗时；播放期间可被 stopEdgeSpeech() 立即打断。
+ *
  * @param {string} text 待播报文本
- * @param {string} voiceURI 音色 URI，默认 zh-CN-XiaoxiaoNeural
- * @param {number} _ratePercent 保留参数（已废弃，由 SSML 内 +10% 控制）
- * @returns {Promise<boolean>} 是否成功播放
+ * @param {string} voiceURI 音色 URI
+ * @param {{onSentenceStart?:Function,onSentenceEnd?:Function,onDone?:(ok:boolean)=>void,onError?:Function}} [handlers]
+ * @returns {Promise<boolean>} 是否成功播放完整
  */
-export async function speakEdge(text, voiceURI = 'zh-CN-XiaoxiaoNeural', _ratePercent = 0) {
-  if (!text) return false
-  const voice = EDGE_VOICES.find(v => v.uri === voiceURI) || EDGE_VOICES[0]
-  const style = voice?.style || 'friendly'
-  const sentences = splitSentences(text)
-  if (!sentences.length) return false
+export async function speakEdgeStream(text, voiceURI = DEFAULT_VOICE, handlers = {}) {
+  if (!text) { try { handlers.onDone?.(false) } catch { /* ignore */ } return false }
+  const segs = chunkText(text)
+  if (!segs.length) { try { handlers.onDone?.(false) } catch { /* ignore */ } return false }
 
-  const token = await makeSecMsGec()
-  const connId = uuid()
-  const wsUrl = `${WSS_BASE}?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${token}&Sec-MS-GEC-Version=1-130.0.2849.68&ConnectionId=${connId}`
-  const ws = new WebSocket(wsUrl)
   const ac = new AbortController()
   currentAbortController = ac
 
-  const finishWs = () => { try { ws.close() } catch { /* ignore */ } }
+  let stopped = false
+  let doneResolved = false
+  let synthDone = false
+  let anyEnqueued = 0
+  const queue = []
+  let playing = false
+  let resolveDone = null
+  const doneP = new Promise(r => { resolveDone = r })
+  const settle = ok => { if (!doneResolved) { doneResolved = true; resolveDone(ok) } }
 
-  // 等待 WebSocket 打开 + 发送 speech.config
-  let wsReady = false
-  try {
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('ws open timeout')), 8000)
-      ws.onopen = () => {
-        clearTimeout(timer)
-        const config = {
-          context: {
-            synthesis: {
-              audio: {
-                metadataoptions: { sentenceBoundaryEnabled: 'false', wordBoundaryEnabled: 'true' },
-                outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
-              },
-            },
-          },
-        }
-        ws.send(`X-Timestamp:${isoNow()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n${JSON.stringify(config)}`)
-        wsReady = true
-        resolve()
-      }
-      ws.onerror = () => { clearTimeout(timer); reject(new Error('ws open error')) }
-    })
-  } catch (e) {
-    finishWs()
-    return false
-  }
-
-  if (!wsReady) return false
-
-  try {
-    const collectedBlobs = []
-    // 按句依次合成；任一句失败立即终止整段（外层会回退本地 TTS）
-    for (const s of sentences) {
-      if (ac.signal.aborted) throw new Error('aborted')
-      const ssml = buildSentenceSsml(s, voiceURI, style)
-      const blob = await synthesizeOnce(ws, ssml, ac.signal)
-      if (blob) collectedBlobs.push(blob)
-    }
-    finishWs()
-    if (!collectedBlobs.length) return false
-
-    // 拼接所有句子的 mp3 blob 一次性播放
-    const finalBlob = new Blob(collectedBlobs, { type: 'audio/mpeg' })
-    const url = URL.createObjectURL(finalBlob)
+  // 播放队列：按序播放，段间自然衔接
+  const playNext = () => {
+    if (stopped) { playing = false; settle(false); return }
+    const blob = queue.shift()
+    if (!blob) { playing = false; if (synthDone && !stopped) settle(true); return }
+    playing = true
+    const url = URL.createObjectURL(blob)
     const audio = new Audio(url)
     currentAudio = audio
-    return await new Promise(resolve => {
-      audio.onended = () => { URL.revokeObjectURL(url); resolve(true) }
-      audio.onerror = () => { URL.revokeObjectURL(url); resolve(false) }
-      audio.play().then(() => { /* started */ }).catch(() => { URL.revokeObjectURL(url); resolve(false) })
-    })
-  } catch (e) {
-    finishWs()
-    return false
+    const clean = () => { try { URL.revokeObjectURL(url) } catch { /* ignore */ } if (currentAudio === audio) currentAudio = null }
+    audio.onended = () => { clean(); try { handlers.onSentenceEnd?.() } catch { /* ignore */ } playNext() }
+    audio.onerror = () => { clean(); playNext() }
+    try { handlers.onSentenceStart?.() } catch { /* ignore */ }
+    audio.play().catch(() => { clean(); playNext() })
   }
+  const enqueue = blob => { if (stopped) return; anyEnqueued += 1; queue.push(blob); if (!playing) playNext() }
+
+  streamStopFn = () => {
+    stopped = true
+    queue.length = 0
+    try { ac.abort() } catch { /* ignore */ }
+    if (currentAudio) { try { currentAudio.pause(); currentAudio.src = '' } catch { /* ignore */ } currentAudio = null }
+    settle(false)
+  }
+
+  try {
+    // 先并发预取第 1、2 段降低首音延迟，其余按序边合成边播
+    const pending = new Map()
+    const prefetch = i => {
+      if (i >= segs.length || pending.has(i)) return
+      pending.set(i, synthesize(segs[i], voiceURI, ac.signal).catch(() => null))
+    }
+    prefetch(0)
+    prefetch(1)
+
+    for (let i = 0; i < segs.length; i++) {
+      if (stopped || ac.signal.aborted) break
+      const blob = await pending.get(i)
+      pending.delete(i)
+      prefetch(i + 2)
+      if (stopped) break
+      if (blob) enqueue(blob)
+    }
+    synthDone = true
+
+    if (stopped) { settle(false); return doneP }
+    if (!anyEnqueued) { settle(false); return doneP }
+    if (!playing) { settle(true); return doneP }   // 已全部播完
+    return doneP                                   // 最后一段仍在播放，播完自动 settle
+  } catch (e) {
+    try { handlers.onError?.(e) } catch { /* ignore */ }
+    settle(false)
+    return doneP
+  } finally {
+    streamStopFn = null
+  }
+}
+
+/**
+ * 一次性播报（非流式语义，但内部同样分段并边合边播）。
+ * 保留该导出以兼容既有调用方。
+ * @returns {Promise<boolean>} 是否成功播放
+ */
+export async function speakEdge(text, voiceURI = DEFAULT_VOICE) {
+  if (!text) return false
+  return speakEdgeStream(text, voiceURI)
 }

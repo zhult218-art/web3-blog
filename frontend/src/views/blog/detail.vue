@@ -1,5 +1,19 @@
 <template>
   <div v-if="article" class="space-y-6">
+    <!-- Reading Progress Bar -->
+    <div class="fixed top-0 left-0 right-0 z-50 h-[3px] bg-transparent">
+      <div class="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 transition-all duration-150" :style="{ width: readingProgress + '%' }"></div>
+    </div>
+
+    <!-- 面包屑导航 -->
+    <nav class="flex items-center gap-1.5 text-sm text-white/50 mb-4">
+      <router-link to="/" class="hover:text-white/80 transition-colors">首页</router-link>
+      <span class="text-white/30">/</span>
+      <router-link to="/blog" class="hover:text-white/80 transition-colors">博客</router-link>
+      <span v-if="article.category" class="text-white/30">/</span>
+      <router-link v-if="article.category" :to="`/blog?category=${article.category}`" class="hover:text-white/80 transition-colors">{{ article.category }}</router-link>
+    </nav>
+
     <!-- 文章头 -->
     <div class="panel p-6 md:p-8">
       <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 mb-3">
@@ -12,6 +26,14 @@
         </template>
       </div>
       <h1 class="text-2xl md:text-3xl font-black text-white leading-snug mb-3">{{ article.title }}</h1>
+      <!-- 文章标签 -->
+      <div v-if="article.tags" class="flex flex-wrap gap-2 mb-4">
+        <router-link v-for="tag in article.tags.split(',')" :key="tag"
+          :to="`/blog?tag=${tag.trim()}`"
+          class="px-2.5 py-0.5 rounded-full text-xs bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors">
+          #{{ tag.trim() }}
+        </router-link>
+      </div>
       <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
         <span>字数 {{ wordCount }}</span>
         <span>阅读 {{ readingMin }} 分钟</span>
@@ -25,6 +47,22 @@
           <svg class="w-3.5 h-3.5" :class="favorited ? 'text-amber-400 fill-amber-400' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.48 3.5a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.5.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.441a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
           收藏
         </span>
+        <span class="opacity-30">|</span>
+        <span class="flex items-center gap-1 cursor-pointer hover:text-cyan-300 transition-colors" @click="shareArticle" title="分享">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          分享
+        </span>
+      </div>
+    </div>
+
+    <!-- 作者信息 -->
+    <div v-if="article.authorName || article.author" class="panel p-4 flex items-center gap-4">
+      <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-purple-500/20 shrink-0">
+        {{ ((article.authorName || article.author || 'U')[0]) }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-white font-medium">{{ article.authorName || article.author }}</p>
+        <p class="text-[11px] text-gray-500 mt-0.5">发布于 {{ formatDate(article.createdAt) }}</p>
       </div>
     </div>
 
@@ -90,7 +128,7 @@
 // ============================================================
 // 文章详情页：markdown 渲染 + TOC + 上/下一篇 + 相关推荐 + 评论
 // ============================================================
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getBlogDetail, getBlogRelated, likeBlog, favoriteBlog, checkBlogLike, checkBlogFavorite } from '@/api/blog'
 import { renderMarkdown, extractToc } from '@/utils/markdown'
@@ -114,11 +152,38 @@ const related = ref([])
 const commentTotal = ref(null)
 const liked = ref(false)
 const favorited = ref(false)
+const readingProgress = ref(0)
+let rafId = null
 
 const contentHtml = computed(() => article.value ? renderMarkdown(article.value.content) : '')
 const toc = computed(() => extractToc(contentHtml.value))
 const wordCount = computed(() => article.value?.content?.replace(/[#>*`_\-\[\]()!|]/g, '').length || 0)
 const readingMin = computed(() => Math.max(1, Math.round(wordCount.value / 300)))
+
+// 阅读进度条（requestAnimationFrame 节流）
+function handleScroll() {
+  if (rafId) return
+  rafId = requestAnimationFrame(() => {
+    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+    const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight
+    readingProgress.value = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0
+    rafId = null
+  })
+}
+
+// 分享文章
+function shareArticle() {
+  const url = window.location.href
+  const title = article.value?.title || ''
+  if (navigator.share) {
+    navigator.share({ title, url }).catch(() => {})
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url)
+    toast.success('链接已复制到剪贴板')
+  } else {
+    toast.info('请手动复制地址栏链接分享')
+  }
+}
 
 // 日期格式化（统一走 utils/date）
 function formatDate(d) { return formatDay(d, '') }
@@ -181,7 +246,14 @@ async function toggleFavorite() {
 }
 
 watch(() => route.params.id, (id) => { if (id) fetchDetail(id) })
-onMounted(() => { if (route.params.id) fetchDetail(route.params.id) })
+onMounted(() => {
+  if (route.params.id) fetchDetail(route.params.id)
+  window.addEventListener('scroll', handleScroll, { passive: true })
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+  if (rafId) cancelAnimationFrame(rafId)
+})
 </script>
 
 <style scoped>
@@ -189,40 +261,3 @@ onMounted(() => { if (route.params.id) fetchDetail(route.params.id) })
 .related-card { @apply block rounded-xl border border-white/[0.06] p-3 hover:border-white/[0.14] hover:bg-[#0e0e26] transition-all duration-300; }
 </style>
 
-<style>
-/* 正文排版（非 scoped，作用于 v-html 内容） */
-.article-body { line-height: 1.9; color: #e2e8f0; font-size: 0.95rem; }
-.article-body h1, .article-body h2, .article-body h3, .article-body h4 {
-  color: #fff; font-weight: 800; margin: 1.6em 0 0.8em; line-height: 1.4; scroll-margin-top: 90px;
-}
-.article-body h1 { font-size: 1.5rem; }
-.article-body h2 { font-size: 1.3rem; padding-bottom: 0.4em; border-bottom: 1px solid rgba(255,255,255,0.08); }
-.article-body h3 { font-size: 1.1rem; }
-.article-body p { margin: 0.8em 0; }
-.article-body a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 3px; }
-.article-body strong { color: #fff; }
-.article-body code { background: rgba(168,85,247,0.12); color: #e9d5ff; padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.85em; font-family: var(--font-mono); }
-.article-body pre.code-block {
-  position: relative; background: rgba(2, 2, 12, 0.85); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; padding: 1rem 1.2rem; overflow-x: auto; margin: 1.2em 0;
-}
-.article-body pre.code-block code { background: transparent; color: #cbd5e1; padding: 0; font-size: 0.85rem; }
-.article-body pre.code-block .code-copy {
-  position: absolute; top: 8px; right: 8px; font-size: 10px; color: #6b7280;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px; padding: 2px 8px; cursor: pointer; opacity: 0; transition: opacity 0.2s;
-}
-.article-body pre.code-block:hover .code-copy { opacity: 1; }
-.article-body blockquote { border-left: 3px solid var(--color-primary); background: rgba(168,85,247,0.06); padding: 0.6em 1em; border-radius: 0 8px 8px 0; margin: 1em 0; color: #9ca3af; }
-.article-body ul, .article-body ol { margin: 0.8em 0; padding-left: 1.5em; }
-.article-body ul { list-style: disc; }
-.article-body ol { list-style: decimal; }
-.article-body li { margin: 0.3em 0; }
-.article-body img { max-width: 100%; border-radius: 12px; margin: 1em 0; border: 1px solid rgba(255,255,255,0.08); cursor: zoom-in; }
-.article-body hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 2em 0; }
-.article-body .table-wrap { overflow-x: auto; margin: 1em 0; }
-.article-body table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.article-body th, .article-body td { border: 1px solid rgba(255,255,255,0.1); padding: 0.5em 0.8em; text-align: left; }
-.article-body th { background: rgba(168,85,247,0.1); color: #fff; }
-.article-body tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
-</style>

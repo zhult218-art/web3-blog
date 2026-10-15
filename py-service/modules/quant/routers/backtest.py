@@ -1,30 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import os
-import sys
-import json
-import random
-import time
 import uuid
 import logging
-import re
 import asyncio
-import hashlib
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, field, asdict
-from enum import Enum
-
-import numpy as np
-import pandas as pd
-import requests
-from fastapi import HTTPException, Query, Request, Body
-from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from dataclasses import asdict
 
 logger = logging.getLogger("quant")
 
@@ -32,7 +12,7 @@ from ..datasources.astock import AStockDataService
 from ..services.ai import AIAnalysisService
 from ..services.backtest import BACKTEST_STRATEGY_META, BacktestEngine, run_backtest_task
 from ..state import _backtest_store, _task_store
-
+from ..models.schemas import BacktestRequest
 
 from fastapi import APIRouter
 

@@ -952,7 +952,7 @@ async function fetchKline(period) {
           }))
           klineSource.value = 'vibe-research'
         }
-      } catch (vrErr) { console.warn('VR kline fallback fail', vrErr) }
+      } catch (vrErr) { if (import.meta.env.DEV) console.warn('VR kline fallback fail', vrErr) }
     }
     if (!data || !data.length) {
       klineLoading.value = false
@@ -969,7 +969,7 @@ async function fetchKline(period) {
     await nextTick()
     renderKlineChart()
   } catch (e) {
-    console.warn('kline fail', e)
+    if (import.meta.env.DEV) console.warn('kline fail', e)
     klineError.value = e?.message || '网络错误'
   } finally {
     klineLoading.value = false
@@ -1225,7 +1225,7 @@ async function loadQuote() {
     if (d.name) stockName.value = d.name
     lastUpdate.value = new Date().toLocaleTimeString()
   } catch (e) {
-    console.warn('quote fail', e)
+    if (import.meta.env.DEV) console.warn('quote fail', e)
     quoteError.value = e?.message || '请求超时'
   } finally {
     quoteLoading.value = false
@@ -1267,7 +1267,7 @@ async function loadStockInfo() {
       { label: '数据源', value: info.source || 'akshare' },
     ]
   } catch (e) {
-    console.warn('stock info fail', e)
+    if (import.meta.env.DEV) console.warn('stock info fail', e)
     infoError.value = e?.message || '请求超时'
   } finally {
     infoLoading.value = false
@@ -1409,7 +1409,7 @@ async function loadTabData(tabKey) {
     meta.empty = !norm.data || !norm.data.length
     meta.loaded = true
   } catch (e) {
-    console.warn(`${tabKey} load fail`, e)
+    if (import.meta.env.DEV) console.warn(`${tabKey} load fail`, e)
     const msg = e?.message || '网络错误'
     meta.error = /timeout|超时/i.test(msg) ? '请求超时，请重试' : msg
   } finally {

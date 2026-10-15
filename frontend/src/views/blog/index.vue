@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <!-- 页面 Hero Header：标题 + 副标题 + 站点资讯统计 -->
-    <header class="blog-hero panel p-5 sm:p-6 md:p-8">
+    <header class="blog-hero panel p-5 sm:p-6 md:p-8" data-voice-target>
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="min-w-0">
           <div class="flex items-center gap-2 text-[11px] text-gray-500 mb-2">

@@ -44,6 +44,11 @@ public class ChatExtraService {
 
     // ========== 群公告 ==========
 
+    public Long getAnnouncementRoomId(Long id) {
+        ChatAnnouncement a = announcementMapper.selectById(id);
+        return a != null ? a.getRoomId() : null;
+    }
+
     public List<ChatAnnouncement> listAnnouncements(Long roomId) {
         List<ChatAnnouncement> list = announcementMapper.selectList(new LambdaQueryWrapper<ChatAnnouncement>()
                 .eq(ChatAnnouncement::getRoomId, roomId)
@@ -93,6 +98,11 @@ public class ChatExtraService {
         private Long photoCount;
         private String nickname;
         private LocalDateTime createdAt;
+    }
+
+    public Long getAlbumRoomId(Long id) {
+        ChatAlbum a = albumMapper.selectById(id);
+        return a != null ? a.getRoomId() : null;
     }
 
     public List<AlbumVO> listAlbums(Long roomId) {

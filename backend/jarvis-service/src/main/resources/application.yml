@@ -16,8 +16,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:3306/web3_jarvis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:root}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
 
   data:
     redis:
@@ -28,8 +28,8 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:127.0.0.1}
     port: 5672
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
     virtual-host: /
 
 server:

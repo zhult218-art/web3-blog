@@ -21,6 +21,19 @@
             <span class="status-dot" :class="statusClass"></span>
             <span class="status-label">{{ statusText }}</span>
           </div>
+          <button v-if="micFixAction === 'open-tab'" class="mic-fix-btn" @click="openMicInNewTab">
+            在新标签页打开
+          </button>
+          <button v-if="micFixAction === 'os-settings'" class="mic-fix-btn" @click="openOsMicSettings">
+            打开麦克风设置
+          </button>
+          <button
+            v-if="micFixAction === 'os-settings' || micFixAction === 'settings'"
+            class="mic-fix-btn"
+            @click="recheckMic"
+          >
+            重新检测
+          </button>
           <div class="status-item">
             <span class="wake-hint">唤醒："星图星图" / "星途星途"</span>
           </div>
@@ -47,11 +60,12 @@
               <div class="msg-text">{{ m.text }}</div>
             </div>
           </div>
-          <div v-if="isListening" class="msg user">
+          <div v-if="isListening || liveText" class="msg user">
             <div class="msg-avatar">👤</div>
             <div class="msg-content">
               <div class="msg-role">你</div>
-              <div class="msg-text listening-dots"><span></span><span></span><span></span></div>
+              <div v-if="liveText" class="msg-text live-text">{{ liveText }}</div>
+              <div v-else class="msg-text listening-dots"><span></span><span></span><span></span></div>
             </div>
           </div>
         </div>
@@ -72,11 +86,11 @@
           </button>
           <button
             class="ctrl-btn"
-            :class="{ active: isListening }"
-            @click="toggleListening"
+            :class="{ active: isListening || (localStt && wBusy) }"
+            @click="onMicToggle"
           >
-            <span class="ctrl-icon">{{ isListening ? '⏹' : '🎤' }}</span>
-            <span class="ctrl-label">{{ isListening ? '停止' : '语音' }}</span>
+            <span class="ctrl-icon">{{ isListening ? '⏹' : (localStt && wBusy ? '☁' : '🎤') }}</span>
+            <span class="ctrl-label">{{ isListening ? '停止' : (localStt ? (wBusy ? '识别中' : '本地识别') : '语音') }}</span>
           </button>
           <button class="ctrl-btn" @click="testSpeak">
             <span class="ctrl-icon">🔊</span>
@@ -92,7 +106,11 @@
         <div class="voice-selector">
           <label>音色：</label>
           <select v-model="voiceURI" @change="onVoiceChange">
-            <option v-for="v in voices" :key="v.uri" :value="v.uri">{{ v.name }}</option>
+            <optgroup v-for="g in voiceGroups" :key="g.label" :label="g.label">
+              <option v-for="v in g.items" :key="v.uri" :value="v.uri" :title="v.desc">
+                {{ v.name }}{{ v.desc ? '（' + v.desc + '）' : '' }}
+              </option>
+            </optgroup>
           </select>
         </div>
       </div>
@@ -169,9 +187,13 @@ import { usePlayerStore } from '@/stores/modules/player'
 import {
   startVoskRecognition, stopVoskRecognition, isVoskRunning, loadVoskModel, callbacks as voskCb,
 } from '@/composables/useVoskStt'
-import { speakEdge, stopEdgeSpeech, EDGE_VOICES, isEdgeTtsSupported } from '@/api/edgeTts'
+import { speakEdgeStream, stopEdgeSpeech, EDGE_VOICES, isEdgeTtsSupported } from '@/api/edgeTts'
 import { startWhisperRecord, whisperTranscribe } from '@/composables/useWhisperStt'
 import { agentChatStream, consumeAgentStream } from '@/api/agent'
+import {
+  startVoiceStream, sendVoice, disposeVoiceStream, isVoiceStreamRunning,
+} from '@/composables/useVoiceStream'
+import { guideTo, clearVoiceHighlight } from '@/composables/useVoiceGuide'
 import { createEntry, getOwnerUser } from '@/api/knowledge'
 import { alert as dlgAlert } from '@/composables/useDialog'
 import { KB_TAXONOMY } from '@/data/knowledgeTaxonomy'
@@ -185,11 +207,14 @@ const isListening = ref(false)
 const isSpeaking = ref(false)
 const messages = ref([])
 const statusText = ref('就绪')
+// 麦克风诊断后的可执行动作：'' | 'open-tab' | 'settings'（驱动状态栏内的修复按钮）
+const micFixAction = ref('')
 const msgBox = ref(null)
 let recognition = null
 let synth = null
 let wakeWordDetected = false
 let manualStop = false
+let stopByError = false    // 因麦克风权限/硬件错误被动停止（允许用户手势一键重试恢复）
 let disposed = false
 let wakeTimer = 0
 let wakeWordTimer = 0
@@ -197,12 +222,42 @@ let sessionId = null
 let backendOk = false
 let edgeOk = false
 let voskOk = false
+let micHintShown = false   // 麦克风授权类提示只播报一次，避免反复骚扰
 const voices = EDGE_VOICES
+// 音色下拉按语种/性别分组，10 个音色才不至于糊成一列
+const voiceGroups = computed(() => {
+  const defs = [
+    { label: '普通话 · 女声', match: v => v.locale === '普通话' && v.gender === '女' },
+    { label: '普通话 · 男声', match: v => v.locale === '普通话' && v.gender === '男' },
+    { label: '方言', match: v => v.locale.includes('方言') },
+    { label: '粤语 / 台湾腔', match: v => ['粤语', '台湾国语'].includes(v.locale) },
+  ]
+  return defs
+    .map(d => ({ label: d.label, items: voices.filter(d.match) }))
+    .filter(g => g.items.length)
+})
 const voiceURI = ref('zh-CN-XiaoxiaoNeural')
 let selectedVoiceURI = 'zh-CN-XiaoxiaoNeural'
 
+// ===== 全双工语音流状态（阶段5）=====
+// PCM 全双工 WS：负责服务端 VAD 打断 / LLM 流式按句播报 / 页面引导。
+// 浏览器 Web Speech 仍负责 ASR（服务端 faster-whisper 为可选升级）。
+let wsReady = false            // /api/voice/ws 已建立
+let wsBackend = ''             // 服务端 LLM 后端标识（cockpit / agent）
+let serverAsr = false          // 服务端流式 ASR 可用 → 停用浏览器 Web Speech，避免双识别竞态
+const liveText = ref('')       // 服务端实时字幕（边说边出）
+let pendingTranscript = ''     // Web Speech 累积的最终文本（等待端点检测）
+let endpointTimer = 0          // 静音端点计时器
+let streamIdx = -1             // 流式助手消息在 messages 中的下标（-1 表示无）
+let ttsQueue = []              // 待播报句子（服务端 sentence 事件）
+let ttsDraining = false        // 句子播报串行化标志
+const VOICE_ENDPOINT_MS = 700  // 静音多久视为「说完了」
+
 // 全屏固定页（群聊）内隐藏悬浮球：避免遮挡页面自身的发送等操作按钮
 const orbHidden = computed(() => route.path === '/community/chat')
+
+// 等待服务端 ready 帧（判断是否有流式 ASR）的短重试计数
+let asrWaitRetry = 0
 
 // ===== 页面引导小框（导航栏页面跳转时顶部弹出）=====
 const GUIDE_PAGES = {
@@ -269,11 +324,22 @@ watch(() => route.path, (newPath) => {
 })
 
 // ---- whisper 高精度语音（按住说话：录音 → 上传本地 faster-whisper → 转写）----
+// 服务端流式 ASR 可用时改走 WS push-to-talk（无需上传、无需额外模型）；
+// 不可用时退回旧的「录音→上传 /whisper/transcribe」链路。
 const wBusy = ref(false)
 let wHandle = null
+let wPtt = false
 async function wStart() {
   if (wBusy.value) return
   if (isListening.value) { toggleListening() }
+  if (serverAsr && isVoiceStreamRunning()) {
+    wBusy.value = true
+    wPtt = true
+    statusText.value = '请说话...'
+    liveText.value = ''
+    sendVoice({ type: 'ptt', action: 'start' })
+    return
+  }
   try {
     wBusy.value = true
     wHandle = null
@@ -286,6 +352,14 @@ async function wStart() {
 }
 async function wStop() {
   if (!wBusy.value) return
+  // WS push-to-talk：松手即收尾，最终文本由 asr 事件统一处理
+  if (wPtt) {
+    wPtt = false
+    wBusy.value = false
+    statusText.value = '识别中...'
+    sendVoice({ type: 'ptt', action: 'end' })
+    return
+  }
   const h = wHandle
   wHandle = null
   let blob = null
@@ -311,6 +385,24 @@ async function wStop() {
     statusText.value = '未录音'
   }
   wBusy.value = false
+}
+
+// ---- 本地语音兜底 ----
+// Web Speech（Chrome/Edge 依赖 Google 语音服务，国内常被阻断）不可用时，自动把
+// 主「语音」按钮切换为本地 whisper 模式：点击开始录音，再点结束并转写（无需联网）。
+const localStt = ref(false)
+function enableLocalFallback(msg) {
+  localStt.value = true
+  micFixAction.value = ''
+  statusText.value = msg || '已切换本地识别 · 点击麦克风开始'
+}
+function onMicToggle() {
+  if (localStt.value) {
+    if (wBusy.value) void wStop()
+    else void wStart()
+    return
+  }
+  toggleListening()
 }
 
 // 状态点的样式分类：监听 / 说话 / 处理中 / 就绪
@@ -411,6 +503,8 @@ function togglePanel() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
     scrollMsgs()
+    // 用户手势窗口内建立全双工语音流（AudioContext/麦克风需要手势）
+    void ensureVoiceStream()
     // 打开面板时自动开始监听
     if (!isListening.value && !manualStop) {
       startListening()
@@ -503,9 +597,12 @@ function refreshLocalVoices() {
   if (!synth) return
   localVoices = synth.getVoices() || []
   const zh = localVoices.filter(v => (v.lang || '').startsWith('zh-CN') || (v.lang || '').startsWith('cmn'))
-  // 优先 Microsoft neural 系列（Windows 自带，质量最好）
-  const prefer = ['Microsoft Huihui', 'Microsoft Yunxi', 'Microsoft Yaoyao', 'Microsoft Kangkang', 'Microsoft Hanhan', 'Microsoft Tracy', 'Microsoft Yaoyao']
-  preferredVoice = zh.find(v => prefer.some(p => (v.name || '').includes(p))) || zh[0] || null
+  // 2026-10-15：优先选 Edge 的 Natural/Online 系（Windows 会以 speechSynthesis 形式暴露），
+  // 其自然度远高于 Huihui/Yaoyao 等旧 SAPI 音色；都没有时才退回旧音色。
+  const natural = zh.find(v => /Natural|Online/i.test(v.name || ''))
+  const legacy = ['Microsoft Yunxi', 'Microsoft Yunyang', 'Microsoft Xiaoxiao', 'Microsoft Huihui',
+    'Microsoft Yaoyao', 'Microsoft Kangkang', 'Microsoft Hanhan']
+  preferredVoice = natural || zh.find(v => legacy.some(p => (v.name || '').includes(p))) || zh[0] || null
 }
 function setupVoicesWatcher() {
   if (!synth) return
@@ -552,23 +649,184 @@ function localSpeech(text) {
   })
 }
 
+// ===== 播报：服务端 Edge 流式（逐段合成即播）+ 浏览器本地兜底 =====
+// 关键改动（阶段5）：播报期间不再停麦克风（保持全双工），
+// 由服务端 VAD 的 interrupt 事件负责 barge-in 打断。
+//
+// 2026-10-15：合成已下沉到 py-service（官方 edge-tts 客户端）。此处若返回 false
+// 说明后端不可用，会回退到 Windows 本地音色（听感机械），因此必须让用户看得见，
+// 而不是静默降级——之前的静默降级正是「音色僵硬」长期未被发现的根源。
+let fallbackNotified = false
+function notifyEdgeFallback() {
+  if (fallbackNotified) return
+  fallbackNotified = true
+  console.warn('[星途助手] 在线音色不可用，已回退到系统本地音色（听感较机械）。请检查 py-service(9006) 是否运行。')
+  statusText.value = '本地音色（在线音色不可用，请检查 9006）'
+}
+
 async function speak(text) {
-  if (isSpeaking.value) return
-  const wasListening = isListening.value || isVoskRunning()
-  if (wasListening) {
-    stopVoskRecognition()
-    if (recognition) { try { recognition.stop() } catch {} }
-    isListening.value = false
-  }
+  const t = String(text || '').trim()
+  if (!t || disposed) return
+  clearTts()
   isSpeaking.value = true
   let ok = false
   if (edgeOk) {
-    try { ok = await speakEdge(text, selectedVoiceURI, 0) } catch { ok = false }
+    try { ok = await speakEdgeStream(t, selectedVoiceURI) } catch { ok = false }
   }
-  if (!ok) ok = await localSpeech(text)
+  if (!ok && !disposed) {
+    notifyEdgeFallback()
+    ok = await localSpeech(t)
+  }
   isSpeaking.value = false
-  if (wasListening && !manualStop && !disposed) {
-    setTimeout(() => startListening(), 200)
+}
+
+// 服务端流式播报：sentence 事件按序入队，串行播报（保证语序）
+function enqueueSentence(text) {
+  const t = String(text || '').trim()
+  if (!t || disposed) return
+  ttsQueue.push(t)
+  void drainTts()
+}
+
+async function drainTts() {
+  if (ttsDraining || disposed) return
+  ttsDraining = true
+  try {
+    while (ttsQueue.length && !disposed) {
+      const s = ttsQueue.shift()
+      isSpeaking.value = true
+      let ok = false
+      if (edgeOk) { try { ok = await speakEdgeStream(s, selectedVoiceURI) } catch { ok = false } }
+      if (!ok && !disposed) { notifyEdgeFallback(); await localSpeech(s) }
+    }
+  } finally {
+    ttsDraining = false
+    if (!disposed) isSpeaking.value = false
+  }
+}
+
+// 立即静音在途播报（打断/取消）
+function clearTts() {
+  ttsQueue = []
+  ttsDraining = false
+  try { stopEdgeSpeech() } catch { /* ignore */ }
+  if (synth) { try { synth.cancel() } catch { /* ignore */ } }
+  isSpeaking.value = false
+}
+
+// ===== 流式助手消息（WS 逐字回传）=====
+function beginStreamMsg() {
+  if (streamIdx >= 0) return
+  streamIdx = messages.value.length
+  messages.value.push({ role: 'assistant', text: '' })
+  scrollMsgs()
+}
+function appendStreamMsg(delta) {
+  if (!delta) return
+  beginStreamMsg()
+  messages.value[streamIdx].text += delta
+  scrollMsgs()
+}
+function endStreamMsg(placeholder = '') {
+  if (streamIdx < 0) return
+  const m = messages.value[streamIdx]
+  if (!m.text) {
+    if (placeholder) m.text = placeholder
+    else messages.value.splice(streamIdx, 1)
+  }
+  streamIdx = -1
+}
+
+// 统一打断入口：静音 + 丢弃未完成的流式消息
+function interruptAll() {
+  clearTts()
+  endStreamMsg()
+  if (statusText.value === '思考中...') statusText.value = '监听中...'
+}
+
+// ===== 服务端引导：跳转 + 元素高亮 + 提示气泡 =====
+async function applyGuide(g) {
+  if (!g || !g.route) return
+  try {
+    await guideTo(router, { route: g.route, tip: g.tip, selector: g.selector })
+  } catch {
+    navigate(g.route)
+  }
+}
+
+// ===== 全双工 WS 事件分发 =====
+function handleVoiceEvent(msg) {
+  if (disposed || !msg) return
+  switch (msg.type) {
+    case 'ready':
+      wsReady = true
+      wsBackend = msg.backend || ''
+      serverAsr = !!msg.asr
+      // 服务端 ASR 可用：停掉浏览器 Web Speech，由服务端流式识别统一出字
+      if (serverAsr) {
+        localStt.value = false
+        if (recognition) {
+          try { recognition.onend = null; recognition.stop() } catch { /* ignore */ }
+        }
+      }
+      break
+    case 'interrupt':
+      // 用户开口 → 立即打断 TTS 与在途生成
+      interruptAll()
+      liveText.value = ''
+      isListening.value = true
+      break
+    case 'asr_partial':
+      // 实时字幕：边说边出
+      if (msg.text) { liveText.value = msg.text; statusText.value = '识别中...' }
+      break
+    case 'asr': {
+      // 本轮最终文本：走统一的唤醒词/对话判定，再由 respond 决策执行
+      const t = String(msg.text || '').trim()
+      liveText.value = ''
+      if (t) processTranscript(t)
+      break
+    }
+    case 'text':
+      appendStreamMsg(msg.text || '')
+      break
+    case 'sentence':
+      enqueueSentence(msg.text)
+      break
+    case 'guide':
+      // 纯导航意图（服务端未走 LLM）时没有 text 增量，补一条助手消息
+      if (streamIdx < 0 && msg.tip) addMsg('assistant', msg.tip)
+      void applyGuide(msg)
+      break
+    case 'endpoint':
+      // 服务端端点：本轮说话结束。ASR 有文本时会先发 asr 事件；这里兜底清理字幕
+      liveText.value = ''
+      break
+    case 'done':
+      endStreamMsg('（没有获取到内容）')
+      statusText.value = isListening.value ? '监听中...' : '就绪'
+      break
+    case 'error':
+      addMsg('assistant', '抱歉，' + friendlyServiceError(msg.message, '语音服务暂时不可用'))
+      streamIdx = -1
+      statusText.value = '就绪'
+      break
+    default:
+      break
+  }
+}
+
+// 启动全双工语音流（麦克风 PCM → py-service VAD/LLM 编排）
+async function ensureVoiceStream() {
+  if (disposed || isVoiceStreamRunning()) return
+  try {
+    const ok = await startVoiceStream({
+      onEvent: handleVoiceEvent,
+      onStatus: (s) => { wsReady = (s === 'ready') },
+    })
+    if (!ok) wsReady = false
+  } catch {
+    wsReady = false
   }
 }
 
@@ -616,15 +874,22 @@ const LOCAL_CMDS = [
   { match: ['相册'], action: '/album', reply: '正在打开相册集' },
   { match: ['友链', '友人帐'], action: '/link', reply: '正在打开友人帐' },
   { match: ['留言'], action: '/comments', reply: '正在打开留言板' },
-  { match: ['关于', '介绍'], action: '/about', reply: '正在打开关于页面' },
-  { match: ['个人中心', '我的'], action: '/profile', reply: '正在打开个人中心' },
+  { match: ['关于'], action: '/about', reply: '正在打开关于页面' },
   { match: ['订单'], action: '/profile/orders', reply: '正在打开我的订单' },
+  { match: ['个人中心', '我的'], action: '/profile', reply: '正在打开个人中心' },
   { match: ['支付', '充值'], action: '/pay', reply: '正在打开支付页面' },
   { match: ['登录'], action: '/login', reply: '正在跳转到登录页面' },
 ]
 
+// 导航意图判定：短句（≤8 字）或含显式动作词才算导航指令，
+// 避免「用一句话介绍你自己」这类长句被关键词误判
+const NAV_VERBS = ['打开', '去', '进入', '跳转', '前往', '回到', '返回', '看看', '看一下', '瞧瞧', '我想', '我要', '帮我', '带我去']
+const NAV_MAX_LEN = 8
+
 function goLocal(text) {
-  const found = LOCAL_CMDS.find(c => c.match.some(k => text.includes(k)))
+  const t = String(text || '')
+  const looksNav = t.length <= NAV_MAX_LEN || NAV_VERBS.some(v => t.includes(v))
+  const found = looksNav ? LOCAL_CMDS.find(c => c.match.some(k => t.includes(k))) : null
   if (found) {
     return { reply: found.reply, path: found.action }
   }
@@ -661,6 +926,16 @@ function matchWake(text) {
   }
   return { match: false }
 }
+// 端点检测触发：把静音前累积的最终识别文本作为一个完整轮次处理
+function flushTranscript() {
+  clearTimeout(endpointTimer)
+  endpointTimer = 0
+  const text = pendingTranscript.trim()
+  pendingTranscript = ''
+  if (!text || disposed) return
+  processTranscript(text)
+}
+
 function processTranscript(raw) {
   const text = (raw || '').trim()
   if (!text) return
@@ -693,7 +968,11 @@ function processTranscript(raw) {
     respond(text)
     clearTimeout(wakeWordTimer)
     wakeWordTimer = setTimeout(() => { wakeWordDetected = false }, 5000)
+    return
   }
+
+  // 面板已打开 = 用户正在与助手对话，直接响应，无需逐句喊唤醒词
+  if (isOpen.value) respond(text)
 }
 
 // ---- 音乐指令（语音搜歌 / 播放控制 / 浮窗开关）----
@@ -806,19 +1085,31 @@ function respond(text) {
   // 音乐指令优先（本地处理，无需后端）
   if (handleMusic(text)) return
 
-  // 导航指令：本地直接处理，不依赖后端识别
+  // 导航指令：本地直接处理，不依赖后端识别（同时给出页面高亮引导）
   const nav = goLocal(text)
   if (nav.path) {
     setTimeout(() => {
       addMsg('assistant', nav.reply)
       speak(nav.reply)
       statusText.value = '就绪'
-      navigate(nav.path)
+      // 跳转 + 高亮引导（applyGuide 内部完成路由与元素定位）
+      void applyGuide({ route: nav.path, tip: nav.reply })
     }, 300)
     return
   }
 
-  // 后端优先：已登录且服务可用 → 走 /jarvis/recognize
+  // 主路径：全双工 WS 编排（服务端 LLM 流式按句播报 + 页面引导）
+  if (wsReady || isVoiceStreamRunning()) {
+    endStreamMsg()
+    clearTts()
+    streamIdx = -1
+    statusText.value = '思考中...'
+    sendVoice({ type: 'text', text })
+    if (isVoiceStreamRunning()) return
+    // WS 未就绪时继续走回退链路，避免卡住
+  }
+
+  // 回退：已登录且 jarvis 服务可用 → 走 /jarvis/recognize
   if (backendOk && sessionId) {
     recognizeVoice(text, sessionId)
       .then(res => {
@@ -841,6 +1132,17 @@ function respond(text) {
   agentRespond(text)
 }
 
+// AI 上游报错（尤其是限流 429）常返回一大段英文或原始 JSON，直接展示对用户
+// 不友好。这里统一识别限流类关键词，替换成可执行的中文提示。
+function isRateLimited(text) {
+  return /429|rate ?limit|too many requests|请求过于频繁|限流/i.test(String(text || ''))
+}
+function friendlyServiceError(raw, fallback) {
+  const s = String(raw || '').trim()
+  if (isRateLimited(s)) return 'AI 上游限流了（免费模型约 10 次/分钟），请稍等约 1 分钟再试一次'
+  return s || fallback || '服务暂时不可用'
+}
+
 // 接入 Agent Workflow：把未命中本地指令的内容交给 Agent 编排层（流式），
 // 完成后朗读回复。这样悬浮助手与 /agent 会话台共用同一套路由 Agent。
 let agentBusy = false
@@ -860,7 +1162,7 @@ async function agentRespond(text) {
     statusText.value = '就绪'
     if (streamMsg.text) speak(streamMsg.text)
   } catch (e) {
-    streamMsg.text = '抱歉，Agent 暂时不可用：' + (e?.message || '网络错误')
+    streamMsg.text = '抱歉，' + friendlyServiceError(e?.message, 'Agent 暂时不可用')
     speak(streamMsg.text)
     statusText.value = '就绪'
   } finally {
@@ -895,7 +1197,32 @@ function toggleListening() {
 
 function startListening() {
   if (isListening.value) return
+  // 全双工语音流已启动 → 识别交由服务端流式 ASR 完成，不再启动浏览器 Web Speech
+  // （ready 帧未到达时短暂重试，避免过早启动 Web Speech 造成双识别竞态）
+  if (isVoiceStreamRunning()) {
+    if (serverAsr) {
+      manualStop = false
+      stopByError = false
+      clearMicFixHint()
+      isListening.value = true
+      statusText.value = '监听中...'
+      return
+    }
+    if (!wsReady && asrWaitRetry < 12) {
+      asrWaitRetry++
+      setTimeout(() => { if (!disposed && !isListening.value && !manualStop) startListening() }, 350)
+      return
+    }
+  }
+  asrWaitRetry = 0
+  // 已处于本地兜底模式：不再重试 Web Speech（避免重复触发不可用错误）
+  if (localStt.value) {
+    statusText.value = '本地识别已就绪 · 点击麦克风开始'
+    return
+  }
   manualStop = false
+  stopByError = false
+  clearMicFixHint()
   // 用 event.resultIndex 自动去重，无需 lastFinalIndex
   // 优先使用 Web Speech（Chrome/Edge 内置，最可靠）
   if (initRecognition()) {
@@ -917,8 +1244,102 @@ function startListening() {
     })
     return
   }
-  statusText.value = '语音引擎加载中，请稍候...'
-  speak('语音引擎正在加载，请稍后再试')
+  // Web Speech 与 Vosk 都不可用：自动回退本地 whisper 识别
+  enableLocalFallback('浏览器不支持在线识别 · 已切换本地识别')
+  speak('浏览器内置语音识别不可用，已切换为本地识别，点击麦克风即可开始')
+}
+
+// 麦克风诊断：把笼统的 audio-capture 拆成可定位的原因
+// （非安全环境 / iframe 权限策略拦截 / 浏览器屏蔽 / 系统隐私拦截 / 无设备 / 被独占）
+// 返回值：{ message, action } —— action='open-tab' 表示需在新标签页打开，'settings' 表示需改浏览器/系统设置
+function isEmbeddedInIframe() {
+  try { return window.self !== window.top } catch { return true }
+}
+function micAllowedByPolicy() {
+  const pp = document.permissionsPolicy || document.featurePolicy
+  try { return pp && pp.allowsFeature ? pp.allowsFeature('microphone') : true } catch { return true }
+}
+async function queryMicPermission() {
+  try {
+    if (navigator.permissions?.query) {
+      const st = await navigator.permissions.query({ name: 'microphone' })
+      return st.state
+    }
+  } catch { /* Safari/Firefox 不支持 name:'microphone' */ }
+  return 'unknown'
+}
+async function diagnoseMic() {
+  if (window.isSecureContext === false) {
+    return { message: '麦克风需 HTTPS 或 localhost 环境 · 当前页面非安全源', action: 'open-tab' }
+  }
+  const embedded = isEmbeddedInIframe()
+  const iframeMsg = '页面被嵌入在受限 iframe 中 · 请在新标签页打开本站再授权麦克风'
+  // iframe 未通过 allow="microphone" 授权时，站点级"已允许"也无效，getUserMedia 会直接 NotAllowedError
+  if (embedded && !micAllowedByPolicy()) {
+    return { message: iframeMsg, action: 'open-tab' }
+  }
+  const permState = await queryMicPermission()
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices()
+    if (!devs.some(d => d.kind === 'audioinput')) {
+      return { message: '未检测到麦克风设备 · 请检查系统录音设备', action: 'settings' }
+    }
+  } catch { /* ignore */ }
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true })
+    s.getTracks().forEach(t => t.stop())
+    // 能取到麦克风说明授权与硬件都正常，问题在语音引擎本身
+    return { message: '麦克风可用 · 语音引擎未启动，点球体重试', action: '' }
+  } catch (err) {
+    const n = err && err.name
+    if (n === 'NotAllowedError' || n === 'SecurityError') {
+      if (embedded) return { message: iframeMsg, action: 'open-tab' }
+      if (permState === 'denied') return { message: '浏览器已屏蔽本站麦克风 · 点地址栏左侧图标改为“允许”', action: 'settings' }
+      // 站点级已允许却仍被拒 → 拦截发生在 Windows 隐私层，逐项给出三处开关
+      if (permState === 'granted') {
+        return { message: '站点已允许，但被 Windows 拦截 · 开启：①麦克风访问 ②让应用访问你的麦克风 ③允许桌面应用访问麦克风（应用列表里 Edge/Chrome 也要开）', action: 'os-settings' }
+      }
+      // 部分浏览器不支持权限查询（unknown），无法区分浏览器层/系统层，同样给系统设置入口
+      if (permState === 'unknown') {
+        return { message: '麦克风被拦截 · 确认浏览器允许本站麦克风，并检查 Windows 麦克风隐私设置', action: 'os-settings' }
+      }
+      return { message: '麦克风未授权 · 点地址栏左侧图标改为“允许”', action: 'settings' }
+    }
+    if (n === 'NotReadableError' || n === 'TrackStartError') return { message: '麦克风被其他程序独占 · 关闭占用麦克风的程序后重试', action: '' }
+    if (n === 'NotFoundError' || n === 'OverconstrainedError') return { message: '未检测到麦克风设备 · 请检查系统录音设备', action: 'settings' }
+    return { message: '麦克风硬件不可用 · 点球体重试', action: '' }
+  }
+}
+// 受限 iframe 内的救场：在新标签页打开当前页（真实顶级窗口才能拿到麦克风授权）
+function openMicInNewTab() {
+  try {
+    window.open(window.location.href, '_blank', 'noopener')
+  } catch { /* 被弹窗拦截时提示手动复制地址 */ }
+}
+// 一键打开 Windows 麦克风隐私设置（ms-settings 协议；Windows 版 Edge 支持直接跳转）
+function openOsMicSettings() {
+  try { window.location.href = 'ms-settings:privacy-microphone' } catch { /* 非 Windows 或不支持时忽略 */ }
+  // 无论是否跳转成功都补上手动路径，避免用户找不到入口
+  statusText.value = '需开启：①麦克风访问 ②让应用访问你的麦克风 ③允许桌面应用访问麦克风，并在应用列表里打开 Edge/Chrome'
+}
+// 改完设置后就地重测，无需刷新页面
+function recheckMic() {
+  if (disposed) return
+  micFixAction.value = ''
+  statusText.value = '重新检测中...'
+  void diagnoseMic().then(showMicDiag)
+}
+// 统一呈现诊断结果：精确文案 + 打开面板 + 语音提示 + 修复按钮
+function showMicDiag(diag) {
+  if (!diag || disposed) return
+  statusText.value = diag.message
+  micFixAction.value = diag.action || ''
+  isOpen.value = true
+  if (!micHintShown) { micHintShown = true; speak(diag.message) }
+}
+// 打开网页即静默申请过的会话里，用户再次点击球体重试时清掉上一次的修复提示
+function clearMicFixHint() {
+  micFixAction.value = ''
 }
 
 function startWebListening() {
@@ -948,7 +1369,8 @@ function startWebListening() {
         isListening.value = true
         statusText.value = '监听中...'
       } catch (_) {
-        statusText.value = '就绪'
+        // 启动失败（多为麦克风未授权 / 无可用音频输入）：给出可操作提示而非静默回到"就绪"
+        statusText.value = '语音未启动 · 点击球体重试'
       }
     }, 400)
   }
@@ -957,6 +1379,7 @@ function startWebListening() {
 function stopListening() {
   if (isListening.value || isVoskRunning()) {
     manualStop = true
+    stopByError = false
     stopVoskRecognition()
     if (recognition) { try { recognition.stop() } catch {} }
     isListening.value = false
@@ -1005,27 +1428,55 @@ function initRecognition() {
   recognition.onresult = (e) => {
     // 用 event.resultIndex 自动去重，无需手动维护 lastFinalIndex
     let interim = ''
+    let gotFinal = false
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i]
       if (r.isFinal) {
         const alt = r[0]
         // 安卓 confidence=0 的伪 final 直接丢弃
         if (alt && (isAndroid ? alt.confidence > 0 : true)) {
-          processTranscript(alt.transcript)
+          const t = (alt.transcript || '').trim()
+          if (t) {
+            gotFinal = true
+            // 播报期间丢弃识别结果，避免扬声器回环导致助手自问自答；
+            // barge-in 打断由服务端 VAD（回声抑制过的 PCM 链路）负责
+            if (!isSpeaking.value) {
+              pendingTranscript = pendingTranscript ? `${pendingTranscript} ${t}` : t
+            }
+          }
         }
       } else {
         interim += r[0].transcript
       }
     }
     statusText.value = interim ? '识别中...' : '监听中...'
+    // 端点检测：最后一次最终识别后静音 VOICE_ENDPOINT_MS → 视为本句说完
+    if (gotFinal && pendingTranscript) {
+      clearTimeout(endpointTimer)
+      endpointTimer = setTimeout(flushTranscript, VOICE_ENDPOINT_MS)
+    }
   }
   recognition.onerror = (e) => {
     if (disposed) return
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      statusText.value = '麦克风权限被拒绝'
+    if (e.error === 'not-allowed') {
+      // 站点权限被拒时给出精确原因（iframe 策略 / 浏览器屏蔽 / 系统隐私）
       isListening.value = false
-      manualStop = true   // 不再自动重启，等用户重新授权
-      speak('麦克风权限被拒绝，请在浏览器地址栏左侧点击权限设置，允许使用麦克风')
+      manualStop = true       // 停止自动重连（避免反复弹出授权）
+      stopByError = true      // 但允许用户手势一键重试
+      void diagnoseMic().then(showMicDiag)
+      return
+    }
+    if (e.error === 'service-not-allowed') {
+      // 注意：这并非麦克风未授权。Chrome/Edge 的 Web Speech 依赖 Google 语音服务，
+      // 国内网络常被阻断而返回此错误，与设备授权无关，故自动回退本地 whisper 识别。
+      isListening.value = false
+      manualStop = true
+      stopByError = true
+      enableLocalFallback('内置识别服务不可用 · 已自动切换本地识别')
+      if (!micHintShown) {
+        micHintShown = true
+        speak('浏览器内置语音识别服务不可用，已自动切换为本地识别，点击麦克风即可开始')
+      }
       return
     }
     if (e.error === 'no-speech') {
@@ -1041,9 +1492,11 @@ function initRecognition() {
       return
     }
     if (e.error === 'audio-capture') {
-      statusText.value = '麦克风硬件不可用'
       isListening.value = false
       manualStop = true
+      stopByError = true
+      // 拆解为可定位的原因（安全环境 / iframe 策略 / 浏览器屏蔽 / 系统隐私 / 无设备 / 被独占）
+      void diagnoseMic().then(showMicDiag)
       return
     }
     if (e.error === 'network') {
@@ -1071,7 +1524,8 @@ function initRecognition() {
       // 正常 onend（无 error）：100ms 快重连，并重置退避
       resetBackoff()
       scheduleRestart(100)
-    } else {
+    } else if (!stopByError) {
+      // 因权限/硬件错误被动停止时保留错误提示，不要立刻覆盖成"就绪"（否则用户看不到失败原因）
       statusText.value = '就绪'
     }
   }
@@ -1081,6 +1535,8 @@ function initRecognition() {
 // 连续监听：面板关闭也持续监听；仅被手动停止/页面隐藏/组件卸载时暂停
 function silentRestart() {
   if (manualStop || isListening.value || disposed) return
+  // 服务端 ASR 模式：识别与端点均在服务端完成，前端不重启 Web Speech
+  if (serverAsr) return
   if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
   // 优先 Web Speech
   if (initRecognition()) {
@@ -1137,14 +1593,33 @@ function tryAutoListen() {
   if (autoListenTried || disposed || isListening.value || wBusy.value) return
   autoListenTried = true
   requestMicPermission()
+  // 同步建立全双工语音流（VAD 打断 / 服务端 LLM 编排）
+  void ensureVoiceStream()
   setTimeout(() => {
     if (!disposed && !isListening.value && !manualStop) startListening()
   }, 600)
 }
-function onFirstGesture() {
-  tryAutoListen()
+function detachGestureArming() {
   window.removeEventListener('pointerdown', onFirstGesture)
   window.removeEventListener('keydown', onFirstGesture)
+}
+// 浏览器要求用户手势才允许启用麦克风：页面加载时的静默启动常被拒绝（NotAllowed），
+// 之前一旦失败就把 manualStop 置为 true 导致整场会话都不再监听（喊唤醒词永远无反应）。
+// 这里让「任意一次点击/按键」都能重新拉起唤醒词监听，成功进入监听态后才摘掉兜底监听。
+let lastArmAt = 0
+function onFirstGesture() {
+  if (disposed) return
+  if (isListening.value) { detachGestureArming(); return }
+  // 用户主动按过"停止"且非错误中断 → 尊重用户意愿，不再自动拉起
+  if (manualStop && !stopByError) return
+  const now = Date.now()
+  if (now - lastArmAt < 1200) return   // 节流，避免连点反复申请麦克风
+  lastArmAt = now
+  manualStop = false
+  stopByError = false
+  autoListenTried = false
+  tryAutoListen()
+  setTimeout(() => { if (isListening.value || disposed) detachGestureArming() }, 1000)
 }
 
 // ---- Voice: Edge 音色选择 ----
@@ -1220,6 +1695,13 @@ onBeforeUnmount(() => {
   stopVoskRecognition()
   if (synth) synth.cancel()
   stopEdgeSpeech()
+  // 全双工语音流：释放麦克风 / AudioWorklet / AudioContext / WebSocket
+  clearTimeout(endpointTimer)
+  endpointTimer = 0
+  pendingTranscript = ''
+  clearTts()
+  disposeVoiceStream()
+  clearVoiceHighlight()
   dismissGuide()
 })
 </script>
@@ -1527,6 +2009,19 @@ onBeforeUnmount(() => {
 .status-dot.speaking { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.8); animation: blink 0.6s ease-in-out infinite; }
 .status-dot.processing { background: #f59e0b; }
 .status-label { font-size: 0.7rem; font-family: monospace; color: rgba(255,255,255,0.78); }
+/* 受限 iframe 下的救场按钮：一键在新标签页打开以获取麦克风授权 */
+.mic-fix-btn {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  font-size: 0.62rem;
+  color: #67e8f9;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.mic-fix-btn:hover { background: rgba(34, 211, 238, 0.25); color: #fff; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 .wake-hint { font-size: 0.6rem; color: rgba(255,255,255,0.5); font-style: italic; }
@@ -1591,6 +2086,22 @@ onBeforeUnmount(() => {
 .listening-dots span:nth-child(3) { animation-delay: 0.3s; }
 @keyframes dotPulse { 0%, 100% { opacity: 0.3; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.2); } }
 
+/* 实时字幕：边说边出的识别文本，尾部光标提示仍在识别 */
+.live-text {
+  color: rgba(255, 255, 255, 0.9);
+  position: relative;
+}
+.live-text::after {
+  content: '';
+  display: inline-block;
+  width: 2px; height: 1em;
+  margin-left: 3px;
+  vertical-align: -0.15em;
+  background: #667eea;
+  animation: liveCaret 0.9s steps(1) infinite;
+}
+@keyframes liveCaret { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+
 /* Controls */
 .panel-controls {
   display: flex; gap: 8px; padding: 10px 16px;
@@ -1627,6 +2138,7 @@ onBeforeUnmount(() => {
   font-size: 0.7rem; outline: none;
 }
 .voice-selector select option { background: #0a0a1a; color: white; }
+.voice-selector select optgroup { background: #0a0a1a; color: rgba(255,255,255,0.5); font-style: normal; }
 
 /* Mobile */
 @media (max-width: 768px) {

@@ -1,6 +1,8 @@
 package com.web3.aiproxy.service;
 
 import java.nio.charset.StandardCharsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 类名：SseUsageCollector
@@ -11,6 +13,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class SseUsageCollector {
 
+    private static final Logger log = LoggerFactory.getLogger(SseUsageCollector.class);
     private byte[] pending = new byte[0];
     private int promptTokens = -1;
     private int completionTokens = -1;
@@ -53,8 +56,9 @@ public class SseUsageCollector {
                     contentChars += delta.get("content").asText("").length();
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // 非完整 JSON 的心跳/注释行，忽略
+            log.debug("[sse-usage] parse SSE data line skipped: {}", e.getMessage());
         }
     }
 

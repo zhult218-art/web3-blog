@@ -120,6 +120,7 @@ const pages = ref([''])             // 分页后的 HTML，每页一块
 const flipped = ref(0)              // 已翻过的叶片数
 const flipping = ref(false)
 const jumpInput = ref(1)
+const hasContent = ref(true)
 
 // 叶片：front = 第 (2i+1) 页，back = 第 (2i+2) 页
 // （数组下标 0 是封面/扉页底页，不放进叶片）
@@ -158,12 +159,18 @@ async function loadAndPaginate() {
   errorMsg.value = ''
   try {
     const detail = await getClassicBookDetail(props.book.id)
-    const html = marked.parse(detail.content || '# ' + (detail.title || props.book.title))
+    const raw = detail.content || ''
+    hasContent.value = raw.trim().length > 0
+    const html = marked.parse(raw || '# ' + (detail.title || props.book.title))
     // 首页放标题，让封面打开后有扉页
     const titleHtml = `<h1 class="br-doc-title">${detail.title || props.book.title}</h1>` +
       (detail.summary ? `<p class="br-doc-summary">${detail.summary}</p>` : '')
-    await nextTick()
-    pages.value = paginateHtml(titleHtml + html)
+    if (!hasContent.value) {
+      pages.value = [titleHtml + '<p class="br-no-content">此书内容尚在整理中，敬请期待。</p>']
+    } else {
+      await nextTick()
+      pages.value = paginateHtml(titleHtml + html)
+    }
   } catch (e) {
     errorMsg.value = '书籍内容加载失败，请稍后再试'
   } finally {
@@ -487,14 +494,15 @@ onBeforeUnmount(() => {
   padding: 42px 40px 56px;
   overflow: hidden;
   color: #4d463d;
-  font-size: 14.5px;
-  line-height: 1.95;
+  font-size: 15px;
+  line-height: 2.1;
   word-break: break-word;
+  letter-spacing: 0.02em;
 }
-.br-page-inner :deep(h1) { font-size: 24px; color: #4a4238; margin: 0 0 18px; letter-spacing: 0.04em; }
-.br-page-inner :deep(h2) { font-size: 19px; color: #5a5043; margin: 24px 0 12px; }
-.br-page-inner :deep(h3) { font-size: 16px; color: #65594b; margin: 18px 0 10px; }
-.br-page-inner :deep(p) { margin: 0 0 12px; }
+.br-page-inner :deep(h1) { font-size: 24px; color: #4a4238; margin: 0 0 20px; letter-spacing: 0.06em; line-height: 1.5; }
+.br-page-inner :deep(h2) { font-size: 19px; color: #5a5043; margin: 28px 0 14px; letter-spacing: 0.04em; line-height: 1.5; }
+.br-page-inner :deep(h3) { font-size: 16px; color: #65594b; margin: 20px 0 12px; letter-spacing: 0.03em; line-height: 1.5; }
+.br-page-inner :deep(p) { margin: 0 0 16px; text-indent: 0; }
 .br-page-inner :deep(ul),
 .br-page-inner :deep(ol) { margin: 0 0 12px; padding-left: 22px; }
 .br-page-inner :deep(li) { margin-bottom: 6px; }
@@ -532,6 +540,21 @@ onBeforeUnmount(() => {
 .br-page-inner :deep(pre code) { background: none; padding: 0; color: inherit; }
 .br-doc-title { text-align: center; margin-top: 30% !important; }
 .br-doc-summary { text-align: center; color: #8f8375; font-size: 13px; }
+.br-no-content {
+  text-align: center;
+  color: #a89a89;
+  font-size: 14px;
+  margin-top: 40px;
+  letter-spacing: 0.08em;
+  line-height: 2;
+}
+
+/* 翻页后内容淡入 */
+.br-page-inner { animation: br-fade-in 0.38s ease-out; }
+@keyframes br-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 .br-page-num {
   position: absolute;
@@ -696,7 +719,7 @@ onBeforeUnmount(() => {
       transform: translate(-50%, -50%) scale(1);
     }
   }
-  .br-page-inner { padding: 28px 24px 48px; font-size: 14px; }
+  .br-page-inner { padding: 28px 24px 48px; font-size: 14.5px; line-height: 2; }
   .br-measure { width: 92vw; height: 70vh; }
   .br-controls { bottom: 16px; gap: 12px; }
 }

@@ -19,7 +19,7 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
 if (!supabaseUrl || !supabaseKey) {
   // 仅在开发时提示：忘记在 frontend/.env.local 里配 VITE_SUPABASE_*
-  console.warn('[supabase] 缺少 VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY，请检查 frontend/.env.local')
+  if (import.meta.env.DEV) console.warn('[supabase] 缺少 VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY，请检查 frontend/.env.local')
 }
 
 // ---- 熔断器（localStorage 跨标签页共享冷却状态）----

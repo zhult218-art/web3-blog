@@ -17,8 +17,24 @@
         <div class="top-room">
           <span class="top-avatar">🌌</span>
           <div class="top-meta">
-            <span class="top-name">{{ room.name }}</span>
-            <span class="top-sub">{{ chat.onlineCount }} 人在线 · 共 {{ members.length }} 位成员</span>
+            <!-- 多聊天室：点击房间名展开切换列表 -->
+            <button class="top-name-btn" @click="roomMenuOpen = !roomMenuOpen">
+              <span class="top-name">{{ room.name }}</span>
+              <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <span class="top-sub">{{ chat.connLabel }} · {{ chat.onlineCount }} 人在线 · 共 {{ members.length }} 位成员</span>
+          </div>
+          <div v-if="roomMenuOpen" class="room-menu-mask" @click="roomMenuOpen = false"></div>
+          <div v-if="roomMenuOpen" class="room-menu">
+            <div class="room-menu-head">切换聊天室</div>
+            <button v-for="r in rooms" :key="r.id" :class="['room-item', { on: r.id === room.id }]" @click="pickRoom(r.id)">
+              <span class="room-emoji">🌌</span>
+              <span class="room-info">
+                <span class="room-title">{{ r.name }}</span>
+                <span class="room-desc">{{ r.description || '公共聊天室' }}</span>
+              </span>
+              <span v-if="r.id === room.id" class="room-check">✓</span>
+            </button>
           </div>
         </div>
         <div class="top-actions">
@@ -52,7 +68,7 @@
             </svg>
           </button>
           <span :class="['ws-pill', wsConnected ? 'on' : 'off']">
-            <i></i>{{ wsConnected ? '在线' : '连接中' }}
+            <i></i>{{ chat.connLabel }}
           </span>
         </div>
       </header>
@@ -104,7 +120,7 @@
                 </div>
               </div>
             </div>
-            <div class="sys-line">{{ wsConnected ? '已连接到极光广场' : '正在建立连接…' }}</div>
+            <div class="sys-line">{{ wsConnected ? `已连接到 ${room.name}` : `${chat.connLabel}…` }}</div>
           </template>
         </section>
 
@@ -353,13 +369,21 @@ const auth = useAuthStore()
 const toast = useToastStore()
 // 房间/成员/消息/连接状态全部由全局 chat store 驱动（左侧 Dock 共用，路由切换不断线）
 const chat = useChatStore()
-const { room, members, messages, wsConnected } = storeToRefs(chat)
+const { room, members, messages, wsConnected, rooms } = storeToRefs(chat)
 
 const inputText = ref('')
 const inputRef = ref(null)
 const messagesRef = ref(null)
 const loadingHistory = ref(true)
 const loadError = ref('')
+const roomMenuOpen = ref(false)
+
+// 切换聊天室：store 负责入群 + 重订阅 + 重拉历史，连接本身复用不断开
+async function pickRoom(id) {
+  roomMenuOpen.value = false
+  const ok = await chat.switchRoom(id)
+  if (ok) { loadingHistory.value = false; scrollBottom() }
+}
 
 const myUserId = computed(() => auth.user?.id)
 
@@ -691,13 +715,39 @@ watch(() => messages.value.length, () => scrollBottom())
   position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
   background:#f43f8e;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;
 }
-.top-room { display:flex;align-items:center;gap:10px;flex:1;min-width:0; }
+.top-room { display:flex;align-items:center;gap:10px;flex:1;min-width:0;position:relative; }
 .top-avatar {
   width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;
   background:linear-gradient(135deg,rgba(34,211,238,.2),rgba(168,85,247,.2));border:1px solid rgba(34,211,238,.25);
 }
 .top-name { display:block;font-weight:700;font-size:.95rem;color:#fff; }
 .top-sub { font-size:.72rem;color:rgba(255,255,255,.45); }
+/* 多聊天室切换器 */
+.top-name-btn {
+  display:inline-flex;align-items:center;gap:4px;padding:2px 6px;margin-left:-6px;
+  background:transparent;border:none;border-radius:8px;cursor:pointer;transition:.18s;
+}
+.top-name-btn:hover { background:rgba(255,255,255,.08); }
+.top-name-btn .caret { width:14px;height:14px;color:rgba(255,255,255,.45); }
+.room-menu-mask { position:fixed;inset:0;z-index:60; }
+.room-menu {
+  position:absolute;top:calc(100% + 8px);left:0;z-index:61;width:280px;max-height:340px;overflow-y:auto;
+  background:linear-gradient(160deg,rgba(10,12,30,.99),rgba(16,14,42,.99));
+  border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:6px;
+  box-shadow:0 16px 40px rgba(0,0,0,.5);
+}
+.room-menu-head { font-size:.68rem;color:rgba(255,255,255,.4);padding:6px 10px 4px;letter-spacing:.06em; }
+.room-item {
+  display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:none;background:transparent;
+  border-radius:10px;cursor:pointer;text-align:left;transition:.15s;
+}
+.room-item:hover { background:rgba(255,255,255,.08); }
+.room-item.on { background:rgba(59,130,246,.16); }
+.room-emoji { font-size:1.05rem;flex-shrink:0; }
+.room-info { flex:1;min-width:0;display:flex;flex-direction:column; }
+.room-title { font-size:.82rem;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.room-desc { font-size:.66rem;color:rgba(255,255,255,.4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.room-check { color:#34d399;font-size:.8rem;flex-shrink:0; }
 .top-actions { display:flex;align-items:center;gap:2px; }
 .ws-pill { display:inline-flex;align-items:center;gap:6px;margin-left:8px;font-size:.72rem;color:rgba(255,255,255,.5); }
 .ws-pill i { width:7px;height:7px;border-radius:50%;background:#6b7280; }

@@ -21,7 +21,7 @@
           </div>
         </div>
 
-        <div class="hero-content">
+        <div class="hero-content" data-voice-target>
           <div class="hero-badge">
             <span class="badge-icon">◈</span>
             <span class="badge-label">SYSTEM INITIALIZED</span>

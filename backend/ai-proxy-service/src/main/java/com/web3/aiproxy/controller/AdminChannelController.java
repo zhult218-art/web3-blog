@@ -12,6 +12,8 @@ import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,6 +43,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminChannelController {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminChannelController.class);
     private final ProxyChannelMapper channelMapper;
     private final AiProxyProperties properties;
     private final UpstreamForwarder forwarder;
@@ -67,7 +70,8 @@ public class AdminChannelController {
             body.setApiKeyCipher(AesGcmUtils.encrypt(properties.getChannelKeySecret(), body.getApiSecret().trim()));
             try {
                 body.setMaskedKey(AesGcmUtils.mask(body.getApiSecret().trim()));
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                log.warn("[admin-channel] mask API key failed: {}", e.getMessage());
             }
         }
         body.setApiSecret(null);

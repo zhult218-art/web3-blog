@@ -53,7 +53,9 @@ public class ChatSwitchService {
             try {
                 jdbc.update("INSERT INTO chat_config (`key`, `value`) VALUES (?, ?)",
                         KEY, value ? "1" : "0");
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.warn("[chat-switch] insert chat_config failed (table may not exist): {}", e.getMessage());
+            }
         }
         log.info("[chat-switch] chat {}", value ? "ENABLED" : "DISABLED");
     }

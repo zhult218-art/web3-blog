@@ -15,7 +15,7 @@
         <label class="text-xs text-gray-400 mb-2 block">视频页面链接</label>
         <div class="flex flex-col sm:flex-row gap-3">
           <input v-model="videoUrl" class="web3-input flex-1 text-sm"
-            placeholder="粘贴爱奇艺/腾讯/优酷/芒果/B站等视频播放页 URL，如 https://www.iqiyi.com/v_xxx.html"
+            :placeholder="urlPlaceholder"
             @keyup.enter="parse" />
           <button class="web3-btn text-sm !px-6 whitespace-nowrap" :disabled="!canParse" @click="parse">
             {{ parsing ? '解析中...' : '立即解析' }}
@@ -62,17 +62,13 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
           <button v-for="src in filteredSources" :key="src.name"
             @click="selectSource(src)"
-            :disabled="src.comingSoon"
             :class="['p-3 rounded-xl text-left transition border group',
-              src.comingSoon
-                ? 'border-white/5 bg-white/[0.02] opacity-50 cursor-not-allowed'
-                : currentSource?.name === src.name
-                  ? 'border-cyan-400/50 bg-cyan-500/10'
-                  : 'border-white/10 bg-white/[0.03] hover:border-cyan-400/30 hover:bg-white/[0.06]']">
+              currentSource?.name === src.name
+                ? 'border-cyan-400/50 bg-cyan-500/10'
+                : 'border-white/10 bg-white/[0.03] hover:border-cyan-400/30 hover:bg-white/[0.06]']">
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-white">{{ src.name }}</span>
-              <span v-if="src.comingSoon" class="text-[10px] text-amber-400/70">开发中</span>
-              <span v-else-if="currentSource?.name === src.name" class="text-[10px] text-cyan-400">● 播放中</span>
+              <span v-if="currentSource?.name === src.name" class="text-[10px] text-cyan-400">● 播放中</span>
             </div>
             <p v-if="src.note" class="text-[10px] text-gray-500 mt-1">{{ src.note }}</p>
           </button>
@@ -109,42 +105,49 @@ const currentSource = ref(null)
 const activeCategory = ref('recommend')
 const parsing = ref(false)
 
-// 可用线路（排除 comingSoon）
-const activeSources = computed(() => vipSources.filter(s => !s.comingSoon))
+// 线路均可用，无需过滤
+const activeSources = computed(() => vipSources)
 
 // 按分类筛选
 const filteredSources = computed(() =>
   vipSources.filter(s => s.category === activeCategory.value)
 )
 
-// 统计某分类的可用数量
+// 统计某分类的线路数量
 function countByCat(cat) {
-  return vipSources.filter(s => s.category === cat && !s.comingSoon).length
+  return vipSources.filter(s => s.category === cat).length
 }
 
 const canParse = computed(() => /^https?:\/\//.test(videoUrl.value.trim()))
 
+// 「无水印播放器」等 direct 线路接收的是 m3u8 直链，输入提示需相应变化
+const urlPlaceholder = computed(() =>
+  currentSource.value?.direct
+    ? '粘贴 m3u8 直链，如 https://xxx.com/index.m3u8（该线路不做网页解析）'
+    : '粘贴爱奇艺/腾讯/优酷/芒果/B站等视频播放页 URL，如 https://www.iqiyi.com/v_xxx.html'
+)
+
 // 选择线路：若已输入视频链接则立即播放，否则仅记录当前线路
 function selectSource(src) {
-  if (src.comingSoon) return
   currentSource.value = src
   if (canParse.value) {
     playerUrl.value = src.url + encodeURIComponent(videoUrl.value.trim())
     toast.success(`已切换到「${src.name}」`)
+  } else {
+    toast.info(src.direct ? '请输入 m3u8 直链后再解析' : `已选择「${src.name}」`)
   }
 }
 
-// 解析：用当前选中线路（默认推荐第一条）拼接 URL
+// 解析：用当前选中线路（默认取当前分类第一条）拼接 URL
 function parse() {
   if (!canParse.value) {
     toast.error('请输入有效的视频页面链接')
     return
   }
   parsing.value = true
-  // 未选线路时取当前分类第一条可用线路
-  const src = currentSource.value && !currentSource.value.comingSoon
+  const src = currentSource.value
     ? currentSource.value
-    : vipSources.find(s => s.category === activeCategory.value && !s.comingSoon)
+    : vipSources.find(s => s.category === activeCategory.value)
   if (!src) {
     parsing.value = false
     toast.error('当前分类暂无可用线路')

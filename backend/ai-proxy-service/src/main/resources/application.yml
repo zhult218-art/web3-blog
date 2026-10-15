@@ -16,8 +16,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:3306/web3_admin?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:root}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
 
   data:
     redis:
@@ -70,6 +70,10 @@ ai-proxy:
   # Agent 直连 LLM 提供商列表（api-key 留空则跳过，填入环境变量后自动启用）
   # 优先级：从上到下，第一个 api-key 非空的提供商将被使用
   agent-llm-providers:
+    - name: NightRouter
+      base-url: ${NIGHTROUTER_BASE_URL:https://api.nightrouter.ai/v1}
+      api-key: ${NIGHTROUTER_API_KEY:}
+      model: ${NIGHTROUTER_MODEL:deepseek-v4-pro}
     - name: DeepSeek
       base-url: https://api.deepseek.com/v1
       api-key: ${DEEPSEEK_API_KEY:}

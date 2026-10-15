@@ -10,6 +10,8 @@ import com.web3.resource.entity.Resource;
 import com.web3.resource.mapper.ResourceMapper;
 import com.web3.resource.security.FileSecurityChecker;
 import com.web3.resource.vo.ResourceVO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +34,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ResourceService extends ServiceImpl<ResourceMapper, Resource> {
+    private static final Logger log = LoggerFactory.getLogger(ResourceService.class);
     private final ResourceProperties resourceProperties;
 
     public ResourceService(ResourceProperties resourceProperties) {
@@ -178,6 +181,7 @@ public class ResourceService extends ServiceImpl<ResourceMapper, Resource> {
             Files.deleteIfExists(filePath);
         } catch (IOException e) {
             // 删除磁盘文件失败时忽略，仍执行数据库逻辑删除
+            log.warn("[resource] delete file '{}' from disk failed: {}", resource.getFilename(), e.getMessage());
         }
         return this.removeById(id);
     }

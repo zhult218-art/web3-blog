@@ -1,6 +1,7 @@
 package com.web3.software.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -73,16 +74,35 @@ public class SoftwareService extends ServiceImpl<SoftwareMapper, Software> {
     }
 
     /**
+     * 更新软件条目：按 ID 更新非空字段并返回更新后的 VO。
+     *
+     * @param software 待更新的软件实体（id 必填）
+     * @return 更新后的软件 VO
+     */
+    public SoftwareVO update(Software software) {
+        this.updateById(software);
+        Software updated = this.getById(software.getId());
+        return this.toVO(updated);
+    }
+
+    /**
+     * 删除软件条目（逻辑删除）。
+     *
+     * @param id 软件 ID
+     */
+    public void delete(Long id) {
+        this.removeById(id);
+    }
+
+    /**
      * 软件下载计数 +1：软件存在时将 downloadCount 累加并更新。
      *
      * @param id 软件 ID
      */
     public void incrementDownload(Long id) {
-        Software software = this.getById(id);
-        if (software != null) {
-            software.setDownloadCount(software.getDownloadCount() == null ? 1L : software.getDownloadCount() + 1L);
-            this.updateById(software);
-        }
+        UpdateWrapper<Software> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", id).setSql("download_count = download_count + 1");
+        this.update(wrapper);
     }
 
     /**

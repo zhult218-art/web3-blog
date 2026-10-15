@@ -7,6 +7,7 @@ import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import com.web3.media.entity.Video;
 import com.web3.media.security.FileSecurityChecker;
+import com.web3.media.service.DownloadTaskManager;
 import com.web3.media.service.VideoService;
 import com.web3.media.vo.VideoVO;
 import java.io.IOException;
@@ -116,15 +117,16 @@ public class VideoController {
     }
 
     /**
-     * 通过 yt-dlp 从 URL 下载视频（需登录）
-     * 支持 YouTube/B站/抖音等 1800+ 平台，下载后自动入库
+     * 创建「从 URL 下载视频」任务（前端路由：POST /video/download，需登录）
+     * 支持 YouTube/B站/抖音等 1800+ 平台。下载在后台线程执行，此接口立即返回任务号，
+     * 前端再用 GET /video/download/{taskId} 轮询进度，避免长下载阻塞请求触发客户端超时
      *
      * @param body  请求体 { url, quality, subtitle, tags }
      * @param token 请求头 Authorization 的 JWT 令牌
-     * @return 下载成功后的视频视图对象
+     * @return 下载任务快照（taskId/status/percent/speed/eta/videoId）
      */
     @PostMapping(value={"/download"})
-    public ApiResponse<VideoVO> download(@RequestBody Map<String, Object> body, @RequestHeader(value="Authorization") String token) {
+    public ApiResponse<DownloadTaskManager.DownloadTask> download(@RequestBody Map<String, Object> body, @RequestHeader(value="Authorization") String token) {
         AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
         String url = (String) body.get("url");
         if (url == null || url.isEmpty()) {
@@ -135,10 +137,28 @@ public class VideoController {
         String tags = (String) body.getOrDefault("tags", "网络下载");
         try {
             return ApiResponse.ok(this.videoService.downloadFromUrl(url, quality, subtitle, tags));
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return ApiResponse.fail(500, "下载失败: " + e.getMessage());
         }
+        catch (IllegalStateException e) {
+            // yt-dlp 不可用等前置条件不满足，直接把可读原因返回给前端
+            return ApiResponse.fail(500, e.getMessage());
+        }
+    }
+
+    /**
+     * 查询下载任务进度（前端路由：GET /video/download/{taskId}，需登录）
+     *
+     * @param taskId 任务号
+     * @param token  请求头 Authorization 的 JWT 令牌
+     * @return 下载任务快照；任务不存在时返回 404
+     */
+    @GetMapping(value={"/download/{taskId}"})
+    public ApiResponse<DownloadTaskManager.DownloadTask> downloadStatus(@PathVariable String taskId, @RequestHeader(value="Authorization") String token) {
+        AuthUtils.requireUserId(token, this.jwtUtil, this.jwtProperties);
+        DownloadTaskManager.DownloadTask task = this.videoService.getDownloadTask(taskId);
+        if (task == null) {
+            return ApiResponse.fail(404, "下载任务不存在");
+        }
+        return ApiResponse.ok(task);
     }
 
     /**

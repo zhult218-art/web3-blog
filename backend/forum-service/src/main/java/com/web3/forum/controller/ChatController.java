@@ -23,16 +23,26 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 群聊 REST 接口：房间列表、加入申请、审批、消息历史、成员列表、聊天开关
- * 实时消息走 WebSocket（/chat/ws/{roomId}）
+ * 实时消息走 Socket.IO 网关（node-service/chat-gateway，端口 3010），本服务不再承载任何 WebSocket
  */
 @RestController
 @RequestMapping("/chat")
+@lombok.extern.slf4j.Slf4j
 public class ChatController {
 
     private final ChatService chatService;
     private final ChatSwitchService chatSwitchService;
     private final JwtUtil jwtUtil;
     private final JwtProperties jwtProperties;
+    /** 在线状态查询（Socket.IO 网关 HTTP 接口），网关不可用时降级为全部离线 */
+    private static final java.net.http.HttpClient ONLINE_HTTP = java.net.http.HttpClient.newBuilder()
+            // 显式禁用代理：网关在本机回环地址，走系统代理必然失败
+            .proxy(java.net.ProxySelector.of(null))
+            // 强制 HTTP/1.1：默认会先做 h2c 升级探测，而 Node 的 http server 不支持，
+            // 结果是 "HTTP/1.1 header parser received no bytes" 直接超时
+            .version(java.net.http.HttpClient.Version.HTTP_1_1)
+            .connectTimeout(java.time.Duration.ofMillis(500)).build();
+    private static final com.fasterxml.jackson.databind.ObjectMapper ONLINE_MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
 
     public ChatController(ChatService chatService, ChatSwitchService chatSwitchService,
                           JwtUtil jwtUtil, JwtProperties jwtProperties) {
@@ -58,7 +68,9 @@ public class ChatController {
             username = claims.get("username", String.class);
             nickname = claims.get("nickname", String.class);
             if (nickname == null) nickname = username;
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.debug("[chat] JWT parse failed for /rooms, treating as anonymous: {}", e.getMessage());
+        }
         return ApiResponse.ok(chatService.listRoomsWithStatus(uid, username, nickname));
     }
 
@@ -98,8 +110,37 @@ public class ChatController {
     public ApiResponse<List<ChatService.MemberVO>> members(@PathVariable Long roomId,
                                                             @RequestParam(value = "refresh", required = false) String refresh) {
         boolean force = "1".equals(refresh) || "true".equalsIgnoreCase(refresh);
-        return ApiResponse.ok(chatService.listAllMembersWithStatus(
-                roomId, com.web3.forum.websocket.ChatWebSocket.getOnlineUserIds(roomId), force));
+        return ApiResponse.ok(chatService.listAllMembersWithStatus(roomId, this.onlineUserIds(roomId), force));
+    }
+
+    /**
+     * 从 Socket.IO 聊天网关拉取房间在线用户 ID（GET /online/{roomId}）。
+     * 网关未启动/超时一律返回空集合：成员列表仍可用，只是全部显示离线。
+     */
+    private java.util.Set<Long> onlineUserIds(Long roomId) {
+        String base = System.getenv().getOrDefault("CHAT_GATEWAY_URL", "http://127.0.0.1:3010");
+        try {
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(base + "/online/" + roomId))
+                    .timeout(java.time.Duration.ofMillis(800))
+                    .GET().build();
+            java.net.http.HttpResponse<String> res = ONLINE_HTTP.send(req,
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (res.statusCode() != 200) return java.util.Set.of();
+            com.fasterxml.jackson.databind.JsonNode ids = ONLINE_MAPPER.readTree(res.body()).get("userIds");
+            java.util.Set<Long> set = new java.util.HashSet<>();
+            if (ids != null && ids.isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode n : ids) {
+                    // 网关以字符串返回雪花 ID；用 asText 转再 parse 才有精度保证
+                    String s = n.asText();
+                    if (s != null && !s.isEmpty()) set.add(Long.parseLong(s));
+                }
+            }
+            return set;
+        } catch (Exception e) {
+            log.warn("[chat] 查询网关在线成员失败（房间 {}，网关 {}）：{}", roomId, base, e.toString());
+            return java.util.Set.of();
+        }
     }
 
     /** 历史消息 */

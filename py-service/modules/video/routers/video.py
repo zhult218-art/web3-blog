@@ -66,7 +66,7 @@ class DownloadReq(BaseModel):
     subtitle_lang: str = "zh-CN"   # 字幕语言
 
 
-@router.post("/download")
+@router.post("/download", dependencies=[Depends(verify_admin_token)])
 async def download_from_url(req: DownloadReq, bg: BackgroundTasks):
     """通过 yt-dlp 下载网络视频（YouTube/B站/抖音等 1800+ 平台），下载后自动转码入库"""
     if not ytdlp._ytdlp_available():

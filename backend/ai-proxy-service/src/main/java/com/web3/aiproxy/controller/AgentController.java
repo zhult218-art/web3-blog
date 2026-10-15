@@ -7,6 +7,8 @@ import com.web3.aiproxy.service.AgentWorkflowService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +32,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @RequiredArgsConstructor
 public class AgentController {
 
+    private static final Logger log = LoggerFactory.getLogger(AgentController.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final AgentWorkflowService agentWorkflowService;
@@ -44,6 +47,7 @@ public class AgentController {
             messagesJson = messages.isArray() ? messages.toString() : "[]";
         } catch (Exception e) {
             // 忽略，使用空消息
+            log.debug("[agent] parse request body for messages skipped: {}", e.getMessage());
         }
         return agentWorkflowService.chat(messagesJson, resolveIp(request));
     }

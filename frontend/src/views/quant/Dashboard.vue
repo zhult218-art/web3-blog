@@ -310,7 +310,7 @@ async function getSnapshot() {
       const res = await fetch(CONFIG.API_URL, { cache: 'no-store' })
       const json = await res.json()
       return json.data ? json.data : json
-    } catch (e) { console.warn('[quant] 拉取后端失败，回落模拟数据：', e.message) }
+    } catch (e) { if (import.meta.env.DEV) console.warn('[quant] 拉取后端失败，回落模拟数据：', e.message) }
   }
   return MockEngine.tick()
 }

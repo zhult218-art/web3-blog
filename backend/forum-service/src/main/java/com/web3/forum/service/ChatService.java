@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class ChatService {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatService.class);
     private final ChatRoomMapper roomMapper;
     private final ChatRoomMemberMapper memberMapper;
     private final ChatMessageMapper messageMapper;
@@ -210,7 +213,9 @@ public class ChatService {
                     if (preview != null && preview.length() > 60) preview = preview.substring(0, 60) + "…";
                     msg.setQuotePreview((quoted.getNickname() != null ? quoted.getNickname() : "匿名") + "：" + preview);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.debug("[chat] fetch quote preview for quoteId={} failed: {}", quoteId, e.getMessage());
+            }
         }
         msg.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(msg);
@@ -269,8 +274,9 @@ public class ChatService {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // user-service 不可用时退回空目录，仅显示已入群成员
+            log.debug("[chat] user-service unavailable, falling back to empty directory: {}", e.getMessage());
         }
         if (!dir.isEmpty()) {
             userDirectoryCache = dir;
@@ -296,6 +302,9 @@ public class ChatService {
     /** 成员视图：所有注册用户 + 群内角色/状态 + 在线标记 */
     @Data
     public static class MemberVO {
+        /** 雪花 ID 超出 JS Number 安全范围，序列化为字符串防止前端精度丢失 */
+        @com.fasterxml.jackson.databind.annotation.JsonSerialize(
+                using = com.fasterxml.jackson.databind.ser.std.ToStringSerializer.class)
         private Long userId;
         private String username;
         private String nickname;

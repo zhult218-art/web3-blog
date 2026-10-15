@@ -276,7 +276,8 @@ public class AgentFlowService {
                     if (id != null && !id.isBlank()) out.put(id, t(a, "value"));
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("[AgentFlow] parse answers JSON failed: {}", e.getMessage());
         }
         return out;
     }

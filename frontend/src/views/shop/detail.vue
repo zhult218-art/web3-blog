@@ -7,7 +7,22 @@
         返回商城
       </button>
 
+      <!-- Error state -->
+      <div v-if="fetchError && !product" class="text-center py-20">
+        <p class="text-white/50 text-lg mb-4">商品加载失败</p>
+        <button @click="fetchProduct" class="px-4 py-2 rounded-lg glass-panel hover:bg-white/10 text-white/70">重试</button>
+      </div>
+
       <div v-if="product" class="space-y-8">
+        <!-- Breadcrumb -->
+        <nav class="flex items-center gap-1.5 text-sm text-white/50 mb-4">
+          <router-link to="/" class="hover:text-white/80">首页</router-link>
+          <span class="text-white/30">/</span>
+          <router-link to="/shop" class="hover:text-white/80">商城</router-link>
+          <span v-if="product" class="text-white/30">/</span>
+          <span v-if="product" class="text-white/70">{{ product.name }}</span>
+        </nav>
+
         <!-- Main Product Area -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <!-- Left: 3D Viewer / Image -->
@@ -143,7 +158,7 @@
                 <div class="flex items-center gap-1 border border-white/10 rounded-lg overflow-hidden">
                   <button class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition" @click="quantity = Math.max(1, quantity - 1)">−</button>
                   <span class="w-12 text-center text-sm text-white font-medium">{{ quantity }}</span>
-                  <button class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition" @click="quantity++">+</button>
+                  <button class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition disabled:opacity-30 disabled:cursor-not-allowed" :disabled="quantity >= product.stock" @click="incrementQuantity">+</button>
                 </div>
               </div>
               <span class="text-[11px] text-gray-600">库存 {{ product.stock }} 件</span>
@@ -239,6 +254,7 @@ const quantity = ref(1)
 const activeImage = ref(0)
 const modelLoaded = ref(false)
 const autoRotate = ref(true)
+const fetchError = ref(false)
 
 // 3D cube rotation
 const rotateX = ref(-15)
@@ -319,6 +335,14 @@ async function addToCart() {
   toast.success('已加入购物车')
 }
 
+function incrementQuantity() {
+  if (quantity.value >= product.value.stock) {
+    toast.warning('已达最大库存数量')
+    return
+  }
+  quantity.value++
+}
+
 async function buyNow() {
   try {
     await createOrder({ productId: product.value.id, quantity: quantity.value })
@@ -327,12 +351,20 @@ async function buyNow() {
   } catch { toast.error('请先登录') }
 }
 
-onMounted(async () => {
+async function fetchProduct() {
+  fetchError.value = false
   try {
     const id = Number(route.params.id)
     const res = await getProductDetail(id)
     product.value = res.data || res
-  } catch { product.value = null }
+  } catch {
+    fetchError.value = true
+    product.value = null
+  }
+}
+
+onMounted(() => {
+  fetchProduct()
 })
 </script>
 
