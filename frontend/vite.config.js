@@ -51,6 +51,15 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: path => path.replace(/^\/pyquant/, '')
       },
+      // 全站免费 AI 通用通道（py-service ai 模块）：/pyai/chat → /api/ai/chat。
+      // 免费模型偶发较慢，放大超时；SSE 流式禁用缓冲由下游响应头控制。
+      '/pyai': {
+        target: 'http://localhost:9006',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/pyai/, '/api/ai'),
+        timeout: 240000,
+        proxyTimeout: 240000
+      },
       // 系统监控（统一 py-service 9006 的 monitor 模块）。
       // 页面路由是 /admin/monitor，故 API 前缀用 /monitapi 错开，
       // /monitapi/xxx -> /api/monitor/xxx。
