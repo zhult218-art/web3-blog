@@ -58,6 +58,11 @@
                 <button v-if="m.role !== 'user'" class="msg-save-btn" title="存入知识库" @click="openSaveToKB(m)">🧠</button>
               </div>
               <div class="msg-text">{{ m.text }}</div>
+              <div v-if="m.links && m.links.length" class="msg-links">
+                <button v-for="l in m.links" :key="l.path" class="mlink" @click="navigate(l.path)">
+                  📄 {{ l.title }}
+                </button>
+              </div>
             </div>
           </div>
           <div v-if="isListening || liveText" class="msg user">
@@ -190,6 +195,7 @@ import {
 import { speakEdgeStream, stopEdgeSpeech, EDGE_VOICES, isEdgeTtsSupported } from '@/api/edgeTts'
 import { startWhisperRecord, whisperTranscribe } from '@/composables/useWhisperStt'
 import { agentChatStream, consumeAgentStream } from '@/api/agent'
+import { fetchArticleList, fetchArticleDetail } from '@/api/article'
 import {
   startVoiceStream, sendVoice, disposeVoiceStream, isVoiceStreamRunning,
 } from '@/composables/useVoiceStream'
@@ -486,6 +492,7 @@ function onOrbPointerUp(e) { finishDrag() }
 
 const quickCmds = [
   { icon: '🏠', label: '回首页', cmd: '打开首页' },
+  { icon: '📰', label: '博客', cmd: '最近更新了哪些文章' },
   { icon: '📝', label: '社区', cmd: '打开社区' },
   { icon: '🛒', label: '商城', cmd: '打开商城' },
   { icon: '📊', label: '量化', cmd: '打开量化' },
@@ -1032,6 +1039,12 @@ function respond(text) {
     return
   }
 
+  // 站点内容类问题（博客/文章/页面分析等）：跳过指令识别，直接交给带站点上下文的 Agent
+  if (BLOG_TERMS.test(text)) {
+    agentRespond(text)
+    return
+  }
+
   // 主路径：全双工 WS 编排（服务端 LLM 流式按句播报 + 页面引导）
   if (wsReady || isVoiceStreamRunning()) {
     endStreamMsg()
@@ -1049,6 +1062,11 @@ function respond(text) {
       .then(res => {
         const data = res?.data || res
         const reply = typeof data === 'string' ? data : data?.response
+        // 指令未命中（无 action / commandKey）→ 不做"没理解"兜底，交给带站点上下文的 Agent 回答
+        if (!data?.action && !data?.commandKey) {
+          agentRespond(text)
+          return
+        }
         if (reply) {
           addMsg('assistant', reply)
           speak(reply)
@@ -1077,6 +1095,78 @@ function friendlyServiceError(raw, fallback) {
   return s || fallback || '服务暂时不可用'
 }
 
+// ===== 博客联动：页面感知 + 文章检索 =====
+// 星途回答前收集站点实时上下文（当前页面 / 正在阅读的文章 / 命中的博客检索结果），
+// 交给 Agent 结合回答；博客意图还会在消息下附带"打开文章"按钮（一键跳转）。
+const BLOG_TERMS = /(文章|博客|帖子|博文|专栏|写过|读过|发过|更新)/
+const SITE_ROUTE_HINT = '首页/  博客/blog  社区/community  音乐馆/music  量化终端/quant  相册/album  资源/resources'
+
+function extractBlogKeyword(text) {
+  const t = String(text || '').trim()
+  if (!BLOG_TERMS.test(t)) return ''
+  const clean = s => String(s || '')
+    .replace(/^(一下|下|关于|有关|的)+/g, '')
+    .replace(/(的|吗|呢|吧|啊|哦|哈|了|呗)+$/g, '')
+    .trim()
+  let m = t.match(/(?:关于|有关)\s*([^，。？！,?!]{1,24}?)\s*(?:的)?(?:文章|博客|帖子|内容|$)/)
+  if (m && clean(m[1])) return clean(m[1])
+  m = t.match(/(?:找|搜索?|查|看看|有没有|推荐)(?:一下|下)?\s*([^，。？！,?!]{1,24}?)\s*(?:的)?(?:文章|博客|帖子)/)
+  if (m && clean(m[1])) return clean(m[1])
+  return ''
+}
+
+// 博客意图 → 返回可点击的文章直达按钮数据（带关键词则检索，否则给最新文章）
+async function blogLinksFor(text) {
+  const kw = extractBlogKeyword(text)
+  if (!kw && !BLOG_TERMS.test(text)) return []
+  try {
+    const r = await fetchArticleList(kw ? { keyword: kw, page: 1, size: 3 } : { page: 1, size: 3 })
+    return r.records.map(a => ({ title: a.title, path: `/blog/post/${a.id}` }))
+  } catch {
+    return []
+  }
+}
+
+// 组装站点实时上下文（失败一律静默降级，不影响对话主流程）
+async function buildBlogContext(text) {
+  const parts = []
+  const cur = router.currentRoute.value
+  parts.push(`用户当前访问页面：${cur.path}（路由名 ${String(cur.name || '?')}，标题「${document.title}」）`)
+  parts.push(`站点主要入口：${SITE_ROUTE_HINT}`)
+  // 正在阅读文章 → 附带正文节选，支持"这篇讲了什么/总结一下"类问题
+  const m = cur.path.match(/^\/blog\/post\/(\d+)/)
+  if (m) {
+    try {
+      const a = await fetchArticleDetail(m[1])
+      if (a && a.title) {
+        parts.push(`用户正在阅读文章《${a.title}》（链接 /blog/post/${a.id}）。正文节选：${String(a.content || a.summary || '').slice(0, 1200)}`)
+      }
+    } catch { /* 忽略 */ }
+  }
+  // 找文章意图 → 检索博客实时数据；泛问（未提取到关键词）→ 附最近文章
+  const kw = extractBlogKeyword(text)
+  if (kw) {
+    try {
+      const r = await fetchArticleList({ keyword: kw, page: 1, size: 5 })
+      if (r.records.length) {
+        parts.push('博客检索「' + kw + '」命中 ' + r.records.length + ' 篇：\n' +
+          r.records.map((a, i) => `${i + 1}. 《${a.title}》 /blog/post/${a.id}`).join('\n'))
+      } else {
+        parts.push(`博客检索「${kw}」暂无匹配文章。`)
+      }
+    } catch { /* 忽略 */ }
+  } else if (BLOG_TERMS.test(text)) {
+    try {
+      const r = await fetchArticleList({ page: 1, size: 5 })
+      if (r.records.length) {
+        parts.push('博客最近文章（最新 5 篇）：\n' +
+          r.records.map((a, i) => `${i + 1}. 《${a.title}》 /blog/post/${a.id}`).join('\n'))
+      }
+    } catch { /* 忽略 */ }
+  }
+  return parts.join('\n')
+}
+
 // 接入 Agent Workflow：把未命中本地指令的内容交给 Agent 编排层（流式），
 // 完成后朗读回复。这样悬浮助手与 /agent 会话台共用同一套路由 Agent。
 let agentBusy = false
@@ -1087,12 +1177,29 @@ async function agentRespond(text) {
   const streamMsg = { role: 'assistant', text: '' }
   messages.value.push(streamMsg)
   try {
-    const res = await agentChatStream([{ role: 'user', content: text }])
+    // 1) 站点实时上下文（页面感知 + 博客检索）
+    let sysCtx = ''
+    try { sysCtx = await buildBlogContext(text) } catch { /* 忽略 */ }
+    // 2) 组装消息：system 上下文 + 最近几轮对话（保持连贯）+ 本轮输入
+    const payload = []
+    if (sysCtx) {
+      payload.push({ role: 'system', content: '以下是站点实时上下文，供参考回答（不要逐字复述；提到文章时保留 /blog/post/{id} 链接形式）：\n' + sysCtx })
+    }
+    const prior = messages.value.filter(m => m && m.text && (m.role === 'user' || m.role === 'assistant'))
+    prior.pop()   // 去掉本轮用户输入（下方单独附带，避免重复）
+    for (const m of prior.slice(-6)) {
+      payload.push({ role: m.role, content: String(m.text).slice(0, 600) })
+    }
+    payload.push({ role: 'user', content: text })
+    const res = await agentChatStream(payload)
     await consumeAgentStream(res, (delta) => {
       streamMsg.text += delta
       scrollMsgs()
     }, () => {})
     streamMsg.text = streamMsg.text || '（Agent 未返回内容）'
+    // 3) 博客意图：附带"打开文章"直达按钮
+    const links = await blogLinksFor(text)
+    if (links.length) streamMsg.links = links
     statusText.value = '就绪'
     if (streamMsg.text) speak(streamMsg.text)
   } catch (e) {
@@ -2006,6 +2113,9 @@ onBeforeUnmount(() => {
 .msg-save-btn { font-size: 12px; opacity: 0.45; transition: opacity .2s, transform .2s; }
 .msg-save-btn:hover { opacity: 1; transform: scale(1.15); }
 .msg-text { font-size: 0.8rem; color: rgba(255,255,255,0.92); line-height: 1.5; word-break: break-word; }
+.msg-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mlink { font-size: 0.72rem; color: #7dd3fc; background: rgba(56,189,248,0.10); border: 1px solid rgba(56,189,248,0.35); border-radius: 8px; padding: 4px 10px; cursor: pointer; transition: background 0.2s; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mlink:hover { background: rgba(56,189,248,0.22); }
 
 .listening-dots { display: flex; gap: 4px; align-items: center; }
 .listening-dots span {
