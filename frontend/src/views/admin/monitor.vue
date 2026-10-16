@@ -770,7 +770,7 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 .stat-label { @apply text-[11px] text-gray-500 uppercase tracking-wider; }
-.stat-value { @apply text-2xl font-black matrix-text mt-1; }
+.stat-value { @apply text-2xl font-black mt-1; font-family: var(--font-mono); letter-spacing: 0.05em; }
 .stat-sub { @apply text-[10px] text-gray-600 mt-1; }
 
 .alert-ribbon { @apply flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs; }
@@ -788,7 +788,7 @@ onBeforeUnmount(() => {
 .dot-up { @apply bg-emerald-400; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
 .dot-down { @apply bg-rose-400; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
 
-.tag-chip { @apply inline-flex items-center px-2 py-0.5 rounded-md text-[10px] matrix-text bg-rose-400/10 border border-rose-400/20 text-rose-300; }
+.tag-chip { @apply inline-flex items-center px-2 py-0.5 rounded-md text-[10px] bg-rose-400/10 border border-rose-400/20 text-rose-300; font-family: var(--font-mono); letter-spacing: 0.05em; }
 
 .rl-row { @apply flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#0c0c22] border border-white/[0.04]; }
 .ev-row { @apply flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#0c0c22] border border-white/[0.04]; }
@@ -797,10 +797,12 @@ onBeforeUnmount(() => {
 .ev-badge-amber { @apply bg-amber-400/10 border-amber-400/20 text-amber-300; }
 
 .log-pre {
-  @apply m-0 p-3 rounded-lg bg-[#0b0b1e] border border-white/[0.06] text-[10px] leading-relaxed overflow-auto matrix-text text-gray-400;
+  @apply m-0 p-3 rounded-lg bg-[#0b0b1e] border border-white/[0.06] text-[10px] leading-relaxed overflow-auto text-gray-400;
   height: 220px;
   white-space: pre-wrap;
   word-break: break-all;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
 }
 .empty-hint { @apply text-center text-gray-600 text-xs py-6; }
 </style>
