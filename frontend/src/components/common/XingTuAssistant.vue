@@ -176,7 +176,7 @@
 <script setup>
 // 星途智能语音助手（XingTuAssistant）
 // 悬浮球：拖拽、唤醒词"星途星途"、本地/云端语音识别（vosk-browser 优先，Web Speech 后备）
-// 语音输出优先 Edge 神经网络音色（晓晓/云希），失败回退浏览器 speechSynthesis
+// 语音输出仅用 Edge 神经网络音色（晓晓/云希等 10 个）；已移除本地旧音色兜底
 // 指令由 jarvis-service 后端识别；后端不可用时本地降级
 // ============================================================
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
@@ -211,7 +211,6 @@ const statusText = ref('就绪')
 const micFixAction = ref('')
 const msgBox = ref(null)
 let recognition = null
-let synth = null
 let wakeWordDetected = false
 let manualStop = false
 let stopByError = false    // 因麦克风权限/硬件错误被动停止（允许用户手势一键重试恢复）
@@ -583,101 +582,51 @@ async function saveToKB() {
   }
 }
 
-// ---- TTS: 说话（Edge 神经网络音色优先，浏览器语音兜底）----
-// Edge 音色质量高但走公网；失败/超时自动回退本地 speechSynthesis，保证必能发声
-//
-// 2026-09-23 修订：
-//   1. 本地兜底优先选 Microsoft Huihui/Yunxi/Yaoyao 等 neural 音色（Windows 内置）；
-//   2. 监听 voiceschanged 异步加载音色列表；
-//   3. 长文本按句拆分排队播报，节奏更自然；
-//   4. rate=1.0/pitch=1.0 默认（接近自然），不再用 0.95/1.1 偏移。
-let localVoices = []
-let preferredVoice = null
-function refreshLocalVoices() {
-  if (!synth) return
-  localVoices = synth.getVoices() || []
-  const zh = localVoices.filter(v => (v.lang || '').startsWith('zh-CN') || (v.lang || '').startsWith('cmn'))
-  // 2026-10-15：优先选 Edge 的 Natural/Online 系（Windows 会以 speechSynthesis 形式暴露），
-  // 其自然度远高于 Huihui/Yaoyao 等旧 SAPI 音色；都没有时才退回旧音色。
-  const natural = zh.find(v => /Natural|Online/i.test(v.name || ''))
-  const legacy = ['Microsoft Yunxi', 'Microsoft Yunyang', 'Microsoft Xiaoxiao', 'Microsoft Huihui',
-    'Microsoft Yaoyao', 'Microsoft Kangkang', 'Microsoft Hanhan']
-  preferredVoice = natural || zh.find(v => legacy.some(p => (v.name || '').includes(p))) || zh[0] || null
-}
-function setupVoicesWatcher() {
-  if (!synth) return
-  refreshLocalVoices()
-  if (synth.onvoiceschanged !== undefined) {
-    synth.onvoiceschanged = () => refreshLocalVoices()
-  }
-}
+// ---- TTS: 说话（仅 Edge 神经网络音色）----
+// 2026-10-16：应用户要求移除 Windows speechSynthesis 旧音色兜底。
+// 此前 Edge 在线音色失败时会回退本地机械音，出现「两个声音/音色僵硬」的体感；
+// 现在只保留 Edge 神经网络音色，失败时仅状态栏可见提示，不再发声。
 
-// 本地按句拆分播报（speechSynthesis 队列）
-function localSpeech(text) {
-  return new Promise(resolve => {
-    if (!synth) { resolve(false); return }
-    synth.cancel()
-    const sentences = String(text || '').split(/(?<=[。！？!?…])\s*/).map(s => s.trim()).filter(Boolean)
-    if (!sentences.length) { resolve(false); return }
-    let idx = 0
-    let anyOk = false
-    const speakNext = () => {
-      if (disposed) { resolve(anyOk); return }
-      if (idx >= sentences.length) { resolve(anyOk); return }
-      const utter = new SpeechSynthesisUtterance(sentences[idx])
-      utter.lang = 'zh-CN'
-      if (preferredVoice) utter.voice = preferredVoice
-      utter.rate = 1.0
-      utter.pitch = 1.0
-      utter.volume = 1.0
-      utter.onstart = () => { isSpeaking.value = true; pulseOrbCore() }
-      utter.onboundary = () => { pulseOrbCore() }
-      utter.onend = () => {
-        anyOk = true
-        idx++
-        // 句间微停顿 80ms，模拟自然节奏
-        setTimeout(speakNext, 80)
-      }
-      utter.onerror = () => {
-        // 单句失败继续下一句
-        idx++
-        setTimeout(speakNext, 80)
-      }
-      synth.speak(utter)
-    }
-    speakNext()
-  })
-}
-
-// ===== 播报：服务端 Edge 流式（逐段合成即播）+ 浏览器本地兜底 =====
+// ===== 播报：服务端 Edge 流式（逐段合成即播）=====
 // 关键改动（阶段5）：播报期间不再停麦克风（保持全双工），
 // 由服务端 VAD 的 interrupt 事件负责 barge-in 打断。
 //
 // 2026-10-15：合成已下沉到 py-service（官方 edge-tts 客户端）。此处若返回 false
-// 说明后端不可用，会回退到 Windows 本地音色（听感机械），因此必须让用户看得见，
-// 而不是静默降级——之前的静默降级正是「音色僵硬」长期未被发现的根源。
+// 说明后端不可用。2026-10-16 起不再回退本地旧音色，但失败必须让用户看得见，
+// 而不是静默——之前的静默降级正是「音色僵硬」长期未被发现的根源。
 let fallbackNotified = false
+const EDGE_FAIL_TEXT = '语音不可用（请检查 9006）'
 function notifyEdgeFallback() {
   if (fallbackNotified) return
   fallbackNotified = true
-  console.warn('[星途助手] 在线音色不可用，已回退到系统本地音色（听感较机械）。请检查 py-service(9006) 是否运行。')
-  statusText.value = '本地音色（在线音色不可用，请检查 9006）'
+  console.warn('[星途助手] 在线音色不可用，本轮不发声。请检查 py-service(9006) 是否运行。')
+  statusText.value = EDGE_FAIL_TEXT
 }
+
+// 播报序号：新一轮播报会打断旧一轮（clearTts 触发 abort），旧轮返回 false 属正常流程，
+// 不应触发「语音不可用」告警；仅最新一轮的真实失败才提示。任意一次成功即清除告警——
+// 2026-10-16 修复：此前一次瞬时失败（或被新播报打断）会把状态栏永久锁在
+// 「语音不可用（请检查 9006）」，即使后续播报正常也不恢复，误导用户以为语音坏了。
+let speakSeq = 0
 
 async function speak(text) {
   const t = String(text || '').trim()
   if (!t || disposed) return
+  const seq = ++speakSeq
   clearTts()
   isSpeaking.value = true
   let ok = false
   if (edgeOk) {
     try { ok = await speakEdgeStream(t, selectedVoiceURI) } catch { ok = false }
   }
-  if (!ok && !disposed) {
+  if (disposed) return
+  if (ok) {
+    fallbackNotified = false
+    if (statusText.value === EDGE_FAIL_TEXT) statusText.value = '就绪'
+  } else if (seq === speakSeq) {
     notifyEdgeFallback()
-    ok = await localSpeech(t)
   }
-  isSpeaking.value = false
+  if (seq === speakSeq) isSpeaking.value = false
 }
 
 // 服务端流式播报：sentence 事件按序入队，串行播报（保证语序）
@@ -697,7 +646,7 @@ async function drainTts() {
       isSpeaking.value = true
       let ok = false
       if (edgeOk) { try { ok = await speakEdgeStream(s, selectedVoiceURI) } catch { ok = false } }
-      if (!ok && !disposed) { notifyEdgeFallback(); await localSpeech(s) }
+      if (!ok && !disposed) notifyEdgeFallback()
     }
   } finally {
     ttsDraining = false
@@ -710,7 +659,6 @@ function clearTts() {
   ttsQueue = []
   ttsDraining = false
   try { stopEdgeSpeech() } catch { /* ignore */ }
-  if (synth) { try { synth.cancel() } catch { /* ignore */ } }
   isSpeaking.value = false
 }
 
@@ -828,20 +776,6 @@ async function ensureVoiceStream() {
   } catch {
     wsReady = false
   }
-}
-
-let orbPulseTimer = 0
-function pulseOrbCore() {
-  if (orbPulseTimer) { clearTimeout(orbPulseTimer); orbPulseTimer = 0 }
-  if (!isSpeaking.value) return
-  const core = orbBtn.value && orbBtn.value.querySelector('.orb-core')
-  if (!core) return
-  core.classList.remove('orb-pulse')
-  void core.offsetWidth
-  core.classList.add('orb-pulse')
-  orbPulseTimer = setTimeout(() => {
-    if (core) core.classList.remove('orb-pulse')
-  }, 300)
 }
 
 function testSpeak() {
@@ -1629,14 +1563,11 @@ function onVoiceChange() {
 
 // ---- Lifecycle ----
 onMounted(() => {
-  synth = window.speechSynthesis || null
   edgeOk = isEdgeTtsSupported()
   if (EDGE_VOICES.length && !voiceURI.value) {
     voiceURI.value = EDGE_VOICES[0].uri
     selectedVoiceURI = EDGE_VOICES[0].uri
   }
-  // 加载本地音色列表并监听 voiceschanged（异步事件）
-  setupVoicesWatcher()
 
   // 识别结果回接（vosk 引擎）
   voskCb.onFinal = (t) => { if (!disposed && t) processTranscript(t) }
@@ -1693,7 +1624,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onFirstGesture)
   stopListening()
   stopVoskRecognition()
-  if (synth) synth.cancel()
   stopEdgeSpeech()
   // 全双工语音流：释放麦克风 / AudioWorklet / AudioContext / WebSocket
   clearTimeout(endpointTimer)
