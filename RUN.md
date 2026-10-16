@@ -50,9 +50,9 @@ powershell -ExecutionPolicy Bypass -File ..\start-all-services.ps1
 或手动逐个启动（需要先 Maven 打包）：
 
 ```powershell
-# 打包（只需一次）
+# 打包（只需一次，含 24 个单元测试）
 $env:JAVA_HOME = "F:\tools\jdk17"
-F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean package -DskipTests
+F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean package
 
 # 启动各个服务（每个开一个终端窗口）
 cd F:\project\my-blog\web3-blog\backend
@@ -65,7 +65,7 @@ java -jar shop-service/target/shop-service-1.0.0.jar --spring.profiles.active=pr
 java -jar media-service/target/media-service-1.0.0.jar --spring.profiles.active=prod  # 8085
 java -jar quant-service/target/quant-service-1.0.0.jar --spring.profiles.active=prod  # 8086
 java -jar tool-service/target/tool-service-1.0.0.jar --spring.profiles.active=prod    # 8087
-java -jar software-service/target/software-service-1.0.0.jar --spring.profiles.active=prod # 8088
+java -jar software-service/target/software-service-1.0.0.jar --spring.profiles.active=prod # 8090
 java -jar resource-service/target/resource-service-1.0.0.jar --spring.profiles.active=prod # 8089
 java -jar jarvis-service/target/jarvis-service-1.0.0.jar --spring.profiles.active=prod   # 9001
 java -jar admin-service/target/admin-service-1.0.0.jar --spring.profiles.active=prod    # 9002
@@ -99,12 +99,12 @@ npm run dev
 | Media Service | 8085 | web3_media | 音乐、视频、播放列表 |
 | Quant Service | 8086 | web3_quant | 量化策略、股票数据 |
 | Tool Service | 8087 | web3_tool | 脚本、工具 |
-| Software Service | 8088 | web3_software | 软件下载 |
+| Software Service | 8090 | web3_software | 软件下载 |
 | Resource Service | 8089 | web3_resource | 资源上传 |
 | Jarvis Service | 9001 | web3_jarvis | AI 语音助手 |
 | Admin Service | 9002 | web3_admin | 管理后台 |
 | Ai Proxy Service | 8093 | web3_admin | AI Token 中转 |
-| Quant Py Service | 9006 | - | A股量化数据 |
+| Py Service | 9006 | - | 统一 Python 服务（量化/工具/语音等） |
 | Nacos | 8848 | - | 服务发现/配置中心 |
 | Redis | 6379 | - | 缓存 |
 | RabbitMQ | 5672 | - | 消息队列 |
@@ -115,14 +115,14 @@ npm run dev
 - 开发环境：http://localhost:5173
 - Vite 代理配置：
   - `/api` → http://localhost:8080 (Gateway)
-  - `/pyquant` → http://localhost:9006 (quant-py-service)
-  - `/whisper` → http://127.0.0.1:9011 (jarvis whisper 子模块)
+  - `/pyquant` → http://localhost:9006 (py-service)
+  - `/whisper` → http://127.0.0.1:9006 (py-service whisper 模块)
 
 ## API 调用流程
 
 ```
 前端 → Vite Proxy (/api) → Gateway (8080) → 对应微服务
-前端 → Vite Proxy (/pyquant) → quant-py-service (9006) → A股数据
+前端 → Vite Proxy (/pyquant) → py-service (9006) → A股数据
 ```
 
 Gateway 路由规则（application.yml）：
@@ -133,7 +133,7 @@ Gateway 路由规则（application.yml）：
 - `/music/**` → media-service:8085
 - `/strategy/**` → quant-service:8086
 - `/script/**` → tool-service:8087
-- `/software/**` → software-service:8088
+- `/software/**` → software-service:8090
 - `/resource/**` → resource-service:8089
 - `/jarvis/**` → jarvis-service:9001
 - `/admin/**` → admin-service:9002
@@ -143,7 +143,7 @@ Gateway 路由规则（application.yml）：
 
 ```powershell
 # 检查所有服务端口
-netstat -ano | findstr "LISTENING" | findstr ":8080 :8081 :8082 :8083 :8084 :8085 :8086 :8087 :8088 :8089 :9001 :9002 :9006"
+netstat -ano | findstr "LISTENING" | findstr ":8080 :8081 :8082 :8083 :8084 :8085 :8086 :8087 :8089 :8090 :9001 :9002 :9006"
 
 # 测试 API
 curl http://localhost:8080/admin/dashboard
@@ -198,7 +198,7 @@ web3-blog/
 │   ├── media-service/     # 媒体服务 (8085)
 │   ├── quant-service/     # 量化服务 (8086)
 │   ├── tool-service/      # 工具服务 (8087)
-│   ├── software-service/  # 软件服务 (8088)
+│   ├── software-service/  # 软件服务 (8090)
 │   ├── resource-service/  # 资源服务 (8089)
 │   ├── jarvis-service/    # Jarvis AI 服务 (9001)
 │   ├── admin-service/     # 管理后台 (9002)

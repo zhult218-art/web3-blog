@@ -16,7 +16,7 @@ docker compose up -d mysql redis rabbitmq nacos
 ## Step 2: Build and start backend services
 
 ```bash
-mvn -f backend/pom.xml clean package -DskipTests
+mvn -f backend/pom.xml clean package   # includes the 24 backend unit tests
 docker compose up -d gateway user-service blog-service forum-service shop-service media-service quant-service tool-service software-service
 ```
 

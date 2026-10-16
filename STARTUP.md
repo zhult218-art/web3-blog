@@ -11,7 +11,7 @@
 | Erlang OTP | `F:\tools\rabbitmq\Erlang OTP`(27.3.4.16,2026-08-13 纯净重装) | - | - |
 | RabbitMQ | `F:\tools\rabbitmq\Rabbitmq Server4.3.4`(4.3.4) | 5672 | 手动启动/脚本 |
 | Nacos | `F:\tools\nacos\bin`(standalone) | 8848 | 已运行(可选) |
-| 后端微服务 ×12 | `F:\tools\jdk17`,jar 在 `backend\*\target\` | 8080-8089, 9001-9002 | 一键脚本 |
+| 后端微服务 ×12 | `F:\tools\jdk17`,jar 在 `backend\*\target\` | 8080-8087, 8089-8090, 9001-9002 | 一键脚本 |
 | 前端 | `F:\soft\nodejs\nodejs`(Vite 5) | 5173 | `npm run dev` |
 
 > RabbitMQ/Erlang 曾损坏(混合 OTP 版本导致),已于 2026-08-13 重装 Erlang OTP 27 并重置 RabbitMQ 数据,现运行正常。
@@ -52,7 +52,7 @@ npm run dev   # → http://localhost:5173
 |------|------|
 | **前端门户** | **http://localhost:5173** |
 | API 网关 | http://localhost:8080 |
-| 微服务 | 8081 user / 8082 blog / 8083 forum / 8084 shop / 8085 media / 8086 quant / 8087 tool / 8088 software / 8089 resource / 9001 jarvis / 9002 admin |
+| 微服务 | 8081 user / 8082 blog / 8083 forum / 8084 shop / 8085 media / 8086 quant / 8087 tool / 8089 resource / 8090 software / 9001 jarvis / 9002 admin |
 
 ## 四、端口与状态自检
 
@@ -78,8 +78,9 @@ curl http://localhost:8080/admin/dashboard   # 401 属正常(需登录)
    `set ERLANG_HOME=F:\tools\rabbitmq\Erlang OTP` 后运行
    `F:\tools\rabbitmq\Rabbitmq Server4.3.4\rabbitmq_server-4.3.4\sbin\rabbitmq-server.bat`
 3. **服务起不来** → 看 `backend\target\logs\svc_*.log`;端口被占则先 `taskkill /F /IM java.exe` 再启动。
-4. **重新构建 jar**:`$env:JAVA_HOME="F:\tools\jdk17"; F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean package -DskipTests`(backend 目录)。
+4. **重新构建 jar**:`$env:JAVA_HOME="F:\tools\jdk17"; F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean package`(backend 目录,含 24 个单元测试)。
 5. **5173 冲突**:OpenCut 项目可能占用,前端端口看 vite 输出。
+6. **Google dev mock 登录**默认关闭(`GOOGLE_DEV_LOGIN_ENABLED=false`):本地调试如需使用,在根目录 `.env` 设为 `true`(仅未启用真实 OAuth 时生效,生产保持 false)。
 
 ## 六、现在的运行实例(保存于 2026-08-13)
 

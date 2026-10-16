@@ -9,7 +9,7 @@ Web3 极简未来科技风个人综合技术门户：博客 / 论坛 / 商城 / 
 | 前端 | Vue 3 + Vite 5 + Pinia + Vue Router + TailwindCSS + GSAP + Three.js + ECharts |
 | 后端 | Java 17 + Spring Boot 3.3 + Spring Cloud Alibaba（Nacos 注册/配置）+ Spring Cloud Gateway + MyBatis-Plus |
 | 基础设施 | MySQL 8、Redis、RabbitMQ、Nacos |
-| 附加服务 | `quant-py-service`（Python FastAPI 量化数据服务，端口 9006） |
+| 附加服务 | `py-service`（统一 Python FastAPI 服务，端口 9006：量化 / QZone / 视频 / Whisper / WiFi / OSINT / 语音 / 驾驶舱） |
 
 ## 目录结构
 
@@ -25,14 +25,14 @@ web3-blog/
 │   ├── media-service/           # 音乐 / 视频 / 书籍 / 播放列表（8085）
 │   ├── quant-service/           # 量化策略 / 行情数据（8086）
 │   ├── tool-service/            # 在线脚本工具（8087）
-│   ├── software-service/        # 软件下载（8088）
+│   ├── software-service/        # 软件下载（8090）
 │   ├── resource-service/        # 资源上传 / 下载（8089）
 │   ├── jarvis-service/          # JARVIS AI 语音助手（9001）
 │   ├── admin-service/           # 管理后台（9002）
 │   ├── common/                  # 公共模块（core / security / util）
 │   ├── deploy/                  # MySQL 初始化 SQL 等部署文件
 │   └── nacos/                   # Nacos 配置目录
-├── quant-py-service/            # Python 量化数据服务（9006，A股数据）
+├── py-service/                  # 统一 Python FastAPI 服务（9006：量化/工具/语音等模块）
 ├── docs/                        # 需求文档 / 概述说明文档
 ├── start-all-services.bat       # Windows 一键启动脚本
 ├── start-all-services.ps1       # PowerShell 一键启动脚本
@@ -53,7 +53,7 @@ web3-blog/
 | 社区 | `/community` | forum-service | 帖子、评论、点赞 |
 | 商城 | `/shop` `/cart` | shop-service | 商品、购物车、订单、支付 |
 | 媒体 | `/media` | media-service | 音乐、视频、书籍、播放列表 |
-| 量化 | `/quant` | quant-service + quant-py-service | 策略、龙虎榜、资金流、研报 |
+| 量化 | `/quant` | quant-service + py-service | 策略、龙虎榜、资金流、研报 |
 | 工具 | `/tools` | tool-service | 在线脚本工具（加密/二维码等） |
 | 软件 | `/software` | software-service | 软件列表与下载 |
 | 资源 | `/resources` | resource-service | 资源上传/下载 |
@@ -84,10 +84,9 @@ npm run dev
 ```powershell
 # 1. 启动基础设施：MySQL / Redis / RabbitMQ / Nacos（见 INSTALL.md / RUN.md）
 
-# 2. 打包后端（只需一次）
-mvn clean package -DskipTests
+# 2. 打包后端（只需一次，含 24 个单元测试）
 cd backend
-mvn clean package -DskipTests
+mvn clean package
 
 # 3. 启动后端服务（每个开一个终端窗口，端口见下表）
 java -jar gateway/target/gateway-1.0.0.jar
@@ -99,6 +98,8 @@ cd frontend
 npm install
 npm run dev        # 访问 http://localhost:5173
 ```
+
+> 注：Google dev mock 登录默认关闭（`GOOGLE_DEV_LOGIN_ENABLED=false`，入口 `POST /user/oauth/google/dev-login`）；本地调试如需使用，在根目录 `.env` 设为 `true`（仅未启用真实 OAuth 时生效）。
 
 ### 方式三：一键脚本
 
@@ -116,28 +117,28 @@ npm run dev        # 访问 http://localhost:5173
 | Media Service | 8085 | web3_media | 音乐、视频、播放列表 |
 | Quant Service | 8086 | web3_quant | 量化策略、行情数据 |
 | Tool Service | 8087 | web3_tool | 脚本工具 |
-| Software Service | 8088 | web3_software | 软件下载 |
+| Software Service | 8090 | web3_software | 软件下载 |
 | Resource Service | 8089 | web3_resource | 资源上传/下载 |
 | Jarvis Service | 9001 | web3_jarvis | AI 语音助手 |
 | Admin Service | 9002 | web3_admin | 管理后台 |
-| Quant Py Service | 9006 | - | Python 量化数据（A股） |
+| Py Service | 9006 | - | 统一 Python 服务（量化/工具/语音等） |
 | Nacos | 8848 | - | 服务注册/配置中心 |
 | Redis | 6379 | - | 缓存 |
 | RabbitMQ | 5672 | - | 消息队列 |
-| MySQL | 3306 | 13 个 web3_* 库（见 backend/deploy/mysql/init/01-13 号 SQL） | 数据存储 |
+| MySQL | 3306 | 11 个 web3_* 库（见 backend/deploy/mysql/init/ 下 SQL） | 数据存储 |
 
 ## 调用链路
 
 ```
 浏览器 → http://localhost:5173 (Vite Dev)
             ├─ /api/**   → Gateway 8080 → 对应微服务 → MySQL / Redis / RabbitMQ
-            └─ /pyquant/** → quant-py-service 9006
+            └─ /pyquant/** → py-service 9006
 ```
 
 ## 数据库初始化
 
 ```powershell
-# 容器方式：backend/deploy/mysql/init/ 下 12 个 SQL 由 MySQL 容器自动执行
+# 容器方式：backend/deploy/mysql/init/ 下 18 个 SQL 由 MySQL 容器自动执行
 # 本地方式：
 mysql -u root -p < backend/deploy/mysql/init/01-databases.sql
 mysql -u root -p --database=web3_user < backend/deploy/mysql/init/02-web3_user.sql

@@ -91,7 +91,6 @@ $py = $env:PYTHON_EXE
 if (-not $py) {
     foreach ($p in @(
         (Join-Path $root "py-service\.venv\Scripts\python.exe"),
-        (Join-Path $root "quant-py-service\.venv\Scripts\python.exe"),
         "$env:USERPROFILE\miniconda3\python.exe",
         "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe"
     )) {
@@ -196,7 +195,11 @@ if ($redisExe) {
     if ($redisUp) {
         Write-Host "  Redis 已在运行，跳过" -ForegroundColor DarkGray
     } else {
-        Start-HiddenProcess -Name "redis" -File $redisExe -Arguments "" `
+        # 内存加固（2026-10-16 Redis MISCONF 事故后）：maxmemory 防写满失控；
+        # volatile-lru 写满时优先淘汰带 TTL 的会话/验证码键而非拒写；BGSAVE 失败不再拒写
+        # （Redis 只存会话/缓存，可容忍持久化失败，避免再次出现全站登录 500）
+        $redisArgs = "--maxmemory 512mb --maxmemory-policy volatile-lru --stop-writes-on-bgsave-error no"
+        Start-HiddenProcess -Name "redis" -File $redisExe -Arguments $redisArgs `
             -WorkDir $redisDir -LogDir $redisDir | Out-Null
         Start-Sleep -Seconds 2
     }
@@ -261,14 +264,17 @@ $services = @(
 )
 
 # 低内存 JVM 参数（16GB 机器跑 13 个 JVM 的保命配置，2026-10-16 native OOM 后定版）：
-#   -Xmx300m/-Xms128m      堆按需提交，不预触内存
+#   -Xmx300m/-Xms96m       堆按需提交，不预触内存（Xms 由 128m 再降，13 服务 idle 共省约 400MB 提交）
 #   -Xss512k               线程栈减半（默认 1MB，百级线程省几十 MB）
 #   MaxMetaspaceSize=192m  封顶类元数据（默认无上限，长跑微服务会缓慢膨胀）
 #   CompressedClassSpace=128m  缩小 compressed class 保留空间（默认 1GB reserve）
 #   ReservedCodeCache=128m C2 JIT 代码缓存封顶（上次崩溃点 Chunk::new 即此处 arena 分配）
 #   +UseSerialGC           单线程 GC：小堆本地开发足够，省掉 G1 region/remembered set
 #                          结构与并行 GC 线程栈，单 JVM 提交内存可降约 200-300MB
-$JvmOpts = "-Xms128m -Xmx300m -Xss512k -XX:MaxMetaspaceSize=192m -XX:CompressedClassSpaceSize=128m -XX:ReservedCodeCacheSize=128m -XX:+UseSerialGC"
+#   MaxDirectMemorySize=128m 封顶堆外直接内存：Netty 默认跟随 -Xmx 增长（网关长连接/大报文逐页提交）
+#   ActiveProcessorCount=4 虚拟 4 核：Netty worker/线程池/JIT 均按此收缩（物理机 6 核，本地开发足够）
+#   CICompilerCount=2      封顶 JIT 编译线程（默认随核数扩容，每线程约 1MB 提交）
+$JvmOpts = "-Xms96m -Xmx300m -Xss512k -XX:MaxMetaspaceSize=192m -XX:CompressedClassSpaceSize=128m -XX:ReservedCodeCacheSize=128m -XX:+UseSerialGC -XX:MaxDirectMemorySize=128m -XX:ActiveProcessorCount=4 -XX:CICompilerCount=2"
 
 Write-Host "[INFO] JAVA_HOME=$env:JAVA_HOME" -ForegroundColor Cyan
 Write-Host "启动 Java 微服务..." -ForegroundColor Cyan

@@ -1,9 +1,10 @@
-# Web3 Portal CI — 最简 lint + build
-# 2026-09-17 新增。触发：push / pull_request 到 main/master。
-# 不跑后端单元测试（仓库当前零测试），只跑：
+# Web3 Portal CI — lint + build + 单元测试
+# 2026-09-17 新增；2026-10-16 修订：后端改为 mvn test（24 个单元测试全部 Mockito，
+# 无需 DB/中间件），修复此前 -DskipTests -Dmaven.test.skip=true 导致测试编译错误也进不了 CI。
+# 触发：push / pull_request 到 main/master。
 #   1. frontend lint（ESLint）
 #   2. frontend build（vite build，验证无 import 错误）
-#   3. backend maven compile（验证 Java 编译通过，不跑测试）
+#   3. backend maven test（编译 + 单元测试）
 # 失败时阻断 PR 合入。
 
 name: CI
@@ -37,7 +38,7 @@ jobs:
         run: npm run build
 
   backend:
-    name: Backend Compile
+    name: Backend Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,5 +51,5 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           cache: 'maven'
-      - name: Maven compile (no tests)
-        run: mvn -B -q -DskipTests -Dmaven.test.skip=true compile
+      - name: Maven test (compile + unit tests)
+        run: mvn -B -q test

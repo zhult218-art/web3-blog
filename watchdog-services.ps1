@@ -6,7 +6,8 @@
 # Port probes use raw TCP sockets: Get-NetTCPConnection can hang under heavy
 # pagefile/memory pressure (observed: a watchdog instance froze for 25+ min).
 $ErrorActionPreference = 'Continue'
-$root = 'z:\project\myblog\web3'
+# Repo root derived from this script's own location (no hardcoded absolute path).
+$root = $PSScriptRoot
 $log  = "$env:TEMP\web3-watchdog.log"
 
 function Test-PortFast($p) {

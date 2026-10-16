@@ -1,4 +1,4 @@
-﻿﻿﻿﻿# ============================================================
+﻿# ============================================================
 # Web3 Blog — 后端全栈上线脚本（免费 Quick Tunnel 方案）
 #
 # 做什么：
@@ -244,7 +244,7 @@ foreach ($s in $services) {
 # ── 5. 可选：网易云 Node 代理(3000) ──
 if (-not (Test-Port 3000)) {
     $node = (Get-Command node -ErrorAction SilentlyContinue).Source
-    $ncmEntry = Join-Path $backend "netease-music-api\server.js"
+    $ncmEntry = Join-Path $repo "node-service\netease-music-api\server.js"
     if ($node -and (Test-Path $ncmEntry)) {
         try {
             Start-Process -FilePath $node -ArgumentList "`"$ncmEntry`"" `
@@ -254,16 +254,16 @@ if (-not (Test-Port 3000)) {
     }
 }
 
-# ── 6. 可选：量化 Python 服务(9006) ──
+# ── 6. 可选：统一 Python 服务 py-service(9006) ──
 if (-not (Test-Port 9006)) {
-    $py = Join-Path $repo "quant-py-service\.venv\Scripts\python.exe"
-    $qDir = Join-Path $repo "quant-py-service"
+    $py = Join-Path $repo "py-service\.venv\Scripts\python.exe"
+    $qDir = Join-Path $repo "py-service"
     if (Test-Path $py) {
         try {
             Start-Process -FilePath $py -ArgumentList "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "9006" `
                 -WorkingDirectory $qDir -WindowStyle Hidden
-            Log "  quant-py-service 已启动" "Green"
-        } catch { Log "  quant-py-service 启动失败：$_" "Yellow" }
+            Log "  py-service 已启动" "Green"
+        } catch { Log "  py-service 启动失败：$_" "Yellow" }
     }
 }
 

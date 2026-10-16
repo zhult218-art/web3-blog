@@ -20,10 +20,10 @@ You can also copy this folder to `F:\project\web3-portal` manually.
    Set-Location backend
    cmd /c mvnw.cmd -version
    ```
-4. Full build:
+4. Full build (runs the 24 unit tests):
    ```powershell
    Set-Location backend
-   cmd /c mvnw.cmd clean package -DskipTests
+   cmd /c mvnw.cmd clean package
    ```
 
 ## Frontend
@@ -61,3 +61,4 @@ You can also copy this folder to `F:\project\web3-portal` manually.
 - The local JDK 17 and Maven wrapper are included under `backend/.m2`.
 - If `npm install` complains about npm cache permission, close editors that may lock `AppData\Local\npm-cache` and rerun it.
 - The project already includes WeChat/Alipay sandbox payment stubs and a resource upload/download service.
+- Google dev-mock login is disabled by default; for local debugging set `GOOGLE_DEV_LOGIN_ENABLED=true` in the root `.env` (only effective while real OAuth is disabled; keep it false in production).
