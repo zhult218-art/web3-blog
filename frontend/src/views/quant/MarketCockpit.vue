@@ -27,11 +27,12 @@
 
     <!-- iframe 容器 -->
     <div class="relative w-full" :style="{ height: 'calc(' + frameHeight + ' - 49px)' }">
-      <iframe v-if="serviceUp || loaded" ref="iframeRef" :src="cockpitSrc" @load="onLoad"
+      <!-- 乐观渲染：挂载即并行加载 iframe（不等 health 探测返回），消除串行等待 -->
+      <iframe :key="frameKey" ref="iframeRef" :src="cockpitSrc" @load="onLoad"
         class="w-full h-full border-0 block bg-[#070b12]"
         title="市场研究驾驶舱" />
       <!-- 加载遮罩 -->
-      <div v-if="!loaded && !showDownState" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#070b12] text-cyan-300">
+      <div v-if="(!loaded || !serviceUp) && !showDownState" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#070b12] text-cyan-300">
         <div class="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin"></div>
         <div class="text-xs text-cyan-500/70">正在加载驾驶舱…</div>
       </div>
@@ -66,6 +67,7 @@ const loaded = ref(false)
 const checking = ref(true)
 const serviceUp = ref(false)
 const showDownState = ref(false)
+const frameKey = ref(0)   // 变更该值强制重建 iframe（服务恢复 / 手动重试时整页刷新）
 let probeTimer = null
 let downTimer = null
 
@@ -91,8 +93,13 @@ async function probe() {
   }
   checking.value = false
   if (serviceUp.value) {
-    showDownState.value = false
-  } else {
+    // 服务恢复：若曾显示降级层，重建 iframe 拉取最新页面
+    if (showDownState.value) {
+      showDownState.value = false
+      loaded.value = false
+      frameKey.value++
+    }
+  } else if (!downTimer) {
     // 服务未就绪：5s 后展示降级提示，期间持续探测
     downTimer = setTimeout(() => { if (!serviceUp.value) showDownState.value = true }, 5000)
   }
@@ -101,6 +108,7 @@ async function probe() {
 function recheck() {
   showDownState.value = false
   loaded.value = false
+  frameKey.value++   // 强制重建 iframe，触发整页重载
   probe()
 }
 

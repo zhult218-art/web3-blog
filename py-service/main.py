@@ -92,6 +92,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# gzip 压缩：驾驶舱（cockpit）静态 JS 约 1.6MB（echarts 1MB + router 340KB 等），
+# 公网/隧道下体积敏感；>=1KB 的响应自动 gzip，浏览器透明解压（首屏体积约降 70%）。
+from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
+
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
 for mod in modules:
     if mod.setup is not None:
         try:

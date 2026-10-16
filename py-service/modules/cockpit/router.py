@@ -118,8 +118,13 @@ async def _spa_fallback(path: str):
         media_type = _MIME.get(file_path.suffix.lower(), "application/octet-stream")
         with open(file_path, "rb") as f:
             content = f.read()
+        # Vite 产物 assets/* 文件名带内容哈希，可长期强缓存（重建即换名）；
+        # 其余资源（favicon 等）保守 1 天，避免发版后旧图标滞留。
+        cache_control = ("public, max-age=31536000, immutable"
+                         if path.startswith("assets/")
+                         else "public, max-age=86400")
         return Response(content=content, media_type=media_type,
-                        headers={"Cache-Control": "public, max-age=86400"})
+                        headers={"Cache-Control": cache_control})
 
     # 2. 兜底返回 index.html（React Router 接管客户端路由）
     index = _STATIC_DIR / "index.html"
