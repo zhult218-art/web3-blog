@@ -74,6 +74,10 @@
                 <svg class="w-3.5 h-3.5" :class="favorited ? 'fill-amber-400' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.48 3.5a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.5.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.441a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
                 收藏
               </button>
+              <button class="post-action ai-action" :class="{ 'is-active': showAi }" @click="toggleAi" :title="showAi ? '收起 AI 助手' : 'AI 摘要与问答'">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/></svg>
+                AI 助手
+              </button>
             </div>
           </div>
           <!-- 标签行 -->
@@ -82,6 +86,38 @@
             <span v-for="t in articleTags" :key="t" @click="goTag(t)" class="post-tag">{{ t }}</span>
           </div>
         </header>
+
+        <!-- AI 助手面板：摘要 + 文章问答（免费 AI 通道，流式输出） -->
+        <section v-if="showAi" class="ai-assistant panel mt-6 p-5 md:p-6">
+          <div class="ai-head">
+            <span class="ai-badge">✦ AI 助手</span>
+            <span class="text-[10px] text-gray-600">由免费 AI 提供 · 内容仅供参考</span>
+            <button v-if="aiSummary" class="ai-regen" :disabled="aiSumLoading" @click="genSummary">重新生成摘要</button>
+            <button class="ai-close" title="收起" @click="showAi = false">✕</button>
+          </div>
+
+          <div class="ai-summary-box">
+            <div class="ai-label">📌 文章摘要</div>
+            <div v-if="aiSumLoading && !aiSummary" class="ai-typing">正在生成摘要…</div>
+            <div v-else-if="aiSummary" class="ai-summary-text">{{ aiSummary }}</div>
+            <div v-else class="ai-empty">
+              <span>一键生成要点摘要，帮你快速把握文章核心</span>
+              <button class="ai-btn" @click="genSummary">✦ 生成摘要</button>
+            </div>
+          </div>
+
+          <div class="ai-qa">
+            <div class="ai-label">💬 向本文提问</div>
+            <div v-for="(item, i) in aiQa" :key="i" class="ai-qa-item">
+              <div class="ai-qa-q">👤 {{ item.q }}</div>
+              <div class="ai-qa-a">{{ item.loading && !item.a ? '思考中…' : item.a }}</div>
+            </div>
+            <div class="ai-qa-input">
+              <input v-model="aiQ" class="ai-input" :disabled="aiQaBusy" placeholder="例如：这篇文章的核心结论是什么？" @keyup.enter="askAi" />
+              <button class="ai-btn" :disabled="aiQaBusy || !aiQ.trim()" @click="askAi">{{ aiQaBusy ? '回答中…' : '发送' }}</button>
+            </div>
+          </div>
+        </section>
 
         <!-- 目录 + 正文 -->
         <div class="grid grid-cols-1 xl:grid-cols-[220px_1fr] gap-6 items-start">
@@ -165,6 +201,7 @@ import { formatDay } from '@/utils/date'
 import { useReadMark } from '@/composables/useReadMark'
 import PostToc from '@/components/blog/PostToc.vue'
 import CommentPanel from '@/components/blog/CommentPanel.vue'
+import { aiChatStream } from '@/api/freeAi'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useToastStore } from '@/stores/modules/toast'
 import ParticleBackground from '@/components/layout/ParticleBackground.vue'
@@ -190,6 +227,14 @@ const commentTotal = ref(null)
 const liked = ref(false)
 const favorited = ref(false)
 
+// ── AI 助手（摘要 + 文章问答，走免费 AI 通道；摘要按文章 ID 本地缓存）──
+const showAi = ref(false)
+const aiSummary = ref('')
+const aiSumLoading = ref(false)
+const aiQa = ref([])
+const aiQ = ref('')
+const aiQaBusy = ref(false)
+
 const backRef = ref(null)
 const headerRef = ref(null)
 const coverRef = ref(null)
@@ -212,6 +257,71 @@ const articleTags = computed(() => {
 // 日期格式化（统一走 utils/date）
 function formatDate(d) { return formatDay(d, '') }
 function goTag(tag) { router.push({ path: '/blog', query: { tag } }) }
+
+// ── AI 助手：文章摘要 + 问答（免费通道，流式输出）──
+const sumCacheKey = id => `ai_blog_sum_${id}`
+
+function aiArticleCtx() {
+  const a = article.value || {}
+  return `文章标题：《${a.title || ''}》\n分类：${a.category || '未分类'}\n正文：\n${String(a.content || a.summary || '').slice(0, 6000)}`
+}
+
+function toggleAi() {
+  showAi.value = !showAi.value
+  if (!showAi.value || !article.value) return
+  // 优先读本地缓存，无缓存则自动生成
+  const cached = localStorage.getItem(sumCacheKey(article.value.id))
+  if (cached) { aiSummary.value = cached; return }
+  if (!aiSummary.value) genSummary()
+}
+
+async function genSummary() {
+  if (aiSumLoading.value || !article.value) return
+  aiSumLoading.value = true
+  aiSummary.value = ''
+  try {
+    await aiChatStream(
+      [{ role: 'user', content: '请为这篇文章生成摘要' }],
+      d => { aiSummary.value += d },
+      {
+        system: '你是博客阅读助手，请用中文输出 3-5 条要点摘要（每条一行，以「·」开头，每条不超过 24 字），最后一行用一句话总结全文。不要复述长句，不要客套。\n\n' + aiArticleCtx(),
+        max_tokens: 420,
+      }
+    )
+    if (aiSummary.value && article.value) {
+      localStorage.setItem(sumCacheKey(article.value.id), aiSummary.value)
+    }
+  } catch (e) {
+    aiSummary.value = '（摘要生成失败：' + (e?.message || '服务暂时不可用') + '）'
+  } finally {
+    aiSumLoading.value = false
+  }
+}
+
+async function askAi() {
+  const q = aiQ.value.trim()
+  if (!q || aiQaBusy.value || !article.value) return
+  aiQ.value = ''
+  aiQa.value.push({ q, a: '', loading: true })
+  const item = aiQa.value[aiQa.value.length - 1]
+  aiQaBusy.value = true
+  try {
+    const history = aiQa.value.slice(-6, -1).flatMap(it => ([
+      { role: 'user', content: it.q },
+      { role: 'assistant', content: it.a || '（无内容）' },
+    ]))
+    await aiChatStream([...history, { role: 'user', content: q }], d => { item.a += d }, {
+      system: '你是文章问答助手：只依据下面这篇文章的内容回答用户的提问；文章未提及时请明确说明"文章未提及"。回答用中文、简洁口语化，不超过 120 字。\n\n' + aiArticleCtx(),
+      max_tokens: 500,
+    })
+    item.a = item.a || '（未返回内容）'
+  } catch (e) {
+    item.a = '（回答失败：' + (e?.message || '服务暂时不可用') + '）'
+  } finally {
+    item.loading = false
+    aiQaBusy.value = false
+  }
+}
 
 // 正文 Markdown 中的站内链接（如 /tools/hash、/knowledge/3）走前端路由，不整页刷新；
 // 文章里提到工具时直接 [Hash 生成](/tools/hash) 即可跳到对应工具站
@@ -368,6 +478,8 @@ function share(type) {
 }
 
 watch(() => route.params.id, (id) => { if (id) { loading.value = true; fetchDetail(id) } })
+// 切换文章时重置 AI 助手状态（摘要/问答与当前文章强绑定）
+watch(() => route.params.id, () => { showAi.value = false; aiSummary.value = ''; aiQa.value = []; aiQ.value = '' })
 onMounted(() => { if (route.params.id) fetchDetail(route.params.id) })
 </script>
 
@@ -415,6 +527,39 @@ onMounted(() => { if (route.params.id) fetchDetail(route.params.id) })
 .post-tag {
   @apply cursor-pointer px-2 py-0.5 rounded-md text-[11px] text-gray-400
     hover:text-purple-300 hover:bg-purple-500/15 transition-colors;
+}
+
+/* ── AI 助手：摘要 + 文章问答 ── */
+.ai-action.is-active svg { color: #c084fc; fill: rgba(192, 132, 252, 0.3); }
+.ai-assistant { @apply flex flex-col gap-4; }
+.ai-head { @apply flex flex-wrap items-center gap-2; }
+.ai-badge {
+  @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium;
+  background: rgba(168, 85, 247, 0.16);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.ai-regen { @apply ml-auto text-[11px] text-purple-300/70 hover:text-purple-200 transition-colors disabled:opacity-40; }
+.ai-close { @apply text-[11px] text-gray-500 hover:text-white transition-colors px-1; }
+.ai-label { @apply text-[11px] text-gray-500 mb-2; }
+.ai-summary-box { @apply rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5; }
+.ai-summary-text { @apply text-[13px] leading-relaxed text-gray-200 whitespace-pre-wrap; }
+.ai-typing { @apply text-[12px] text-purple-300/80; }
+.ai-typing::after { content: '▍'; animation: ai-blink 1s steps(1) infinite; }
+@keyframes ai-blink { 50% { opacity: 0; } }
+.ai-empty { @apply flex flex-wrap items-center gap-3 text-[12px] text-gray-500; }
+.ai-btn {
+  @apply inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] text-white transition-all
+    bg-purple-600/80 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed;
+}
+.ai-qa { @apply rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5; }
+.ai-qa-item + .ai-qa-item { @apply mt-3 pt-3 border-t border-white/[0.05]; }
+.ai-qa-q { @apply text-[12px] text-gray-300 mb-1; }
+.ai-qa-a { @apply text-[13px] leading-relaxed text-gray-200 whitespace-pre-wrap; }
+.ai-qa-input { @apply flex items-center gap-2 mt-3; }
+.ai-input {
+  @apply flex-1 bg-white/[0.04] border border-white/[0.10] rounded-lg px-3 py-2 text-[12px] text-white
+    placeholder:text-gray-600 focus:outline-none focus:border-purple-500/50 transition-colors;
 }
 </style>
 
