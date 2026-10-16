@@ -7,6 +7,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { vReveal, vRevealLeft, vRevealRight, vRevealScale } from '@/directives/reveal'
+import { vTilt } from '@/directives/tilt'
 import '@/assets/styles/main.css'
 import 'highlight.js/styles/atom-one-dark.css'
 
@@ -23,4 +24,6 @@ app.directive('reveal', vReveal)
 app.directive('reveal-left', vRevealLeft)
 app.directive('reveal-right', vRevealRight)
 app.directive('reveal-scale', vRevealScale)
+// 全局注册 3D 倾斜指令（卡片 hover 微倾斜：v-tilt / v-tilt="8"）
+app.directive('tilt', vTilt)
 app.mount('#app')

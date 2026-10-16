@@ -119,6 +119,7 @@ const routes = [
     { path: 'ai-proxy', name: 'AdminAiProxy', component: () => import('@/views/admin/ai-proxy.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'site-share', name: 'AdminSiteShare', component: () => import('@/views/admin/site-share.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'services', name: 'AdminServices', component: () => import('@/views/admin/services.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: 'monitor', name: 'AdminMonitor', component: () => import('@/views/admin/monitor.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
   ]},
   // 独立页面（无需 Web3Layout 背景）
   { path: '/login', name: 'Login', component: LoginView, meta: { requiresAuth: false } },

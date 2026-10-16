@@ -42,7 +42,7 @@ frontend/
     │   ├── software.js       # 软件
     │   ├── resources.js      # 资源上传/下载
     │   ├── quant.js          # 量化策略、行情（含 A股 akshare 接口）
-    │   ├── akshare.js        # A股数据接口（quant-py-service）
+    │   ├── akshare.js        # A股数据接口（py-service）
     │   ├── jarvis.js         # JARVIS AI 语音助手
     │   ├── admin.js          # 管理后台接口
     │   └── upload.js         # 文件上传
@@ -102,13 +102,14 @@ npm run preview    # 本地预览构建产物，http://localhost:4173
 | 前缀 | 目标 | 说明 |
 |---|---|---|
 | `/api` | http://localhost:8080 | Gateway，路径去掉 `/api` 前缀后转发 |
-| `/pyquant` | http://localhost:9006 | Python 量化数据服务 |
+| `/pyquant` | http://localhost:9006 | py-service（统一 Python 服务） |
 | `/vr` | http://localhost:8900 | Vibe-Research A股数据 |
 
 ## 关键约定
 
 - **请求封装**：所有接口走 `src/api/request.js`，自动附带 `Authorization` 请求头（token 存 localStorage），401 时跳转登录页。
 - **权限控制**：路由 `meta.perm` 声明所需权限，`utils/permissions.js` 中的 `hasPerm()` 判断；`/admin` 路由有额外门禁（sessionStorage 校验），仅能由导航内"管理后台"入口进入。
+- **敏感接口鉴权**：wifi/osint 接口（py-service）需登录 + `wifi`/`osint` 权限（管理员放行）；WebSocket 无法携带 Authorization 头，`api/wifi.js` / `api/osint.js` 自动附加 `?token=<JWT>`。
 - **全局特效**：`GlowCursor.vue` 注册系统级宿傩火焰箭头光标（CSS `.cur` 不依赖 JS）+ 7 粒火焰粒子贴附箭头尖端；`ThreeBackground.vue` 提供全站 3D 粒子星空。
 - **滚动动效**：`v-reveal / v-reveal-left / v-reveal-right / v-reveal-scale` 指令实现元素入场动画，配合 `App.vue` 中的 IntersectionObserver 自动注册。
 - **样式体系**：全局 CSS 变量（`--color-primary` 等）定义于 `assets/styles/main.css`，玻璃拟态（glass-panel）、霓虹按钮（web3-btn）等通用类也在此定义。

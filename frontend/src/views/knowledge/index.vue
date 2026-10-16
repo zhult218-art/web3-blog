@@ -32,28 +32,28 @@
       </div>
     </div>
 
-    <!-- ============ 头部：知识树介绍 + 成长统计 ============ -->
-    <div class="panel p-6 md:p-8 relative overflow-hidden" v-if="tableReady">
+    <!-- ============ 头部：统一 PageHeader + 成长统计面板 ============ -->
+    <PageHeader
+      v-if="tableReady"
+      title="我的知识库"
+      subtitle="从硬件底层到网络攻防的完整学习地图。知识库会随学习不断生长：🌱 待学习 → 🌿 学习中 → 🌳 已掌握。"
+      :crumbs="[{ label: '首页', to: '/' }, { label: '知识库' }]"
+    >
+      <template #actions>
+        <div class="flex flex-wrap gap-2">
+          <button class="kb-action-btn" :class="{ due: dueCount > 0 }" @click="openReview">
+            🔁 今日复习 <b v-if="dueCount > 0">{{ dueCount }}</b>
+          </button>
+          <button class="kb-action-btn" @click="exportAll">📥 导出全部 MD</button>
+        </div>
+      </template>
+    </PageHeader>
+
+    <!-- 成长进度面板 -->
+    <div v-if="tableReady && stats" class="panel p-6 md:p-8 relative overflow-hidden">
       <div class="absolute -right-16 -top-16 text-[180px] opacity-[0.06] select-none pointer-events-none">🧠</div>
       <div class="relative">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
-              我的知识库
-            </h1>
-            <p class="text-sm text-gray-400 mt-2 max-w-2xl">
-              从硬件底层到网络攻防的完整学习地图。知识库会随学习不断生长：🌱 待学习 → 🌿 学习中 → 🌳 已掌握。
-            </p>
-          </div>
-          <div class="flex gap-2 flex-wrap">
-            <button class="kb-action-btn" :class="{ due: dueCount > 0 }" @click="openReview">
-              🔁 今日复习 <b v-if="dueCount > 0">{{ dueCount }}</b>
-            </button>
-            <button class="kb-action-btn" @click="exportAll">📥 导出全部 MD</button>
-          </div>
-        </div>
-        <!-- 成长进度 -->
-        <div v-if="stats" class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="growth-card">
             <div class="text-2xl font-bold text-white">{{ stats.total }}</div>
             <div class="text-xs text-gray-400 mt-0.5">知识条目</div>
@@ -147,12 +147,16 @@
           <div class="h-8 w-8 rounded-full border-2 border-white/15 border-t-cyan-400 animate-spin"></div>
           <span class="text-xs">知识生长中…</span>
         </div>
-        <div v-else-if="!entries.length" class="py-20 text-center text-gray-500 text-sm">
-          <div class="text-4xl mb-3 opacity-60">🌰</div>{{ dueMode ? '今日已无到期复习条目，去学点新东西吧' : '这里还没有种下知识，换个筛选条件试试' }}
-        </div>
+        <!-- 空态：统一 EmptyState 组件 -->
+        <EmptyState
+          v-else-if="!entries.length"
+          :text="dueMode ? '今日已无到期复习条目，去学点新东西吧' : '这里还没有种下知识，换个筛选条件试试'"
+        >
+          <template #icon><span class="text-2xl">🌰</span></template>
+        </EmptyState>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <article v-for="e in entries" :key="e.id" class="kb-entry-card" @click="goDetail(e)">
+          <article v-for="e in entries" :key="e.id" v-tilt class="kb-entry-card" @click="goDetail(e)">
             <div class="flex items-start justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0">
                 <span class="text-base shrink-0">{{ stageMeta(e.stage).icon }}</span>
@@ -304,6 +308,8 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Modal from '@/components/common/Modal.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 import { renderMarkdown } from '@/utils/markdown'
@@ -701,7 +707,6 @@ onUnmounted(() => unsubAuth && unsubAuth())
   transition: transform .25s ease-out, box-shadow .25s ease-out, border-color .25s;
 }
 .kb-entry-card:hover {
-  transform: translateY(-3px);
   border-color: rgba(103,232,249,.3);
   box-shadow: 0 0 18px rgba(103,232,249,.08), 0 8px 24px rgba(0,0,0,.25);
 }

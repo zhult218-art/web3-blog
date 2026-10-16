@@ -282,6 +282,27 @@
   }
   .web3-btn-ghost:hover { color: #fff; background: rgba(255,255,255,0.06); }
 
+  .web3-btn-sm {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white transition-all duration-300;
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .web3-btn-sm:hover:not(:disabled) {
+    border-color: rgba(168, 85, 247, 0.45);
+    background: rgba(168, 85, 247, 0.15);
+  }
+  .web3-btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* 分类筛选胶囊（列表页统一的分类 Tab：web3-pill + 激活态 web3-pill-active） */
+  .web3-pill {
+    @apply rounded-full border border-white/10 px-3 py-1.5 text-xs text-gray-400 transition-all duration-300;
+  }
+  .web3-pill:hover { border-color: rgba(255, 255, 255, 0.25); color: #fff; }
+  .web3-pill-active {
+    @apply border-purple-400/40 text-purple-100;
+    background: rgba(168, 85, 247, 0.18);
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.22);
+  }
+
   /* ============================================================
      INPUTS
      ============================================================ */
@@ -609,6 +630,17 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ============================================================
+   3D TILT（v-tilt 指令）
+   ============================================================ */
+.tilt-3d {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+              border-color 0.35s ease,
+              box-shadow 0.35s ease;
 }
 
 /* ============================================================

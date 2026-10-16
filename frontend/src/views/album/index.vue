@@ -6,36 +6,33 @@
     <div ref="heartLayer" class="heart-layer"></div>
 
     <div class="relative z-10 mx-auto max-w-6xl">
-      <!-- 页头：标题 / 统计 / 视图切换 / 上传 -->
-      <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 class="text-3xl font-bold text-gradient-cyber mb-2">相册集</h1>
-          <p class="text-sm text-gray-500 matrix-text">
-            Album · 记录瞬间<span v-if="total"> · 共 {{ total }} 张</span>
-          </p>
-        </div>
-        <div class="flex items-center gap-2.5 flex-wrap">
-          <!-- 视图切换 -->
-          <div class="flex items-center rounded-lg bg-white/[0.04] border border-white/[0.08] p-0.5">
+      <!-- 页头：统一 PageHeader（面包屑 + 渐变标题 + 视图切换/上传） -->
+      <PageHeader
+        title="相册集"
+        :subtitle="total ? `Album · 记录瞬间 · 共 ${total} 张` : 'Album · 记录瞬间'"
+        :crumbs="[{ label: '首页', to: '/' }, { label: '相册' }]"
+      >
+        <template #actions>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- 视图切换：统一 web3-pill -->
             <button v-for="m in VIEW_MODES" :key="m.key"
-              class="px-2.5 py-1.5 rounded-md text-[11px] transition"
-              :class="viewMode === m.key ? 'bg-gradient-to-r from-cyan-500/25 to-purple-500/25 text-cyan-300' : 'text-gray-500 hover:text-gray-300'"
+              class="web3-pill" :class="{ 'web3-pill-active': viewMode === m.key }"
               :title="m.label" @click="viewMode = m.key">
               {{ m.icon }} {{ m.label }}
             </button>
+            <!-- 有 upload:photo 权限（管理员恒可）：压缩开关 + 上传 -->
+            <template v-if="canUploadPhoto">
+              <label class="flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer select-none" title="上传时自动压缩图片体积">
+                <input v-model="compressOn" type="checkbox" class="accent-cyan-400 w-3.5 h-3.5" @change="saveCompressPref" />
+                压缩优化
+              </label>
+              <button class="web3-btn text-xs !px-4 !py-1.5" :disabled="uploading" @click="fileInput?.click()">
+                上传照片
+              </button>
+            </template>
           </div>
-          <!-- 有 upload:photo 权限（管理员恒可）：压缩开关 + 上传 -->
-          <template v-if="canUploadPhoto">
-            <label class="flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer select-none" title="上传时自动压缩图片体积">
-              <input v-model="compressOn" type="checkbox" class="accent-cyan-400 w-3.5 h-3.5" @change="saveCompressPref" />
-              压缩优化
-            </label>
-            <button class="web3-btn text-xs !px-4 !py-1.5" :disabled="uploading" @click="fileInput?.click()">
-              上传照片
-            </button>
-          </template>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- 隐藏选图入口 -->
       <input ref="fileInput" type="file" accept="image/*" multiple class="hidden" @change="onFilesChange" />
@@ -52,11 +49,11 @@
       </div>
 
       <!-- 照片墙：三视图（key 切换时重放入场动画） -->
-      <div v-if="photos.length" ref="photosWrap" :key="viewMode" @mousemove="onTiltMove" @mouseleave="onTiltLeave">
+      <div v-if="photos.length" :key="viewMode">
 
         <!-- 🪟 瀑布流：大小图标交错 -->
         <div v-if="viewMode === 'masonry'" class="columns-1 sm:columns-2 lg:columns-3 gap-4">
-          <div v-for="(photo, i) in photos" :key="photo.id"
+          <div v-for="(photo, i) in photos" :key="photo.id" v-tilt="7"
             class="photo-card break-inside-avoid mb-4 glass-panel-sm overflow-hidden group cursor-pointer"
             :style="{ animationDelay: (i % 12) * 55 + 'ms' }"
             @click="openPreview(i)">
@@ -96,7 +93,7 @@
 
         <!-- ▦ 网格：整齐统一存放 -->
         <div v-else-if="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <div v-for="(photo, i) in photos" :key="photo.id"
+          <div v-for="(photo, i) in photos" :key="photo.id" v-tilt="7"
             class="photo-card relative rounded-xl overflow-hidden group cursor-pointer aspect-square border border-white/[0.06] bg-[#0e0e26]"
             :style="{ animationDelay: (i % 12) * 45 + 'ms' }"
             @click="openPreview(i)">
@@ -152,15 +149,18 @@
       <!-- 加载中 -->
       <div v-else-if="!loaded" class="py-16"><Loading text="照片加载中…" /></div>
 
-      <!-- 空态（含接口失败兜底） -->
-      <div v-else class="py-16 text-center">
-        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0e0e26] border border-white/[0.06] mb-4">
-          <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <p class="text-sm text-gray-500">暂无照片，快来记录第一个瞬间吧</p>
-      </div>
+      <!-- 空态（含接口失败兜底）：统一 EmptyState 组件 -->
+      <EmptyState
+        v-else
+        text="暂无照片，快来记录第一个瞬间吧"
+        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+      >
+        <template v-if="canUploadPhoto" #action>
+          <button class="web3-btn text-xs !px-5 !py-2.5" :disabled="uploading" @click="fileInput?.click()">
+            上传第一张照片
+          </button>
+        </template>
+      </EmptyState>
 
       <!-- 加载更多 -->
       <div v-if="photos.length && photos.length < total" class="mt-4 text-center">
@@ -233,6 +233,8 @@ import { formatDayCN } from '@/utils/date'
 import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
 import PhotoLightbox from '@/components/album/PhotoLightbox.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 const auth = useAuthStore()
 const toast = useToastStore()
@@ -385,29 +387,6 @@ async function saveEdit() {
   } finally {
     savingEdit.value = false
   }
-}
-
-// ---------- 卡片 3D 倾斜（事件委托 + rAF 节流） ----------
-const photosWrap = ref(null)
-let tiltRaf = null
-function onTiltMove(e) {
-  if (tiltRaf || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  tiltRaf = requestAnimationFrame(() => {
-    tiltRaf = null
-    const card = e.target?.closest?.('.photo-card')
-    if (!card) return
-    const r = card.getBoundingClientRect()
-    const rx = ((e.clientY - r.top) / r.height - 0.5) * -7
-    const ry = ((e.clientX - r.left) / r.width - 0.5) * 7
-    card.style.setProperty('--rx', rx.toFixed(2) + 'deg')
-    card.style.setProperty('--ry', ry.toFixed(2) + 'deg')
-  })
-}
-function onTiltLeave() {
-  photosWrap.value?.querySelectorAll('.photo-card').forEach(c => {
-    c.style.setProperty('--rx', '0deg')
-    c.style.setProperty('--ry', '0deg')
-  })
 }
 
 // ---------- 漂浮粒子背景 ----------
@@ -645,12 +624,9 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* 照片卡片：3D 倾斜（--rx/--ry 由鼠标事件注入）+ 入场动画 */
+/* 照片卡片：入场动画（3D 倾斜由全局 v-tilt 指令统一提供，--rx/--ry 方案已合并删除） */
 .photo-card {
-  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
-  transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  will-change: transform;
-  animation: card-in 0.55s ease both;
+  animation: card-in 0.55s ease backwards;
 }
 .photo-card:hover {
   box-shadow: 0 14px 38px -14px rgba(34, 211, 238, 0.28);
@@ -659,8 +635,6 @@ onMounted(() => {
   from { opacity: 0; transform: translateY(18px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-/* 入场动画结束后交还倾斜变换（animation both 会锁定最后一帧） */
-.photo-card { animation-fill-mode: backwards; }
 
 /* 点赞数字变化弹跳 */
 .like-pop { display: inline-block; animation: like-pop 0.35s ease; }

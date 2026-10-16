@@ -371,7 +371,7 @@
 // ============================================================
 // WiFi 安全审计页
 // ============================================================
-import { computed, reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted, onBeforeUnmount } from 'vue'
 import {
   getCapabilities, scanNetworks, getInterfaces, listProfiles, getProfile,
   getEngines, createSession, listSessions, stopSession, sessionWsUrl,
@@ -668,6 +668,13 @@ async function init() {
 }
 
 onMounted(init)
+
+// 页面离开时清理长连接与轮询，避免后台泄漏（WebSocket/定时器）
+onBeforeUnmount(() => {
+  try { ws && ws.close() } catch { /* ignore */ }
+  try { crackWs && crackWs.close() } catch { /* ignore */ }
+  if (roguePoll) { clearInterval(roguePoll); roguePoll = null }
+})
 </script>
 
 <style scoped>

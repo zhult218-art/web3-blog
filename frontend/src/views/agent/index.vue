@@ -140,7 +140,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, watch, computed } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import * as echarts from 'echarts'
 import { agentChatStream, consumeAgentStream, agentWorkflows, agentMatchWorkflow, agentExecuteFlow, consumeAgentFlowEvents } from '@/api/agent'
 
@@ -487,6 +487,11 @@ onMounted(async () => {
     const list = await agentWorkflows()
     skills.value = Array.isArray(list) ? list : []
   } catch { /* 技能列表不可用时不展示栏目 */ }
+})
+
+// 组件卸载时释放 ECharts 实例，避免图表与消息对象常驻内存
+onBeforeUnmount(() => {
+  messages.value.forEach(m => { try { m._chart && m._chart.dispose() } catch { /* ignore */ } })
 })
 </script>
 

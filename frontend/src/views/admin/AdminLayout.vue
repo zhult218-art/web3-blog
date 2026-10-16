@@ -73,7 +73,8 @@ const menus = [
   { path: '/admin/ai-proxy', label: 'API中转站', icon: '🛰️' },
   { path: '/admin/site-share', label: '分享网站管理', icon: '🔖' },
   { path: '/admin/settings', label: '系统设置', icon: '⚙️' },
-  { path: '/admin/services', label: '服务管理', icon: '🔧' }
+  { path: '/admin/services', label: '服务管理', icon: '🔧' },
+  { path: '/admin/monitor', label: '系统监控', icon: '🖥️' }
 ]
 
 // 路径与面包屑名称映射
@@ -82,7 +83,7 @@ const crumbMap = {
   '/admin/orders': '订单管理', '/admin/products': '商品管理', '/admin/media': '媒体管理', '/admin/quant': '量化管理',
   '/admin/traffic': '访问统计', '/admin/chat': '群聊审批', '/admin/community': '社区审核', '/admin/settings': '系统设置',
   '/admin/blog-links': '友链管理', '/admin/blog-notice': '公告管理', '/admin/blog-settings': '博客配置',
-  '/admin/site-share': '分享网站管理', '/admin/services': '服务管理'
+  '/admin/site-share': '分享网站管理', '/admin/services': '服务管理', '/admin/monitor': '系统监控'
 }
 
 // 当前页面面包屑名称

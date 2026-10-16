@@ -113,7 +113,7 @@
             <span class="flex-1 h-px bg-gradient-to-r from-white/[0.1] to-transparent ml-2"></span>
           </h2>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            <a v-for="item in filterCompanies(c.items)" :key="item.url" :href="item.url" target="_blank" rel="noopener"
+            <a v-for="item in filterCompanies(c.items)" :key="item.url" :href="item.url" target="_blank" rel="noopener" v-tilt
               class="company-card" :style="{ '--c1': catColor(c.key).c1, '--c2': catColor(c.key).c2, '--cc': catColor(c.key).color }">
               <div class="company-logo">{{ item.name[0] }}</div>
               <p class="company-name" :title="item.name" v-html="highlight(item.name)"></p>
@@ -122,12 +122,13 @@
             </a>
           </div>
         </div>
-        <!-- 搜索无结果 -->
-        <div v-if="searchResultCount === 0" class="text-center py-20 text-slate-500">
-          <div class="text-5xl mb-3">🔍</div>
-          <p>未找到匹配「{{ search }}」的企业</p>
-          <p class="text-xs text-slate-600 mt-1">试试搜索：阿里、华为、国家电网、谷歌...</p>
-        </div>
+        <!-- 搜索无结果：统一 EmptyState 组件 -->
+        <EmptyState
+          v-if="searchResultCount === 0"
+          :text="`未找到匹配「${search}」的企业 · 试试搜索：阿里、华为、国家电网、谷歌...`"
+        >
+          <template #icon><span class="text-2xl">🔍</span></template>
+        </EmptyState>
       </template>
 
       <template v-else>
@@ -141,7 +142,7 @@
               <span class="flex-1 h-px bg-gradient-to-r from-white/[0.1] to-transparent ml-2"></span>
             </h2>
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              <a v-for="item in c.items" :key="item.url" :href="item.url" target="_blank" rel="noopener"
+              <a v-for="item in c.items" :key="item.url" :href="item.url" target="_blank" rel="noopener" v-tilt
                 class="company-card" :style="{ '--c1': catColor(c.key).c1, '--c2': catColor(c.key).c2, '--cc': catColor(c.key).color }">
                 <div class="company-logo">{{ item.name[0] }}</div>
                 <p class="company-name" :title="item.name">{{ item.name }}</p>
@@ -162,7 +163,7 @@
               <span class="flex-1 h-px bg-gradient-to-r from-white/[0.1] to-transparent ml-2"></span>
             </h2>
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              <a v-for="item in c.items" :key="item.url" :href="item.url" target="_blank" rel="noopener"
+              <a v-for="item in c.items" :key="item.url" :href="item.url" target="_blank" rel="noopener" v-tilt
                 class="company-card" :style="{ '--c1': catColor(c.key).c1, '--c2': catColor(c.key).c2, '--cc': catColor(c.key).color }">
                 <div class="company-logo">{{ item.name[0] }}</div>
                 <p class="company-name" :title="item.name">{{ item.name }}</p>
@@ -196,6 +197,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { animate, stagger } from 'animejs'
 import PageBack from '@/components/PageBack.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 defineOptions({ name: 'JobBoard' })
 
@@ -590,12 +592,16 @@ const searchResultCount = computed(() =>
   categories.reduce((sum, c) => sum + (c.key !== 'all' ? filterCompanies(c.items).length : 0), 0)
 )
 
-// 关键词高亮（搜索结果中标记匹配文字）
+// 关键词高亮（搜索结果中标记匹配文字；v-html 输出前先做 HTML 转义，防数据源注入）
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
 function highlight(text) {
-  if (!search.value.trim() || !text) return text
+  if (!text) return ''
   const kw = search.value.trim()
+  if (!kw) return escapeHtml(text)
   const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return text.replace(new RegExp(escaped, 'gi'), m => `<span class="hl">${m}</span>`)
+  return escapeHtml(text).replace(new RegExp(escaped, 'gi'), m => `<span class="hl">${m}</span>`)
 }
 
 // 滚动监听 + 回到顶部

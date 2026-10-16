@@ -1,13 +1,14 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-6">
     <div class="mx-auto max-w-7xl">
-      <!-- Header -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" data-voice-target>
-        <div>
-          <h1 class="text-3xl md:text-4xl font-black text-gradient-cyber">社区广场</h1>
-          <p class="text-xs text-gray-500 matrix-text mt-1.5 tracking-wider">TECHNICAL COMMUNITY · 探索 · 创作 · 交流</p>
-        </div>
-        <div class="flex items-center gap-3 self-stretch sm:self-auto">
+      <!-- Header：统一 PageHeader 排版语言（面包屑 + 渐变标题 + 右侧操作区） -->
+      <PageHeader
+        title="社区广场"
+        subtitle="TECHNICAL COMMUNITY · 探索 · 创作 · 交流"
+        :crumbs="[{ label: '首页', to: '/' }, { label: '社区' }]"
+        data-voice-target
+      >
+        <template #actions>
           <div class="hidden sm:flex items-center gap-1.5 bg-[#0e0e26] rounded-xl px-3 py-2 border border-white/[0.06]">
             <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
             <span class="text-[11px] text-gray-400">{{ onlineCount }} 在线</span>
@@ -20,16 +21,13 @@
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             发布内容
           </button>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
-      <!-- Filter Tabs -->
+      <!-- Filter Tabs：统一 web3-pill 胶囊样式 -->
       <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
         <button v-for="tab in tabs" :key="tab.key" @click="switchTab(tab.key)"
-          :class="['px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-300 border',
-            activeTab === tab.key
-              ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/10 border-purple-400/30 text-white shadow-[0_0_20px_rgba(168,85,247,0.15)]'
-              : 'border-white/[0.06] text-gray-500 hover:text-gray-300 hover:bg-[#0e0e26]']">
+          class="web3-pill whitespace-nowrap" :class="{ 'web3-pill-active': activeTab === tab.key }">
           {{ tab.label }}
           <span v-if="tab.count" class="ml-1.5 text-[10px] opacity-60">{{ tab.count }}</span>
         </button>
@@ -63,7 +61,7 @@
 
           <!-- Content Cards -->
           <div v-if="list.length" class="space-y-4">
-            <div v-for="item in list" :key="item.id"
+            <div v-for="item in list" :key="item.id" v-tilt
               class="group glass-panel overflow-hidden cursor-pointer hover:border-purple-400/25 transition-all duration-400"
               @click="goDetail(item)">
               <!-- Rich media area -->
@@ -148,20 +146,19 @@
               </div>
             </div>
           </div>
-          <!-- Empty state -->
-          <div v-else class="py-20 text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#0e0e26] border border-white/[0.06] mb-5">
-              <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 0V5a2 2 0 012-2h10a2 2 0 012 2v14l-3-1.5L12 21l-3-1.5L6 21V5z"/>
-              </svg>
-            </div>
-            <p class="text-sm text-gray-400 mb-1">这里还很安静</p>
-            <p class="text-xs text-gray-600 mb-5">成为第一个分享内容的人</p>
-            <button @click="showPublish = true" class="web3-btn text-xs !px-5 !py-2.5 inline-flex items-center gap-1.5">
-              去发布
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-            </button>
-          </div>
+          <!-- Empty state：统一 EmptyState 组件 -->
+          <EmptyState
+            v-else
+            text="这里还很安静，成为第一个分享内容的人"
+            d="M9 13h6m-3-3v6m-9 0V5a2 2 0 012-2h10a2 2 0 012 2v14l-3-1.5L12 21l-3-1.5L6 21V5z"
+          >
+            <template #action>
+              <button @click="showPublish = true" class="web3-btn text-xs !px-5 !py-2.5 inline-flex items-center gap-1.5">
+                去发布
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+              </button>
+            </template>
+          </EmptyState>
 
           <!-- Pagination -->
           <div v-if="total > page * size" class="mt-8 flex justify-center">
@@ -244,12 +241,14 @@
 // 社区广场页：聚合博客文章、论坛讨论与视频内容，
 // 支持 tab/排序切换、点赞、收藏、标签搜索与分页加载
 // ====================================================
-import { ref, reactive, onMounted, onActivated, onDeactivated, onUnmounted } from 'vue'
+import { ref, onMounted, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getForumList, likePost, getPostStats } from '@/api/forum'
 import { getOnlineCount } from '@/api/admin'
 import { useToastStore } from '@/stores/modules/toast'
 import PublishModal from '@/components/community/PublishModal.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 // 显式命名以供外层 <keep-alive :include="..."> 缓存本组件：
 // 进入社区页时复用已加载的列表/stats，不再每次重挂重发请求，显著加快"每次进去慢"。
@@ -358,7 +357,6 @@ async function loadStats() {
 // 切换顶部 tab（全部/文章/讨论/视频/热门）并重新加载列表
 function switchTab(key) {
   activeTab.value = key
-  keyword.value = ''
   page.value = 1
   fetch()
 }
@@ -392,7 +390,6 @@ function bookmark(item) {
 
 // 点击热门标签跳转到搜索页
 function searchTag(tag) {
-  keyword.value = ''
   activeTab.value = 'all'
   page.value = 1
   // Filter current list to show only posts with this tag

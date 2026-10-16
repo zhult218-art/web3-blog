@@ -1,5 +1,5 @@
 <template>
-  <article class="article-card group flex flex-col">
+  <article class="article-card group flex flex-col" v-tilt>
     <router-link :to="`/blog/post/${article.id}`" class="cover">
       <div v-if="coverFailed" class="cover-fallback">
         <span class="text-3xl">✦</span>

@@ -32,12 +32,12 @@
       </div>
     </header>
 
-    <!-- 分类筛选条 -->
+    <!-- 分类筛选条：统一 web3-pill 胶囊 -->
     <div class="flex flex-wrap gap-2">
       <router-link to="/blog"
-        :class="['chip', !category && !tag && !month ? 'chip-active' : '']">全部</router-link>
+        class="web3-pill" :class="{ 'web3-pill-active': !category && !tag && !month }">全部</router-link>
       <button v-for="c in categories" :key="c.name" @click="toggleCategory(c.name)"
-        :class="['chip', category === c.name ? 'chip-active' : '']">
+        class="web3-pill" :class="{ 'web3-pill-active': category === c.name }">
         {{ c.name }} <sup class="ml-0.5 text-[9px] opacity-60">{{ c.count }}</sup>
       </button>
     </div>
@@ -64,18 +64,13 @@
         </div>
       </template>
     </div>
-    <div v-if="!loading && !filteredArticles.length" class="py-16 text-center text-gray-500 text-sm">
-      <div class="text-4xl opacity-30 mb-2">✦</div>
-      此分类下暂无文章
-    </div>
+    <!-- 空态：统一 EmptyState 组件 -->
+    <EmptyState v-if="!loading && !filteredArticles.length" text="此分类下暂无文章">
+      <template #icon><span class="text-2xl">✦</span></template>
+    </EmptyState>
 
-    <!-- 分页 -->
-    <div v-if="totalPages > 1 && !month" class="flex items-center justify-center gap-2 pt-2">
-      <button class="page-btn" :disabled="page <= 1" @click="changePage(page - 1)">上一页</button>
-      <button v-for="p in pageRange" :key="p" @click="changePage(p)"
-        :class="['page-btn', p === page ? 'page-btn-active' : '']">{{ p }}</button>
-      <button class="page-btn" :disabled="page >= totalPages" @click="changePage(page + 1)">下一页</button>
-    </div>
+    <!-- 分页：统一公共 Pagination 组件（移动端自动收敛为页码文本） -->
+    <Pagination v-if="totalPages > 1 && !month" :page="page" :total-pages="totalPages" @update:page="changePage" />
   </div>
 </template>
 
@@ -84,6 +79,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getBlogList, getBlogCategories, getBlogStats } from '@/api/blog'
 import ArticleCard from '@/components/blog/ArticleCard.vue'
+import Pagination from '@/components/common/Pagination.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 // keep-alive 按组件名匹配，必须声明 name 才能被 BlogLayout 的 <keep-alive include> 缓存
 defineOptions({ name: 'BlogHome' })
@@ -103,13 +100,6 @@ const category = computed(() => route.query.category || '')
 const tag = computed(() => route.query.tag || '')
 const month = computed(() => route.query.month || '')
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
-const pageRange = computed(() => {
-  const range = []
-  const start = Math.max(1, page.value - 2)
-  const end = Math.min(totalPages.value, start + 4)
-  for (let i = start; i <= end; i++) range.push(i)
-  return range
-})
 
 function formatWords(n) {
   const v = Number(n || 0)
@@ -206,21 +196,4 @@ watch(() => [route.query.category, route.query.tag, route.query.month, route.que
   @apply text-base font-bold text-white tabular-nums;
 }
 .skeleton-card { @apply rounded-2xl border border-white/[0.06]; }
-
-.chip {
-  @apply px-3 py-1.5 rounded-lg text-xs border border-white/[0.10] text-gray-400 hover:text-white hover:border-white/[0.18] transition-colors;
-}
-.chip-active {
-  @apply text-white border-transparent;
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(6, 182, 212, 0.2));
-  color: #fff;
-}
-.page-btn {
-  @apply min-w-8 h-8 px-2.5 rounded-lg text-xs text-gray-400 border border-white/[0.10] hover:text-white hover:border-white/[0.18] transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
-}
-.page-btn-active {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(6, 182, 212, 0.2));
-  color: #fff;
-  border-color: transparent;
-}
 </style>

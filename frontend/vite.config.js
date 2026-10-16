@@ -51,6 +51,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: path => path.replace(/^\/pyquant/, '')
       },
+      // 系统监控（统一 py-service 9006 的 monitor 模块）。
+      // 页面路由是 /admin/monitor，故 API 前缀用 /monitapi 错开，
+      // /monitapi/xxx -> /api/monitor/xxx。
+      '/monitapi': {
+        target: 'http://localhost:9006',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/monitapi/, '/api/monitor'),
+        timeout: 60000,
+        proxyTimeout: 60000
+      },
       // Vibe-Research A 股扩展数据服务（端口 8900）
       // 修复：此前缺少 /vr 代理导致"市场概览/热点"等 Tab 的请求全部 404/超时；
       // 8900 端全部接口带 /api 前缀，故 /vr/xxx -> /api/xxx

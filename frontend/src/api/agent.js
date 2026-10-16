@@ -3,9 +3,21 @@
 // 前端无需携带 sk- 令牌；后端以应用级系统令牌代表 Agent 调用并计费。
 // 返回 OpenAI SSE 流：data: {choices:[{delta:{content:"..."}}]}
 // ============================================================
+import { useAuthStore } from '@/stores/modules/auth'
 
 const AGENT_PATH = '/api/agent/chat'
 const FLOW_PATH = '/api/agent/workflow'
+
+// 计费接口（chat/execute）后端已要求登录：从 auth Store 注入 Authorization 头
+// （fetch 不走 axios 拦截器，需手动附加；SSE/流式场景读不到 Toast，401 由消费侧提示）
+function authHeaders(extra = {}) {
+  const headers = { ...extra }
+  try {
+    const token = useAuthStore().token
+    if (token) headers['Authorization'] = `Bearer ${token}`
+  } catch { /* Pinia 未就绪时忽略（未登录访问公开接口场景） */ }
+  return headers
+}
 
 /**
  * 发起 Agent 流式对话。
@@ -15,7 +27,7 @@ const FLOW_PATH = '/api/agent/workflow'
 export function agentChatStream(messages) {
   return fetch(AGENT_PATH, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ messages }),
     credentials: 'include',
   })
@@ -100,7 +112,7 @@ export async function agentMatchWorkflow(message) {
 export function agentExecuteFlow(slug, answers) {
   return fetch(`${FLOW_PATH}/execute`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ slug, answers }),
     credentials: 'include',
   })

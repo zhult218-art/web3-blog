@@ -1,16 +1,16 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
     <div class="mx-auto max-w-5xl">
-      <h1 class="text-3xl font-bold mb-2 text-gradient-cyber">运维工具箱</h1>
-      <p class="text-sm text-gray-500 matrix-text mb-8">Online DevTools · Scripts · Converters · Generators</p>
+      <PageHeader title="运维工具箱" subtitle="Online DevTools · Scripts · Converters · Generators"
+        :crumbs="[{ label: '首页', to: '/' }, { label: '运维工具箱' }]" />
 
       <!-- Online Tools Section -->
       <section class="mb-10">
         <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2"><span>⚡</span>在线工具</h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          <router-link v-for="tool in onlineTools" :key="tool.id"
+          <router-link v-for="tool in onlineTools" :key="tool.id" v-tilt="7"
             :to="tool.path"
-            class="glass-panel-sm p-4 text-center cursor-pointer hover:border-purple-400/30 group transition-all duration-300 hover:-translate-y-1">
+            class="glass-panel-sm p-4 text-center cursor-pointer hover:border-purple-400/30 group">
             <span class="text-2xl">{{ tool.icon }}</span>
             <p class="mt-2 text-xs text-gray-300 group-hover:text-white transition">{{ tool.name }}</p>
             <p class="text-[10px] text-gray-600 mt-1">{{ tool.desc }}</p>
@@ -26,12 +26,12 @@
           <h2 class="text-lg font-semibold text-white flex items-center gap-2"><span>📜</span>运维脚本</h2>
           <button class="web3-btn text-xs !px-4 !py-2" @click="openCreate">+ 新建脚本</button>
         </div>
-        <div class="flex gap-2 mb-4">
-          <button v-for="cat in categories" :key="cat" @click="selectedCat = cat; page=1; fetch()"
-            :class="['px-2.5 py-1 rounded-full text-[11px] transition', selectedCat === cat ? 'bg-purple-500/30 text-purple-200 border border-purple-400/30' : 'border border-white/10 text-gray-500 hover:text-white']">{{ cat }}</button>
+        <div class="flex gap-2 mb-4 flex-wrap">
+          <button v-for="cat in categories" :key="cat" class="web3-pill" :class="{ 'web3-pill-active': selectedCat === cat }"
+            @click="setCategory(cat)">{{ cat }}</button>
         </div>
         <div v-if="list.length" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div v-for="item in list" :key="item.id" class="glass-panel group p-5 cursor-pointer hover:border-cyan-400/30 transition-all duration-300" @click="viewScript(item)">
+          <div v-for="item in list" :key="item.id" v-tilt class="glass-panel group p-5 cursor-pointer hover:border-cyan-400/30" @click="viewScript(item)">
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-2">
@@ -48,22 +48,22 @@
                 <span>{{ item.downloadCount || 0 }} 次下载</span>
               </div>
               <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                <button class="text-[11px] text-cyan-400 hover:text-cyan-300" @click.stop="editScript(item)">编辑</button>
-                <button class="text-[11px] text-red-400 hover:text-red-300" @click.stop="deleteScriptItem(item)">删除</button>
+                <template v-if="isAdmin">
+                  <button class="text-[11px] text-cyan-400 hover:text-cyan-300" @click.stop="editScript(item)">编辑</button>
+                  <button class="text-[11px] text-red-400 hover:text-red-300" @click.stop="deleteScriptItem(item)">删除</button>
+                </template>
                 <span class="text-[11px] text-purple-400 flex items-center gap-1">查看 <span>→</span></span>
               </div>
             </div>
           </div>
         </div>
-        <div v-else-if="!loaded" class="py-10"><Loading /></div>
-        <div v-else class="py-16 text-center">
-          <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0e0e26] border border-white/[0.06] mb-4">
-            <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-4M10 4a2 2 0 002 2h0a2 2 0 002-2M10 4a2 2 0 012-2h0a2 2 0 012 2"/></svg>
-          </div>
-          <p class="text-sm text-gray-500">暂无脚本</p>
+        <div v-else-if="!loaded" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SkeletonCard v-for="i in 6" :key="i" :has-image="false" :lines="3" />
         </div>
+        <EmptyState v-else text="暂无脚本"
+          d="M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-4M10 4a2 2 0 002 2h0a2 2 0 002-2M10 4a2 2 0 012-2h0a2 2 0 012 2" />
         <div class="mt-6" v-if="total > 0">
-          <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="fetch" />
+          <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="load" />
         </div>
       </section>
 
@@ -138,18 +138,26 @@
 // 脚本工具页：脚本列表 + 分类筛选 + 分页，
 // 支持创建/编辑/删除脚本与跳转在线工具台
 // ====================================================
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { getToolList, createScript, updateScript, deleteScript } from '@/api/tools'
 import { useToastStore } from '@/stores/modules/toast'
+import { useAuthStore } from '@/stores/modules/auth'
+import { usePagedList } from '@/composables/usePagedList'
+import PageHeader from '@/components/common/PageHeader.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Modal from '@/components/common/Modal.vue'
-import Loading from '@/components/common/Loading.vue'
+import SkeletonCard from '@/components/common/SkeletonCard.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 
 const toast = useToastStore()
-const list = ref([]); const page = ref(1); const size = ref(10); const total = ref(0); const loaded = ref(false)
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
+// 分页列表状态（页码 / 分类 / 加载 / 空状态）统一由 usePagedList 管理
+const { list, page, size, total, loaded, selectedCat, load, setCategory, removeWhere } = usePagedList(getToolList, { pageSize: 10 })
+// 分类 Tab 数据驱动：从全量脚本提取去重（此前模板引用未定义的 categories，筛选行始终空白）
+const categories = ref(['全部'])
 const showScript = ref(false); const selectedScript = ref(null)
-const selectedCat = ref('全部')
 const showForm = ref(false)
 const editingScript = ref(null)
 const submitting = ref(false)
@@ -172,7 +180,7 @@ async function submitForm() {
   try {
     if (editingScript.value) { await updateScript(editingScript.value.id, { ...form }); toast.success('更新成功') }
     else { await createScript({ ...form }); toast.success('创建成功') }
-    showForm.value = false; fetch()
+    showForm.value = false; load()
   } catch { formError.value = '操作失败，请重试' }
   finally { submitting.value = false }
 }
@@ -180,7 +188,7 @@ async function submitForm() {
 // 删除指定脚本并刷新列表
 async function deleteScriptItem(item) {
   if (!(await dlgConfirm(`确定删除脚本 "${item.name}"?`))) return
-  try { await deleteScript(item.id); list.value = list.value.filter(x => x.id !== item.id); toast.success('删除成功') }
+  try { await deleteScript(item.id); removeWhere(x => x.id === item.id); toast.success('删除成功') }
   catch { toast.error('删除失败') }
 }
 
@@ -203,11 +211,13 @@ const onlineTools = [
   { id: 'url', name: 'URL编解码', icon: '🔗', desc: 'encode/decode', path: '/tools/url' }
 ]
 
-// 按分页与分类筛选条件加载脚本列表
-function fetch() {
-  const params = { page: page.value, size: size.value }
-  if (selectedCat.value !== '全部') params.category = selectedCat.value
-  getToolList(params).then(res => { const d = res.data || {}; list.value = d.records || []; total.value = d.total || 0 }).finally(() => { loaded.value = true })
+// 从全量脚本提取分类去重，驱动筛选 Tab
+async function loadCats() {
+  try {
+    const res = await getToolList({ page: 1, size: 500 })
+    const cats = [...new Set((res.data?.records || []).map(i => i.category).filter(Boolean))]
+    if (cats.length) categories.value = ['全部', ...cats]
+  } catch { /* 分类提取失败时保留默认'全部' */ }
 }
 
 // 查看脚本内容弹窗
@@ -219,5 +229,5 @@ function copyCode() {
   navigator.clipboard?.writeText(selectedScript.value.content).then(() => toast.success('已复制')).catch(() => toast.error('复制失败'))
 }
 
-onMounted(fetch)
+onMounted(() => { load(); loadCats() })
 </script>

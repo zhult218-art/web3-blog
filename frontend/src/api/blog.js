@@ -510,6 +510,7 @@ export const getBlogNotices = async () => {
   const timer = setTimeout(() => ctrl.abort(), 15000)
   try {
     const res = await fetch('/api/blog/notice/list', { signal: ctrl.signal })
+    if (!res.ok) throw new Error(`公告列表请求失败 (${res.status})`)
     return await res.json()
   } finally {
     clearTimeout(timer)

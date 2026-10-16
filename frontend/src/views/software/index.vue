@@ -1,26 +1,21 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
     <div class="mx-auto max-w-5xl">
-      <nav class="flex items-center gap-1.5 text-sm text-white/50 mb-4">
-        <router-link to="/" class="hover:text-white/80">首页</router-link>
-        <span class="text-white/30">/</span>
-        <span class="text-white/70">软件下载</span>
-      </nav>
-      <h1 class="text-3xl font-bold mb-2 text-gradient-cyber">软件资源</h1>
-      <p class="text-sm text-gray-500 matrix-text mb-8">Software Downloads · Cross-Platform · Developer Tools</p>
+      <PageHeader title="软件资源" subtitle="Software Downloads · Cross-Platform · Developer Tools"
+        :crumbs="[{ label: '首页', to: '/' }, { label: '软件下载' }]">
+        <template #actions>
+          <button v-if="isAdmin" class="web3-btn text-xs !px-4 !py-2" @click="openForm">+ 上传软件</button>
+        </template>
+      </PageHeader>
 
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex gap-2 flex-wrap">
-          <button v-for="cat in catOptions" :key="cat"
-            @click="selectedCat = cat; page=1; fetch()"
-            :class="['px-3 py-1.5 rounded-full text-xs transition', selectedCat === cat ? 'bg-purple-500/30 text-purple-200 border border-purple-400/30' : 'border border-white/10 text-gray-400 hover:text-white']">{{ cat }}</button>
-        </div>
-        <button v-if="isAdmin" class="web3-btn text-xs !px-4 !py-2" @click="openForm">+ 上传软件</button>
+      <div class="flex gap-2 mb-6 flex-wrap">
+        <button v-for="cat in catOptions" :key="cat" class="web3-pill" :class="{ 'web3-pill-active': selectedCat === cat }"
+          @click="setCategory(cat)">{{ cat }}</button>
       </div>
 
       <div v-if="list.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <div v-for="item in list" :key="item.id"
-          class="glass-panel p-5 group cursor-pointer hover:border-purple-400/30 transition-all duration-300 hover:-translate-y-1">
+        <div v-for="item in list" :key="item.id" v-tilt
+          class="glass-panel p-5 group cursor-pointer hover:border-purple-400/30">
           <div class="flex items-start gap-4">
             <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
               <!-- 命中品牌词典则展示官方图标：主源(品牌色) 404 → 旧版源(单色反白) → 名称首字母 -->
@@ -56,16 +51,13 @@
           </div>
         </div>
       </div>
-      <div v-else-if="!loaded" class="py-10"><Loading /></div>
-      <div v-else class="py-16 text-center">
-        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0e0e26] border border-white/[0.06] mb-4">
-          <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 009.586 13H7"/></svg>
-        </div>
-        <p class="text-sm text-gray-500">暂无软件</p>
+      <div v-else-if="!loaded" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <SkeletonCard v-for="i in 6" :key="i" :has-image="false" :lines="4" />
       </div>
+      <EmptyState v-else text="暂无软件" />
 
       <div class="mt-6" v-if="total > 0">
-        <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="fetch" />
+        <Pagination v-model:page="page" :page-size="size" :total="total" @update:page="load" />
       </div>
 
       <!-- Create/Edit Form -->
@@ -187,14 +179,17 @@ import { getSoftwareList, createSoftware, updateSoftware, deleteSoftware, record
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
 import { downloadFile } from '@/utils/download'
-import { resolveBrandIcon, resolveBrandIconLegacy } from '@/utils/brandIcons'
+import { usePagedList } from '@/composables/usePagedList'
+import { useBrandIcon } from '@/composables/useBrandIcon'
+import PageHeader from '@/components/common/PageHeader.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Modal from '@/components/common/Modal.vue'
-import Loading from '@/components/common/Loading.vue'
+import SkeletonCard from '@/components/common/SkeletonCard.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 
-const list = ref([]); const page = ref(1); const size = ref(9); const total = ref(0); const loaded = ref(false)
-const selectedCat = ref('全部')
+// 分页列表状态（页码 / 分类 / 加载 / 空状态）统一由 usePagedList 管理
+const { list, page, size, total, loaded, selectedCat, load, setCategory, removeWhere } = usePagedList(getSoftwareList, { pageSize: 9 })
 // 分类 Tab 数据驱动：从全量软件提取去重，避免写死分类与实际数据不匹配
 const catOptions = ref(['全部'])
 const showModal = ref(false); const detailItem = ref(null)
@@ -204,15 +199,7 @@ const toast = useToastStore()
 const auth = useAuthStore()
 const isAdmin = computed(() => auth.user?.role === 'ADMIN')
 // 品牌图标两级降级：0=主源(simpleicons 品牌色) 1=旧版源(jsdelivr 单色) 2=首字母回退
-const iconStages = ref(new Map())
-function iconStage(id) { return iconStages.value.get(id) || 0 }
-function iconSrc(item) {
-  const st = iconStage(item?.id)
-  if (st === 0) return resolveBrandIcon(item?.name)
-  if (st === 1) return resolveBrandIconLegacy(item?.name)
-  return ''
-}
-function onIconError(item) { iconStages.value.set(item.id, iconStage(item.id) + 1) }
+const { stage: iconStage, src: iconSrc, onError: onIconError } = useBrandIcon()
 
 // 下载软件：先调用后端计数接口，再触发浏览器下载
 async function download(item) {
@@ -254,7 +241,7 @@ async function submitForm() {
   try {
     if (editingItem.value) { await updateSoftware(editingItem.value.id, { ...formData }); toast.success('更新成功') }
     else { await createSoftware({ ...formData }); toast.success('上传成功') }
-    showForm.value = false; fetch()
+    showForm.value = false; load()
   } catch { toast.error('操作失败') }
   finally { submitting.value = false }
 }
@@ -262,15 +249,8 @@ async function submitForm() {
 // 删除指定软件并刷新列表
 async function deleteItem(item) {
   if (!(await dlgConfirm(`确定删除 "${item.name}"?`))) return
-  try { await deleteSoftware(item.id); list.value = list.value.filter(x => x.id !== item.id); toast.success('删除成功') }
+  try { await deleteSoftware(item.id); removeWhere(x => x.id === item.id); toast.success('删除成功') }
   catch { toast.error('删除失败') }
-}
-
-// 按分页与分类筛选条件加载软件列表
-function fetch() {
-  const params = { page: page.value, size: size.value }
-  if (selectedCat.value !== '全部') params.category = selectedCat.value
-  getSoftwareList(params).then(res => { const d = res.data || {}; list.value = d.records || []; total.value = d.total || 0 }).finally(() => { loaded.value = true })
 }
 
 // 从全量软件提取分类去重，驱动筛选 Tab 与上传表单的 datalist
@@ -282,5 +262,5 @@ async function loadCats() {
   } catch { /* 分类提取失败时保留默认'全部' */ }
 }
 
-onMounted(() => { fetch(); loadCats() })
+onMounted(() => { load(); loadCats() })
 </script>

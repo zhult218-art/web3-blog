@@ -144,6 +144,9 @@ function onTimeUpdate() {
   }
 }
 function onLoaded() {
+  // 防御：切 tab/卸载后 video 元素已销毁，浏览器仍会补发 loadedmetadata，
+  // 此时 videoRef 为 null（原 duration 读取崩溃点，媒体页控制台刷 10 条 TypeError）
+  if (!videoRef.value) return
   duration.value = videoRef.value.duration
   loadProgress()
 }

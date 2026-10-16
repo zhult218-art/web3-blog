@@ -1,17 +1,22 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
     <div class="mx-auto max-w-6xl space-y-8">
-      <div class="flex flex-wrap items-end justify-between gap-4" data-voice-target>
-        <h1 class="text-3xl font-bold text-gradient-cyber">在线媒体</h1>
-        <!-- 顶部标签页：音乐馆 / 图书 / 视频 -->
-        <div class="flex gap-1 p-1 rounded-xl glass-panel-sm">
-          <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
-            class="px-4 py-1.5 rounded-lg text-sm font-medium transition"
-            :class="activeTab === tab.key ? 'bg-purple-500/25 text-white border border-purple-400/30' : 'text-gray-500 hover:text-white border border-transparent'">
-            <span class="mr-1">{{ tab.icon }}</span>{{ tab.label }}
-          </button>
-        </div>
-      </div>
+      <!-- Header：统一 PageHeader（面包屑 + 渐变标题 + 模块切换） -->
+      <PageHeader
+        title="在线媒体"
+        subtitle="MEDIA HALL · 音乐 · 图书 · 视频"
+        :crumbs="[{ label: '首页', to: '/' }, { label: '在线媒体' }]"
+        data-voice-target
+      >
+        <template #actions>
+          <div class="flex flex-wrap gap-2">
+            <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
+              class="web3-pill" :class="{ 'web3-pill-active': activeTab === tab.key }">
+              <span class="mr-1">{{ tab.icon }}</span>{{ tab.label }}
+            </button>
+          </div>
+        </template>
+      </PageHeader>
 
       <!-- 音乐馆模块 -->
       <template v-if="activeTab === 'music'">
@@ -28,10 +33,9 @@
         <section class="glass-panel p-6">
           <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
             <h2 class="text-xl font-bold text-white flex items-center gap-2"><span>🎬</span>视频</h2>
-            <div class="flex gap-1 p-1 rounded-xl glass-panel-sm">
+            <div class="flex flex-wrap gap-2">
               <button v-for="tab in videoTabs" :key="tab.key" @click="videoTab = tab.key"
-                class="px-3 py-1.5 rounded-lg text-sm font-medium transition"
-                :class="videoTab === tab.key ? 'bg-cyan-500/25 text-white border border-cyan-400/30' : 'text-gray-500 hover:text-white border border-transparent'">
+                class="web3-pill" :class="{ 'web3-pill-active': videoTab === tab.key }">
                 <span class="mr-1">{{ tab.icon }}</span>{{ tab.label }}
               </button>
             </div>
@@ -40,7 +44,7 @@
           <!-- 在线视频（后端上传） -->
           <template v-if="videoTab === 'online'">
             <div v-if="videoList.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div v-for="item in videoList" :key="item.id"
+              <div v-for="item in videoList" :key="item.id" v-tilt
                 class="glass-panel-sm overflow-hidden group cursor-pointer transition"
                 :class="dlHighlightId && String(item.id) === dlHighlightId ? 'ring-1 ring-cyan-400/60' : ''">
                 <div class="relative">
@@ -59,10 +63,9 @@
                 </div>
               </div>
             </div>
-            <div v-else class="py-16 text-center">
-              <div class="text-4xl mb-3 opacity-15">🎬</div>
-              <p class="text-xs text-gray-600">暂无在线视频，去「下载」标签粘贴 URL 下载吧</p>
-            </div>
+            <EmptyState v-else text="暂无在线视频，去「下载」标签粘贴 URL 下载吧">
+              <template #icon><span class="text-2xl">🎬</span></template>
+            </EmptyState>
           </template>
 
           <!-- URL 下载（HomeTube 风格：粘贴 URL → yt-dlp 下载 → 自动入库） -->
@@ -120,8 +123,8 @@
           <!-- 动漫推荐 -->
           <template v-else-if="videoTab === 'anime'">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div v-for="item in ANIME_RECOMMENDS" :key="item.title"
-                class="glass-panel-sm p-5 group cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:border-pink-400/30">
+              <div v-for="item in ANIME_RECOMMENDS" :key="item.title" v-tilt
+                class="glass-panel-sm p-5 group cursor-pointer transition-all duration-300 hover:border-pink-400/30">
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex items-center gap-2.5">
                     <span class="text-2xl">🍙</span>
@@ -146,8 +149,8 @@
           <!-- 影视剧集 -->
           <template v-else-if="videoTab === 'movie'">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div v-for="item in MOVIE_LINKS" :key="item.title"
-                class="glass-panel-sm p-5 group cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-400/30">
+              <div v-for="item in MOVIE_LINKS" :key="item.title" v-tilt
+                class="glass-panel-sm p-5 group cursor-pointer transition-all duration-300 hover:border-cyan-400/30">
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex items-center gap-2.5">
                     <span class="text-2xl">🎬</span>
@@ -205,6 +208,8 @@ import EnhancedVideoPlayer from '@/components/EnhancedVideoPlayer.vue'
 import { getVideoList, downloadVideoFromUrl, getDownloadTask } from '@/api/media'
 import { usePlayerStore } from '@/stores/modules/player'
 import { VIDEO_TABS, ANIME_RECOMMENDS, MOVIE_LINKS, MAGNET_RESOURCES } from '@/data/mediaResources'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 const player = usePlayerStore()
 const videoList = ref([])
