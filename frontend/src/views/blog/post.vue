@@ -87,11 +87,11 @@
           </div>
         </header>
 
-        <!-- AI 助手面板：摘要 + 文章问答（免费 AI 通道，流式输出） -->
+        <!-- AI 助手面板：摘要 + 文章问答（AI 通道，流式输出） -->
         <section v-if="showAi" class="ai-assistant panel mt-6 p-5 md:p-6">
           <div class="ai-head">
             <span class="ai-badge">✦ AI 助手</span>
-            <span class="text-[10px] text-gray-600">由免费 AI 提供 · 内容仅供参考</span>
+            <span class="text-[10px] text-gray-600">由 AI 提供 · 内容仅供参考</span>
             <button v-if="aiSummary" class="ai-regen" :disabled="aiSumLoading" @click="genSummary">重新生成摘要</button>
             <button class="ai-close" title="收起" @click="showAi = false">✕</button>
           </div>
@@ -120,7 +120,7 @@
         </section>
 
         <!-- 目录 + 正文 -->
-        <div class="grid grid-cols-1 xl:grid-cols-[220px_1fr] gap-6 items-start">
+        <div class="grid grid-cols-1 gap-6 items-start" :class="toc.length ? 'xl:grid-cols-[220px_1fr]' : ''">
           <PostToc v-if="toc.length" :toc="toc" class="hidden xl:block sticky top-24 order-first" />
           <article class="post-body panel p-6 md:p-8 article-body" ref="bodyRef" v-html="contentHtml" @click="onBodyClick"></article>
         </div>

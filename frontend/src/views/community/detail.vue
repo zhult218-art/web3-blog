@@ -133,8 +133,15 @@
                   <button @click="replyTo = null" class="ml-auto text-gray-500 hover:text-white">×</button>
                 </div>
                 <textarea v-model="commentText" class="web3-input !min-h-[80px] resize-none" placeholder="写下你的评论... 支持 Markdown 语法" rows="3"></textarea>
-                <div class="flex items-center justify-between mt-3">
-                  <span class="text-[10px] text-gray-600">{{ commentText.length }}/500</span>
+                <div class="flex items-center justify-between mt-3 gap-3 flex-wrap">
+                  <div class="flex items-center gap-3">
+                    <span class="text-[10px] text-gray-600">{{ commentText.length }}/500</span>
+                    <button
+                      class="text-[11px] px-2.5 py-1 rounded-lg text-purple-200 bg-purple-500/15 border border-purple-400/30 hover:bg-purple-500/25 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      :disabled="aiSugBusy" @click="aiSuggestComment">
+                      {{ aiSugBusy ? '✦ AI 生成中…' : '✦ AI 建议' }}
+                    </button>
+                  </div>
                   <button class="web3-btn text-xs !px-5 !py-2" :disabled="!commentText.trim()" @click="submitComment">
                     发布评论
                   </button>
@@ -191,6 +198,7 @@ import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
 import { hasPerm } from '@/utils/permissions'
 import Loading from '@/components/common/Loading.vue'
+import { aiChat } from '@/api/freeAi'
 
 const route = useRoute()
 const router = useRouter()
@@ -202,6 +210,7 @@ const liked = ref(false)
 const bookmarked = ref(false)
 const commentText = ref('')
 const replyTo = ref(null)
+const aiSugBusy = ref(false)
 const readingProgress = ref(0)
 const likedComments = ref(new Set())
 const type = route.params.type
@@ -328,6 +337,31 @@ function sharePost() {
     toast.success('链接已复制到剪贴板')
   } else {
     toast.info('请手动复制地址栏链接分享')
+  }
+}
+
+// AI 建议评论：结合帖子内容与已有评论生成一条可编辑的评论草稿
+async function aiSuggestComment() {
+  if (aiSugBusy.value) return
+  aiSugBusy.value = true
+  try {
+    const d = detail.value || {}
+    const title = d.title || d.name || '（无标题）'
+    const content = String(d.content || d.summary || '').replace(/[#>*`]/g, '').slice(0, 2500)
+    const existing = comments.value.slice(0, 6).map(c => `- ${String(c.content || '').slice(0, 50)}`).join('\n')
+    const text = await aiChat(
+      [{ role: 'user', content: '请为这个帖子写一条评论' }],
+      {
+        system: `你是社区互动助手。请基于帖子内容写一条 30-80 字的真诚评论（中文）：可以补充观点、提问或给出实用建议；不要空泛客套，不要用引号包裹，直接输出评论正文。\n\n帖子标题：${title}\n帖子内容：${content}${replyTo.value ? `\n\n该评论是对 @${replyTo.value.authorName || '用户'} 的回复。` : ''}${existing ? '\n\n已有评论：\n' + existing : ''}`,
+        max_tokens: 220,
+      }
+    )
+    commentText.value = (text || '').trim().slice(0, 500)
+    if (commentText.value) toast.success('已生成评论草稿，可修改后发布')
+  } catch (e) {
+    toast.error(e?.message || 'AI 建议生成失败')
+  } finally {
+    aiSugBusy.value = false
   }
 }
 

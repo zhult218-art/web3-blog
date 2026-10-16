@@ -72,8 +72,23 @@
 
           <!-- 内容 -->
           <div class="field">
-            <label>内容</label>
+            <div class="field-label-row">
+              <label>内容</label>
+              <button type="button" class="ai-polish-btn" :disabled="aiBusy || !form.content.trim()" @click="polishContent">
+                {{ aiBusy ? '✦ 润色中…' : '✦ AI 润色' }}
+              </button>
+            </div>
             <textarea v-model="form.content" class="web3-input !min-h-[160px] resize-y" placeholder="写下你的想法...&#10;支持 Markdown" maxlength="10000"></textarea>
+            <div v-if="aiPreview" class="ai-preview">
+              <div class="ai-preview-head">
+                <span>✦ AI 润色结果预览（可替换后再自行修改）</span>
+                <span class="ai-preview-actions">
+                  <button type="button" class="ai-apply" @click="applyPolish">替换正文</button>
+                  <button type="button" class="ai-discard" @click="aiPreview = ''">放弃</button>
+                </span>
+              </div>
+              <div class="ai-preview-text">{{ aiPreview }}<span v-if="aiBusy" class="animate-pulse">▍</span></div>
+            </div>
             <div class="counter">{{ form.content.length }}/10000</div>
           </div>
 
@@ -111,6 +126,7 @@ import { ref, reactive, computed } from 'vue'
 import { createBlog } from '@/api/blog'
 import { createPost } from '@/api/forum'
 import { uploadMedia } from '@/api/media'
+import { aiChatStream } from '@/api/freeAi'
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
 import { hasPerm } from '@/utils/permissions'
@@ -127,6 +143,11 @@ const videoInput = ref(null)
 const coverUploading = ref(false)
 const videoUploading = ref(false)
 const videoUploadProgress = ref(0)
+
+// ── AI 润色（免费通道，流式）：预览后可一键替换正文 ──
+const aiBusy = ref(false)
+const aiPreview = ref('')
+let aiSeq = 0
 
 const types = [
   { key: 'article', label: '文章', icon: '📝' },
@@ -176,6 +197,41 @@ async function uploadVideo(e) {
   finally { videoUploading.value = false; videoUploadProgress.value = 0 }
 }
 
+async function polishContent() {
+  const text = form.content.trim()
+  if (!text || aiBusy.value) return
+  const seq = ++aiSeq
+  aiBusy.value = true
+  aiPreview.value = ''
+  try {
+    const ctx = [
+      form.title ? `标题：${form.title}` : '',
+      form.category ? `分类：${form.category}` : '',
+    ].filter(Boolean).join('\n')
+    await aiChatStream(
+      [{ role: 'user', content: text.slice(0, 5000) }],
+      d => { if (seq === aiSeq) aiPreview.value += d },
+      {
+        system: '你是社区内容编辑助手。请润色用户提供的 Markdown 正文：保持原意与 Markdown 结构，改善表达流畅度与专业性，修正错别字；不要添加事实性信息，不要输出解释或客套，直接输出润色后的全文。' + (ctx ? `\n\n背景信息：\n${ctx}` : ''),
+        max_tokens: 1600,
+      }
+    )
+    if (seq === aiSeq) aiPreview.value = aiPreview.value || '（未返回内容）'
+  } catch (e) {
+    if (seq === aiSeq) aiPreview.value = '（AI 润色失败：' + (e?.message || '服务暂时不可用') + '）'
+  } finally {
+    if (seq === aiSeq) aiBusy.value = false
+  }
+}
+
+function applyPolish() {
+  if (aiPreview.value && !aiPreview.value.startsWith('（')) {
+    form.content = aiPreview.value.slice(0, 10000)
+    toast.success('已替换正文，可继续编辑')
+  }
+  aiPreview.value = ''
+}
+
 async function submit() {
   if (!canSubmit.value) return
   // 发帖权限：互动类默认拥有，管理员可收回（-post）
@@ -213,6 +269,9 @@ function resetForm() {
   form.type = 'article'; form.category = ''; form.title = ''; form.content = ''
   form.coverImage = ''; form.mediaUrl = ''; form.mediaType = ''
   tagsInput.value = ''
+  aiSeq++
+  aiPreview.value = ''
+  aiBusy.value = false
 }
 </script>
 
@@ -258,6 +317,26 @@ function resetForm() {
 .field { margin-bottom: 1.1rem; }
 .field > label { display: block; font-size: 0.72rem; color: rgba(255,255,255,0.55); margin-bottom: 6px; }
 .counter { text-align: right; font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 4px; }
+
+/* ── AI 润色 ── */
+.field-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.field-label-row > label { font-size: 0.72rem; color: rgba(255,255,255,0.55); }
+.ai-polish-btn {
+  font-size: 0.68rem; padding: 3px 10px; border-radius: 8px; color: #d8b4fe;
+  background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.3); cursor: pointer; transition: all 0.2s;
+}
+.ai-polish-btn:hover:not(:disabled) { background: rgba(168,85,247,0.22); }
+.ai-polish-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ai-preview {
+  margin-top: 10px; border: 1px solid rgba(168,85,247,0.25); border-radius: 12px;
+  background: rgba(168,85,247,0.06); padding: 10px 12px;
+}
+.ai-preview-head { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #c4b5fd; margin-bottom: 6px; gap: 8px; }
+.ai-preview-actions { display: flex; gap: 6px; }
+.ai-apply { font-size: 10px; padding: 2px 8px; border-radius: 6px; background: rgba(34,211,238,0.15); border: 1px solid rgba(34,211,238,0.35); color: #67e8f9; cursor: pointer; }
+.ai-apply:hover { background: rgba(34,211,238,0.25); }
+.ai-discard { font-size: 10px; padding: 2px 8px; border-radius: 6px; background: none; border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.5); cursor: pointer; }
+.ai-preview-text { font-size: 0.75rem; line-height: 1.6; color: rgba(255,255,255,0.85); white-space: pre-wrap; max-height: 220px; overflow-y: auto; }
 
 .upload-zone {
   border: 2px dashed rgba(255,255,255,0.08); border-radius: 12px;

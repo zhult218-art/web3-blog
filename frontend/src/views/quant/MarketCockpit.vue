@@ -41,8 +41,8 @@
         <div class="text-4xl">📡</div>
         <div class="text-sm font-bold">驾驶舱数据服务未启动</div>
         <p class="text-xs text-cyan-500/70 max-w-md leading-relaxed">
-          市场研究驾驶舱依赖 py-service（端口 9006）的 cockpit 模块。请确认
-          <code class="px-1.5 py-0.5 rounded bg-cyan-900/40 text-cyan-300 text-[11px]">py-service</code>
+          市场研究驾驶舱依赖后端数据服务的 cockpit 模块。请确认
+          <code class="px-1.5 py-0.5 rounded bg-cyan-900/40 text-cyan-300 text-[11px]">数据服务</code>
           已启动后刷新本页。
         </p>
         <button @click="recheck" class="text-xs px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-500/30 transition">

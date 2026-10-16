@@ -5,7 +5,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div>
         <label class="text-[10px] text-amber-600/60 mb-1 block">Base URL</label>
-        <input v-model="local.baseURL" class="web3-input text-xs font-mono" placeholder="如 http://127.0.0.1:8801/v1" @input="sync" />
+        <input v-model="local.baseURL" class="web3-input text-xs font-mono" placeholder="如 https://api.deepseek.com/v1" @input="sync" />
       </div>
       <div>
         <label class="text-[10px] text-amber-600/60 mb-1 block">API Key</label>

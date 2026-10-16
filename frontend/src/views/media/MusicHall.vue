@@ -90,7 +90,7 @@
           <div v-if="searchDone && !searching" key="results" class="mt-4">
             <p class="text-[11px] text-gray-500 mb-2">
               {{ searchError
-                ? (searchServiceDown ? '搜索失败：网易云服务未启动（backend/netease-music-api，端口3000）' : '搜索失败，请稍后重试')
+                ? (searchServiceDown ? '搜索失败：音乐搜索服务未启动，请稍后重试' : '搜索失败，请稍后重试')
                 : (searchResults.length ? `在「${activeSource.label}」找到 ${searchResults.length} 首，点击播放` : '没有找到相关音乐，换个关键词试试') }}
             </p>
             <div v-if="searchResults.length" class="max-h-72 overflow-y-auto space-y-1 music-scroll">
@@ -222,7 +222,7 @@
               试试切换上方的曲库来源，或点击分区标签探索不同风格
             </p>
             <p v-if="source === 'netease' && serviceDown" class="text-[11px] text-amber-300/80 mt-2">
-              网易云服务未启动（backend/netease-music-api，端口3000），可改用「试听精选 / 全曲库」免费源
+              音乐搜索服务未启动，可改用「试听精选 / 全曲库」等可用源
             </p>
             <div v-if="cloudError" class="flex items-center justify-center gap-2 mt-4">
               <button @click="loadCloud" class="s-mini-btn" :disabled="cloudLoading">↻ 重试</button>

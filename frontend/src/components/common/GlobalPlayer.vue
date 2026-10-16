@@ -223,7 +223,7 @@
 
       <!-- ─── Bottom visualizer bars ─── -->
       <div class="gp-bars" aria-hidden="true">
-        <AudioBars :height="24" :bars="72" />
+        <AudioBars :height="24" :bars="72" :accent="dominantColor" />
       </div>
     </div>
   </Transition>
@@ -544,11 +544,14 @@ watch(() => player.currentLyricIndex, (idx) => {
 /* ── Bottom bars ── */
 .gp-bars {
   pointer-events: none;
-  margin: 2px -16px -10px;
+  margin: 3px -16px -8px;
   padding: 0 16px;
-  opacity: 0.9;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  opacity: 0.95;
+  /* 叠加发光：在近黑播放条上呈"光柱"质感 */
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 -1px 10px rgba(168, 85, 247, 0.28));
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
 }
 
 /* ── Background layer ── */

@@ -1894,7 +1894,7 @@ async function loadLlmProviders() {
       llmProviderErr.value = '后端供应商目录为空'
     }
   } catch (e) {
-    llmProviderErr.value = '无法获取预置供应商（quant-py-service(9006) 未启动？）'
+    llmProviderErr.value = '无法获取预置供应商（量化数据服务未启动？）'
     if (import.meta.env.DEV) console.warn('loadLlmProviders failed', e)
   }
 }
@@ -1907,7 +1907,7 @@ async function loadLlmDefault() {
     llmDefault.value = (res && res.data) || null
     if (llmDefault.value && typeof llmDefault.value.configured === 'undefined') llmDefault.value = null
   } catch (e) {
-    llmDefaultErr.value = '无法获取服务端默认模型（quant-py-service(9006) 未启动？）'
+    llmDefaultErr.value = '无法获取服务端默认模型（量化数据服务未启动？）'
     llmDefault.value = null
   } finally {
     llmDefaultLoading.value = false

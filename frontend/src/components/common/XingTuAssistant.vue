@@ -509,10 +509,13 @@ function togglePanel() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
     scrollMsgs()
+    // 用户主动打开 → 清除"手动停止"标记，允许重新拉起麦克风
+    manualStop = false
+    stopByError = false
     // 用户手势窗口内建立全双工语音流（AudioContext/麦克风需要手势）
     void ensureVoiceStream()
     // 打开面板时自动开始监听
-    if (!isListening.value && !manualStop) {
+    if (!isListening.value) {
       startListening()
     }
   }
@@ -602,7 +605,7 @@ async function saveToKB() {
 // 说明后端不可用。2026-10-16 起不再回退本地旧音色，但失败必须让用户看得见，
 // 而不是静默——之前的静默降级正是「音色僵硬」长期未被发现的根源。
 let fallbackNotified = false
-const EDGE_FAIL_TEXT = '语音不可用（请检查 9006）'
+const EDGE_FAIL_TEXT = '语音服务暂时不可用'
 function notifyEdgeFallback() {
   if (fallbackNotified) return
   fallbackNotified = true
@@ -1019,9 +1022,27 @@ function handleMusic(text) {
   return false
 }
 
+// ---- 语音关闭指令 ----
+// 说「关闭 / 退出 / 再见」即收起助手面板；收起后仍保持后台唤醒监听，
+// 再次喊「星途星途」可立刻把面板唤回。
+const CLOSE_CMD = /^(关闭|关闭助手|关掉|关掉助手|退出|退出助手|退下|再见|拜拜|拜拜了|休息吧)$/
+
+function closeAssistant() {
+  clearTts()
+  endStreamMsg()
+  isOpen.value = false
+  wakeWordDetected = false
+  clearTimeout(wakeWordTimer)
+  statusText.value = '已关闭 · 喊「星途星途」可再次唤醒'
+  speak('好的，再见')
+}
+
 function respond(text) {
   statusText.value = '处理中...'
   addMsg('user', text)
+
+  // 关闭指令最高优先级：先处理，避免被导航/音乐指令误判
+  if (CLOSE_CMD.test(text.trim())) { closeAssistant(); return }
 
   // 音乐指令优先（本地处理，无需后端）
   if (handleMusic(text)) return
