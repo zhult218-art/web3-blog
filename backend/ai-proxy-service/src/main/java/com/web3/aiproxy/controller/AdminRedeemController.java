@@ -12,6 +12,7 @@ import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -126,7 +127,8 @@ public class AdminRedeemController {
         return ApiResponse.ok();
     }
 
-    /** 核销到指定令牌：{code} —— 原子核销 + 充值，失败给出明确原因 */
+    /** 核销到指定令牌：{code} —— 原子核销 + 充值（同一事务，充值失败自动回滚核销），失败给出明确原因 */
+    @Transactional(rollbackFor = Exception.class)
     @PostMapping("/redeem/{tokenId}")
     public ApiResponse<Void> redeem(@PathVariable Long tokenId, @RequestBody Map<String, Object> body,
                                     @RequestHeader(value = "Authorization", required = false) String auth) {

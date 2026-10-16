@@ -660,6 +660,10 @@ public class UserController {
             // 生产已启用真实 OAuth，禁止 dev mock 防账户接管
             return ApiResponse.fail(403, "Google OAuth 已启用，请使用真实 Google 登录按钮");
         }
+        if (!authProperties.getGoogle().isDevLoginEnabled()) {
+            // 安全默认关闭：dev mock 可用任意邮箱登录（甚至接管管理员），仅本地调试显式开启
+            return ApiResponse.fail(403, "开发模式登录未启用（本地调试请设置 GOOGLE_DEV_LOGIN_ENABLED=true）");
+        }
         String email = body.get("email");
         if (email == null || email.isBlank() || !email.contains("@")) {
             return ApiResponse.fail(400, "请输入合法邮箱");

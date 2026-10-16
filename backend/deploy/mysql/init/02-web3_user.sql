@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS `user` (
   `email` VARCHAR(128) DEFAULT NULL,
   `phone` VARCHAR(20) DEFAULT NULL COMMENT '手机号（验证码登录）',
   `google_id` VARCHAR(64) DEFAULT NULL COMMENT 'Google OAuth 唯一ID',
+  `real_name` VARCHAR(64) DEFAULT NULL COMMENT '实名认证：真实姓名',
+  `id_card` VARCHAR(32) DEFAULT NULL COMMENT '实名认证：身份证号（脱敏存储）',
+  `verified` INT DEFAULT 0 COMMENT '实名状态：0=未认证, 1=审核中, 2=已认证, 3=已拒绝',
   `password` VARCHAR(255) NOT NULL,
   `avatar` VARCHAR(512) DEFAULT NULL,
   `role` VARCHAR(32) DEFAULT 'USER',
@@ -25,5 +28,5 @@ CREATE TABLE IF NOT EXISTS `user` (
 --   ADD COLUMN IF NOT EXISTS `google_id` VARCHAR(64) DEFAULT NULL COMMENT 'Google OAuth 唯一ID' AFTER `phone`;
 
 -- admin / admin123
-INSERT INTO `user` (`username`, `nickname`, `email`, `password`, `role`, `status`) VALUES
+INSERT IGNORE INTO `user` (`username`, `nickname`, `email`, `password`, `role`, `status`) VALUES
 ('admin', 'Admin', 'admin@web3.local', '$2b$10$kF9ZaRYUyOs4dqfl46PzOOJsQ0JBx12CbA3Xj3SPm5hSSHGy6EZwG', 'ADMIN', 1);

@@ -138,6 +138,10 @@ public class VideoController {
         try {
             return ApiResponse.ok(this.videoService.downloadFromUrl(url, quality, subtitle, tags));
         }
+        catch (IllegalArgumentException e) {
+            // URL 安全校验失败（非 http(s)/内网地址/参数注入形态）
+            return ApiResponse.fail(400, e.getMessage());
+        }
         catch (IllegalStateException e) {
             // yt-dlp 不可用等前置条件不满足，直接把可读原因返回给前端
             return ApiResponse.fail(500, e.getMessage());

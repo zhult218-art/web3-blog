@@ -148,7 +148,12 @@ extends ServiceImpl<MusicMapper, Music> {
         like.setUserId(userId);
         like.setMusicId(musicId);
         like.setCreatedAt(LocalDateTime.now());
-        this.likeMapper.insert(like);
+        try {
+            this.likeMapper.insert(like);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // 并发双击：主键(user_id,music_id)保证仅一条记录，后到请求视为已收藏
+            return true;
+        }
         return true;
     }
 

@@ -65,6 +65,9 @@ app:
     frontend-url: ${FRONTEND_URL:http://localhost:5173}
     google:
       enabled: ${GOOGLE_OAUTH_ENABLED:false}
+      # dev mock 登录（/user/oauth/google/dev-login）安全开关：默认关闭。
+      # 未启用真实 OAuth 时该接口可用任意邮箱登录任意账号，仅本地调试显式置 true。
+      dev-login-enabled: ${GOOGLE_DEV_LOGIN_ENABLED:false}
       client-id: ${GOOGLE_CLIENT_ID:}
       client-secret: ${GOOGLE_CLIENT_SECRET:}
       redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8081/user/oauth/google/callback}

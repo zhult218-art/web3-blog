@@ -33,4 +33,12 @@ public interface PostMapper extends BaseMapper<Post> {
     /** 帖子浏览量 +1（仅统计未删除记录） */
     @Update("UPDATE post SET view_count = IFNULL(view_count, 0) + 1 WHERE id = #{id} AND deleted = 0")
     int incrViewCount(@Param("id") Long id);
+
+    /** 帖子回复数 +1（仅顶级评论参与计数，原子自增防并发丢更新） */
+    @Update("UPDATE post SET reply_count = IFNULL(reply_count, 0) + 1 WHERE id = #{id} AND deleted = 0")
+    int incrReplyCount(@Param("id") Long id);
+
+    /** 帖子回复数 -1（下限为 0） */
+    @Update("UPDATE post SET reply_count = GREATEST(IFNULL(reply_count, 0) - 1, 0) WHERE id = #{id} AND deleted = 0")
+    int decrReplyCount(@Param("id") Long id);
 }

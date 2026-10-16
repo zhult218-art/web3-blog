@@ -209,15 +209,11 @@ public class ResourceService extends ServiceImpl<ResourceMapper, Resource> {
     }
 
     /**
-     * 资源下载计数 +1：资源存在时将 downloadCount 累加并更新。
+     * 资源下载计数 +1：原子自增（并发下不丢失更新，资源不存在时影响行数为 0）。
      *
      * @param id 资源 ID
      */
     public void incrementDownload(Long id) {
-        Resource resource = this.getById(id);
-        if (resource != null) {
-            resource.setDownloadCount(resource.getDownloadCount() == null ? 1L : resource.getDownloadCount() + 1L);
-            this.updateById(resource);
-        }
+        this.baseMapper.incrDownloadCount(id);
     }
 }

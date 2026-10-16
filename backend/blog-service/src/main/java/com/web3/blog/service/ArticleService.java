@@ -212,8 +212,9 @@ extends ServiceImpl<ArticleMapper, Article> {
         if (article == null) {
             return null;
         }
+        // 浏览量原子自增（并发下不丢失更新）；本地对象同步 +1 供本次响应使用
+        this.baseMapper.incrViewCount(id);
         article.setViewCount((article.getViewCount() == null ? 0L : article.getViewCount()) + 1L);
-        this.updateById(article);
         java.util.Map<String, Object> result = new java.util.HashMap<String, Object>();
         result.put("article", this.toVO(article));
         LambdaQueryWrapper<Article> prevWrapper = new LambdaQueryWrapper<Article>();
@@ -279,7 +280,12 @@ extends ServiceImpl<ArticleMapper, Article> {
             ArticleLike like = new ArticleLike();
             like.setArticleId(id);
             like.setUserId(userId);
-            this.articleLikeMapper.insert(like);
+            try {
+                this.articleLikeMapper.insert(like);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                // 并发双击：唯一键(article_id,user_id)保证仅一条记录，后到请求视为已点赞，不再重复计数
+                return;
+            }
             this.baseMapper.incrLikeCount(id);
         } else {
             this.articleLikeMapper.deleteById(record.getId());
@@ -361,7 +367,12 @@ extends ServiceImpl<ArticleMapper, Article> {
             UserFavorite fav = new UserFavorite();
             fav.setArticleId(articleId);
             fav.setUserId(userId);
-            this.userFavoriteMapper.insert(fav);
+            try {
+                this.userFavoriteMapper.insert(fav);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                // 并发双击：唯一键(article_id,user_id)保证仅一条记录，后到请求视为已收藏即返回
+                return;
+            }
         } else {
             this.userFavoriteMapper.deleteById(record.getId());
         }

@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS `comment` (
   `deleted` INT DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_target` (`target_type`, `target_id`),
-  KEY `idx_status` (`status`)
+  KEY `idx_status` (`status`),
+  KEY `idx_parent` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `like_record` (

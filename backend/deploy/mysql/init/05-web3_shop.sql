@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS `order` (
   `order_no` VARCHAR(64) DEFAULT NULL,
   `paid_at` DATETIME DEFAULT NULL,
   `pay_channel` VARCHAR(16) DEFAULT NULL,
+  `trade_no` VARCHAR(64) DEFAULT NULL COMMENT '第三方交易号（支付宝 trade_no / 微信 transaction_id）',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `deleted` INT DEFAULT 0,
   PRIMARY KEY (`id`),

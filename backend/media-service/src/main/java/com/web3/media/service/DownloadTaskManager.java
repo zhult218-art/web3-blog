@@ -123,6 +123,8 @@ public class DownloadTaskManager {
      * @return 任务快照（含 taskId）
      */
     public DownloadTask start(String url, String quality, boolean subtitle, String tags) {
+        // URL 安全校验（阻断选项注入与内网 SSRF）优先于一切
+        validateDownloadUrl(url);
         if (!ytdlpAvailable()) {
             throw new IllegalStateException("yt-dlp 不可用：" + this.downloadProperties.getYtdlpPath()
                     + "（请检查根 .env 的 YTDLP_PATH）");
@@ -132,6 +134,59 @@ public class DownloadTaskManager {
         this.tasks.put(taskId, task);
         this.pool.submit(() -> this.execute(task, url, quality, subtitle, tags));
         return task;
+    }
+
+    /**
+     * 下载 URL 安全校验：
+     * <ul>
+     *   <li>仅允许 http/https 且长度 ≤ 2048，拒绝空白/控制字符；</li>
+     *   <li>拒绝本机/内网/链路本地主机（防 SSRF 探测内网与云元数据）；</li>
+     *   <li>非 http(s) 前缀从根源上排除以 "-" 开头的参数注入值。</li>
+     * </ul>
+     * 校验失败抛 {@link IllegalArgumentException}（controller 映射为 400）。
+     */
+    private static void validateDownloadUrl(String url) {
+        if (url == null || url.isBlank() || url.length() > 2048) {
+            throw new IllegalArgumentException("URL 不合法");
+        }
+        String trimmed = url.trim();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+            throw new IllegalArgumentException("仅支持 http/https 视频链接");
+        }
+        for (int i = 0; i < trimmed.length(); i++) {
+            char c = trimmed.charAt(i);
+            if (c < 0x20 || c == ' ' || c == '"' || c == '\'') {
+                throw new IllegalArgumentException("URL 含非法字符");
+            }
+        }
+        String host;
+        try {
+            host = java.net.URI.create(trimmed).getHost();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("URL 解析失败");
+        }
+        if (host == null || host.isBlank()) {
+            throw new IllegalArgumentException("URL 缺少主机名");
+        }
+        String h = host.toLowerCase(Locale.ROOT).replace("[", "").replace("]", "");
+        boolean privateHost = h.equals("localhost") || h.equals("0.0.0.0") || h.equals("::1")
+                || h.startsWith("127.") || h.startsWith("10.") || h.startsWith("192.168.")
+                || h.startsWith("169.254.") || h.endsWith(".local") || h.endsWith(".internal");
+        if (!privateHost && h.startsWith("172.")) {
+            String[] seg = h.split("\\.");
+            if (seg.length > 1) {
+                try {
+                    int second = Integer.parseInt(seg[1]);
+                    privateHost = second >= 16 && second <= 31;
+                } catch (NumberFormatException ignore) {
+                    // 非数字段，保持非内网判定
+                }
+            }
+        }
+        if (privateHost) {
+            throw new IllegalArgumentException("不允许下载内网/本机地址");
+        }
     }
 
     /**
@@ -287,6 +342,8 @@ public class DownloadTaskManager {
             cmd.add("--convert-subs");
             cmd.add("srt");
         }
+        // 选项终止符：即使 URL 校验存在疏漏，也防止其被 yt-dlp 当作参数解析（选项注入）
+        cmd.add("--");
         cmd.add(url);
         return cmd;
     }

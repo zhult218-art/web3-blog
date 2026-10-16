@@ -7,7 +7,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.web3.forum.dto.CommentCreateDTO;
 import com.web3.forum.dto.CommentVO;
 import com.web3.forum.entity.Comment;
-import com.web3.forum.entity.Post;
 import com.web3.forum.mapper.CommentMapper;
 import com.web3.forum.mapper.PostMapper;
 import org.springframework.beans.BeanUtils;
@@ -99,7 +98,6 @@ extends ServiceImpl<CommentMapper, Comment> {
      */
     @Transactional
     public CommentVO create(CommentCreateDTO dto, Long authorId, boolean admin) {
-        Post post;
         Comment comment = new Comment();
         comment.setTargetId(dto.getTargetId());
         comment.setTargetType(dto.getTargetType());
@@ -110,9 +108,9 @@ extends ServiceImpl<CommentMapper, Comment> {
         comment.setAuthorName(dto.getAuthorName());
         comment.setStatus(admin ? "published" : "pending");
         this.baseMapper.insert(comment);
-        if (admin && "post".equals(dto.getTargetType()) && dto.getParentId() == null && (post = this.postMapper.selectById(dto.getTargetId())) != null) {
-            post.setReplyCount(safeReplyCount(post) + 1);
-            this.postMapper.updateById(post);
+        // 回复数原子自增（免读改写丢更新）；帖子不存在时影响行数为 0，与旧逻辑等价
+        if (admin && "post".equals(dto.getTargetType()) && dto.getParentId() == null) {
+            this.postMapper.incrReplyCount(dto.getTargetId());
         }
         return this.toVO(comment);
     }
@@ -245,17 +243,12 @@ extends ServiceImpl<CommentMapper, Comment> {
         if (wasPublished == becomesPublished) {
             return;
         }
-        Post post = (Post) this.postMapper.selectById(comment.getTargetId());
-        if (post == null) {
-            return;
+        // 原子增减（并发下不丢更新）；帖子不存在时影响行数为 0，与旧逻辑等价
+        if (becomesPublished) {
+            this.postMapper.incrReplyCount(comment.getTargetId());
+        } else {
+            this.postMapper.decrReplyCount(comment.getTargetId());
         }
-        int next = safeReplyCount(post) + (becomesPublished ? 1 : -1);
-        post.setReplyCount(Math.max(0, next));
-        this.postMapper.updateById(post);
-    }
-
-    private int safeReplyCount(Post post) {
-        return post.getReplyCount() == null ? 0 : post.getReplyCount();
     }
 
     /** 批量填充评论所属帖子标题（避免逐条查询） */

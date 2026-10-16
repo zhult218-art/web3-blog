@@ -2,6 +2,7 @@ package com.web3.gateway.filter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -14,7 +15,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 
 /**
  * IP 黑名单过滤器（GlobalFilter，介于安全头与限流之间执行）
@@ -30,6 +33,10 @@ public class IpBlocklistFilter implements GlobalFilter, Ordered {
   private static final String BLOCKLIST_KEY = "ip:blocklist";
 
   private final ReactiveStringRedisTemplate redis;
+
+  /** 可信代理 IP 集合：仅这些来源转发的 XFF 才被解析，杜绝任意客户端伪造 XFF 绕过黑名单 */
+  @Value("${gateway.trusted-proxies:127.0.0.1,0:0:0:0:0:0:0:1}")
+  private Set<String> trustedProxies;
 
   public IpBlocklistFilter(ReactiveStringRedisTemplate redis) {
     this.redis = redis;
@@ -68,33 +75,41 @@ public class IpBlocklistFilter implements GlobalFilter, Ordered {
   }
 
   /**
-   * 提取客户端真实 IP
-   * <p>注意：这里采用与 RateLimitFilter 相同的可信代理 XFF 解析逻辑，
-   * 保持一致性。若上游可信代理改用其他头（X-Real-IP 等），需同步调整。
+   * 提取客户端真实 IP（与 RateLimitFilter 相同的可信代理解析逻辑）。
+   * <p>仅当直连来源是可信代理时才解析 XFF，从右向左取第一个非可信 IP；
+   * 否则直接使用 TCP 对端地址，杜绝攻击者伪造 XFF 绕过黑名单。
    */
   private String resolveClientIp(ServerHttpRequest req) {
+    InetSocketAddress remote = req.getRemoteAddress();
+    String remoteIp = remote != null ? remote.getAddress().getHostAddress() : "unknown";
+    // 直连来源不是可信代理 → 无条件信任 TCP 对端地址，忽略所有 XFF 头
+    if (!isTrustedProxy(remoteIp)) {
+      return remoteIp;
+    }
+    // 直连来源是可信代理 → 解析 XFF，从右向左取第一个非可信代理 IP
     String xff = req.getHeaders().getFirst("X-Forwarded-For");
     if (xff != null && !xff.isEmpty()) {
       String[] parts = xff.split(",");
-      // 从右向左取第一个非内网 IP（可信代理场景）
       for (int i = parts.length - 1; i >= 0; i--) {
         String ip = parts[i].trim();
-        if (!ip.isEmpty() && !ip.startsWith("127.") && !ip.startsWith("10.")
-            && !ip.startsWith("192.168.") && !ip.equals("0:0:0:0:0:0:0:1")) {
+        if (!ip.isEmpty() && !isTrustedProxy(ip)) {
           return ip;
         }
       }
-      if (parts.length > 0) {
-        String tail = parts[parts.length - 1].trim();
-        if (!tail.isEmpty()) return tail;
-      }
+      String tail = parts[parts.length - 1].trim();
+      if (!tail.isEmpty()) return tail;
     }
     String xri = req.getHeaders().getFirst("X-Real-IP");
     if (xri != null && !xri.isEmpty()) return xri.trim();
-    if (req.getRemoteAddress() != null) {
-      return req.getRemoteAddress().getAddress().getHostAddress();
-    }
-    return "unknown";
+    return remoteIp;
+  }
+
+  /** 判断 IP 是否为可信代理（与 RateLimitFilter 一致） */
+  private boolean isTrustedProxy(String ip) {
+    if (ip == null) return false;
+    if (trustedProxies.contains(ip)) return true;
+    return ip.startsWith("127.") || ip.startsWith("10.")
+        || ip.startsWith("192.168.") || ip.equals("0:0:0:0:0:0:0:1");
   }
 
   /** 介于安全头（-200）与限流（-100）之间 */

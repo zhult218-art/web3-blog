@@ -34,6 +34,10 @@ public interface ArticleMapper extends BaseMapper<Article> {
     @Update("UPDATE article SET like_count = GREATEST(IFNULL(like_count, 0) - 1, 0) WHERE id = #{id} AND deleted = 0")
     int decrLikeCount(@Param("id") Long id);
 
+    /** 文章浏览量 +1（原子自增，并发下不丢失更新） */
+    @Update("UPDATE article SET view_count = IFNULL(view_count, 0) + 1 WHERE id = #{id} AND deleted = 0")
+    int incrViewCount(@Param("id") Long id);
+
     /** 归档：按年月分组统计已发布文章数 */
     @Select("SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS count FROM article WHERE status = 'PUBLISHED' AND deleted = 0 GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month DESC")
     List<Map<String, Object>> selectArchives();

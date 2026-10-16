@@ -55,6 +55,12 @@ public class AuthProperties {
     public static class Google {
         /** 是否启用 Google 授权登录（未配置 client-id 时前端隐藏入口） */
         private boolean enabled = false;
+        /**
+         * 是否允许 dev mock 登录（POST /user/oauth/google/dev-login）。
+         * 安全默认关闭：该接口可用任意邮箱直接登录/接管已有账号，仅限本地调试显式开启
+         * （环境变量 GOOGLE_DEV_LOGIN_ENABLED=true，且必须同时未启用真实 OAuth）。
+         */
+        private boolean devLoginEnabled = false;
         private String clientId = "";
         private String clientSecret = "";
         /** 必须与 Google Cloud Console 中配置的回调一致，如 https://api.example.com/user/oauth/google/callback */
@@ -62,6 +68,8 @@ public class AuthProperties {
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean v) { this.enabled = v; }
+        public boolean isDevLoginEnabled() { return devLoginEnabled; }
+        public void setDevLoginEnabled(boolean v) { this.devLoginEnabled = v; }
         public String getClientId() { return clientId; }
         public void setClientId(String v) { this.clientId = v; }
         public String getClientSecret() { return clientSecret; }

@@ -2,6 +2,7 @@ USE web3_quant;
 
 CREATE TABLE IF NOT EXISTS `strategy` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT DEFAULT NULL COMMENT '策略归属用户 ID（NULL 表示公共策略）',
   `name` VARCHAR(200) NOT NULL,
   `description` TEXT,
   `status` VARCHAR(32) DEFAULT 'DRAFT',
@@ -12,7 +13,8 @@ CREATE TABLE IF NOT EXISTS `strategy` (
   `backtest_data` LONGTEXT,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `deleted` INT DEFAULT 0,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `quant_log` (

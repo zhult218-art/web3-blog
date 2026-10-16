@@ -159,7 +159,12 @@ extends ServiceImpl<PostMapper, Post> {
             newRecord.setTargetId(postId);
             newRecord.setTargetType("post");
             newRecord.setUserId(userId);
-            this.likeRecordMapper.insert(newRecord);
+            try {
+                this.likeRecordMapper.insert(newRecord);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                // 并发双击：唯一键(target_type,target_id,user_id)保证仅一条记录，后到请求视为已点赞，不再重复计数
+                return;
+            }
             this.baseMapper.incrLikeCount(postId);
         } else {
             this.likeRecordMapper.deleteById(record.getId());

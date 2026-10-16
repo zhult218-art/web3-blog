@@ -18,6 +18,7 @@ import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -182,7 +183,9 @@ public class UserAiController {
     /**
      * redeem a gift code into MY token: {code}
      * atomic claim (concurrency-safe) then topup by face value
+     * 同一事务：充值失败自动回滚核销，避免"码被吃掉、额度没到账"
      */
+    @Transactional(rollbackFor = Exception.class)
     @PostMapping("/tokens/{id}/redeem")
     public ApiResponse<Void> redeem(@PathVariable Long id, @RequestBody Map<String, Object> body,
                                     @RequestHeader(value = "Authorization", required = false) String auth) {

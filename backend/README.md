@@ -32,7 +32,7 @@ Spring Cloud Alibaba 微服务集群：Spring Boot 3 + Spring Cloud Gateway + Na
 | `media-service` | 8085 | web3_media | 音乐、视频、书籍、播放列表，媒体文件安全校验 |
 | `quant-service` | 8086 | web3_quant | 量化策略、股票行情、龙虎榜、研报 |
 | `tool-service` | 8087 | web3_tool | 在线脚本工具（加解密、二维码等） |
-| `software-service` | 8088 | web3_software | 软件列表与下载 |
+| `software-service` | 8090 | web3_software | 软件列表与下载 |
 | `resource-service` | 8089 | web3_resource | 资源上传 / 下载（本地磁盘存储） |
 | `jarvis-service` | 9001 | web3_jarvis | JARVIS AI 语音助手（语音会话 + RabbitMQ 命令） |
 | `admin-service` | 9002 | web3_admin | 管理后台：仪表盘、用户管理、订单、流量统计、操作日志 |
@@ -52,7 +52,7 @@ Spring Cloud Alibaba 微服务集群：Spring Boot 3 + Spring Cloud Gateway + Na
 ```powershell
 $env:JAVA_HOME = "F:\tools\jdk17"
 cd backend
-F:\tools\apache-maven-3.9.6\bin\mvn.cmd install -pl common/common-core,common/common-security,common/common-util -DskipTests
+F:\tools\apache-maven-3.9.6\bin\mvn.cmd install -pl common/common-core,common/common-security,common/common-util
 ```
 
 ## 网关路由表（gateway/src/main/resources/application.yml）
@@ -66,7 +66,7 @@ F:\tools\apache-maven-3.9.6\bin\mvn.cmd install -pl common/common-core,common/co
 | `/music/**` `/book/**` `/video/**` `/playlist/**` | media-service:8085 |
 | `/strategy/**` `/quant/**` `/stock/**` | quant-service:8086 |
 | `/script/**` | tool-service:8087 |
-| `/software/**` | software-service:8088 |
+| `/software/**` | software-service:8090 |
 | `/resource/**` | resource-service:8089 |
 | `/jarvis/**` | jarvis-service:9001 |
 | `/admin/**` | admin-service:9002 |
@@ -94,8 +94,8 @@ powershell -ExecutionPolicy Bypass -File ..\start-all-services.ps1   # 在 backe
 $env:JAVA_HOME = "F:\tools\jdk17"
 cd backend
 
-# 首次：安装公共模块 + 全量打包
-F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean install -DskipTests
+# 首次：安装公共模块 + 全量打包（含 24 个单元测试）
+F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean install
 
 # 逐个启动（prod 模式不依赖 Nacos 即可运行；dev 模式需 Nacos 可用）
 java -jar gateway/target/gateway-1.0.0.jar --spring.profiles.active=prod
@@ -108,11 +108,11 @@ java -jar user-service/target/user-service-1.0.0.jar --spring.profiles.active=pr
 ### 4. 数据库初始化
 
 ```powershell
-# 方式一（容器）：MySQL 容器启动时自动执行 backend/deploy/mysql/init/ 下的 12 个 SQL
+# 方式一（容器）：MySQL 容器启动时自动执行 backend/deploy/mysql/init/ 下的 18 个 SQL
 # 方式二（本地）：
 mysql -u root -proot < backend/deploy/mysql/init/01-databases.sql    # 建 11 个 web3_* 库
 mysql -u root -proot --database=web3_user < backend/deploy/mysql/init/02-web3_user.sql
-# ... 02~12 按编号与库名一一对应导入
+# ... 02~13 按编号与库名一一对应导入
 ```
 
 ### 5. Docker 部署
@@ -144,6 +144,7 @@ blog-service/src/main/java/.../
 - **受保护接口**：携带 `Authorization: Bearer <token>` 请求头。
 - **管理员接口**：`@RequireAdmin` 注解 + 前端 `permissions` 字段（用户权限码）双重校验。
 - **公开接口**：各服务 `PublicSecurityConfig` 显式放行（如文章列表、媒体流等）。
+- **计费接口**：`/agent/chat`、`/agent/workflow/execute` 需登录（防匿名刷计费）；`/agent/workflows`、`/agent/workflow/match` 保持公开。
 
 ## 安全加固（2026-09-30）
 
@@ -215,13 +216,15 @@ blog-service/src/main/java/.../
 | `AI_PROXY_TOKEN_SECRET` `AI_PROXY_CHANNEL_KEY_SECRET` | ai-proxy | AI 代理密钥（≥32 字符） | ai-proxy 必填 |
 | `MAIL_ENABLED` `MAIL_HOST` `MAIL_USERNAME` `MAIL_PASSWORD` | user-service | 邮箱 OTP（true=走 SMTP；false=dev 回传 devCode） | 否 |
 | `SMS_ENABLED` `SMS_PROVIDER` | user-service | 短信 OTP（当前仅邮件 OTP 方案，短信网关未接入自动回退） | 否 |
+| `GOOGLE_DEV_LOGIN_ENABLED` | user-service | Google dev mock 登录开关（默认 false；仅未启用真实 OAuth 时可开启，仅限本地调试） | 否 |
+| `VIDEO_ADMIN_TOKEN` | py-service（video/wifi/osint） | 运维直连令牌（请求头 `X-Admin-Token` 的校验值） | 否 |
 | `OPENROUTER_API_KEY` | quant-service | AI 观察面板（无则降级为空） | 否 |
 | `ARTIFICIAL_ANALYSIS_API_KEY` | quant-service | 大模型定价面板（无则降级为空） | 否 |
 
 ## 测试
 
 - 测试框架：JUnit 5 + Mockito（`spring-boot-starter-test`）。
-- 现有测试：`OrderServiceTest`（取消订单回补库存）、`MusicServiceTest`（page 钳制/越权/play_count 自增，9 用例）、`ArticleServiceTest`（page 钳制/越权拒绝，6 用例）、`CommentServiceTest`（评论状态/越权拒绝，6 用例）。
+- 现有测试（共 24 用例，全部 Mockito，无需 DB/中间件）：`OrderServiceTest`（取消订单回补库存，3 用例）、`MusicServiceTest`（page 钳制/越权/play_count 自增，9 用例）、`ArticleServiceTest`（page 钳制/越权拒绝，6 用例）、`CommentServiceTest`（评论状态/越权拒绝，6 用例）。
 - 运行：
 
 ```powershell
@@ -229,7 +232,7 @@ $env:JAVA_HOME = "F:\tools\jdk17"
 F:\tools\apache-maven-3.9.6\bin\mvn.cmd -pl media-service,blog-service,forum-service,shop-service test -f backend/pom.xml
 ```
 
-> CI 默认 `-DskipTests` 不跑；本地验证可按上述命令执行。
+> CI（`.github/workflows/ci.yml`）已改为执行 `mvn test`（24 个单元测试全绿）；本地验证可按上述命令执行。
 
 ## 相关文档
 

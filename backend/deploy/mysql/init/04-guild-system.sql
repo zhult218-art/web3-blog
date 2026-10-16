@@ -5,7 +5,11 @@
 -- 后续 05-13 号 SQL 因 MySQL 容器 init 失败后不会重跑而全部缺失。
 -- 现改为 MySQL 8 兼容的 information_schema 判断 + 动态 PREPARE/EXECUTE，
 -- 同时兼容 MariaDB（MariaDB 也支持此写法）。
+-- 2026-10 再修订：补充 USE web3_user；缺 USE 时本文件会落到容器默认库
+-- web3_portal（MYSQL_DATABASE），导致公会表建错库且 ALTER TABLE user 失败。
 -- ============================================================
+
+USE web3_user;
 
 -- 用户职业字段（幂等：列已存在则跳过）
 SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS

@@ -5,6 +5,7 @@ import com.web3.common.core.ApiResponse;
 import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,8 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * 类名：AdminController
@@ -72,8 +75,59 @@ public class AdminController {
      * @return code=200 时 data 包含新记录 ID
      */
     @PostMapping("/visit")
-    public ApiResponse<Map<String, Object>> recordVisit(@RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(adminService.recordVisit(body));
+    public ApiResponse<Map<String, Object>> recordVisit(@RequestBody Map<String, Object> body,
+                                                        HttpServletRequest request) {
+        return ApiResponse.ok(adminService.recordVisit(sanitizeVisitBody(body, request)));
+    }
+
+    /** 埋点字段允许的形态（IPv4/IPv6 字符集，限长） */
+    private static final Pattern VISIT_IP_PATTERN = Pattern.compile("^[0-9a-fA-F.:]{3,64}$");
+
+    /**
+     * 埋点字段收敛：全部字符串限长，IP 校验失败时回退真实来源地址。
+     * 防止匿名接口被超长/非法字段灌库或污染统计语义。
+     */
+    private static Map<String, Object> sanitizeVisitBody(Map<String, Object> body, HttpServletRequest request) {
+        Map<String, Object> src = body == null ? Map.of() : body;
+        Map<String, Object> clean = new HashMap<>(8);
+        String ip = cap(asString(src.get("ip")), 64);
+        if (ip == null || !VISIT_IP_PATTERN.matcher(ip).matches()) {
+            ip = resolveVisitIp(request);
+        }
+        clean.put("ip", ip);
+        clean.put("country", cap(asString(src.get("country")), 64));
+        clean.put("region", cap(asString(src.get("region")), 64));
+        clean.put("city", cap(asString(src.get("city")), 64));
+        clean.put("isp", cap(asString(src.get("isp")), 128));
+        clean.put("latitude", src.get("latitude"));
+        clean.put("longitude", src.get("longitude"));
+        clean.put("userAgent", cap(asString(src.get("userAgent")), 512));
+        clean.put("pagePath", cap(asString(src.get("pagePath")), 512));
+        return clean;
+    }
+
+    /** 回退来源：XFF 首个合法 IP，否则 TCP 对端地址 */
+    private static String resolveVisitIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            String first = xff.split(",")[0].trim();
+            if (VISIT_IP_PATTERN.matcher(first).matches()) {
+                return first;
+            }
+        }
+        String remote = request.getRemoteAddr();
+        return remote == null || remote.isBlank() ? "unknown" : remote;
+    }
+
+    private static String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static String cap(String value, int max) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= max ? value : value.substring(0, max);
     }
 
     /**
