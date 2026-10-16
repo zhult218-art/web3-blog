@@ -2,11 +2,19 @@
   <div class="min-h-screen py-8 px-6">
     <div class="max-w-7xl mx-auto">
       <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-2xl font-bold text-white motions-reveal" v-reveal>
-          <span class="text-gradient-cyber">Admin</span> Dashboard
-        </h1>
-        <p class="mt-1 text-sm text-gray-500 motions-reveal delay-100" v-reveal>系统概览 · 实时监控</p>
+      <div class="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 class="text-2xl font-bold text-white motions-reveal" v-reveal>
+            <span class="text-gradient-cyber">Admin</span> Dashboard
+          </h1>
+          <p class="mt-1 text-sm text-gray-500 motions-reveal delay-100" v-reveal>系统概览 · 实时监控</p>
+        </div>
+        <button @click="toggleAiInsight" :disabled="aiBusy"
+          class="motions-reveal delay-200 text-[11px] px-3 py-1.5 rounded-lg border transition disabled:opacity-50"
+          :class="showAi ? 'text-purple-200 border-purple-400/40 bg-purple-500/15' : 'text-purple-400 border-purple-400/25 hover:text-purple-300 hover:bg-purple-500/10'"
+          v-reveal>
+          {{ aiBusy ? 'AI 解读中…' : (showAi ? '收起 AI 解读' : '✦ AI 数据解读') }}
+        </button>
       </div>
 
       <!-- Stats Grid -->
@@ -23,6 +31,20 @@
           <div class="text-2xl font-black text-white matrix-text">{{ stat.value }}</div>
           <div class="text-[11px] text-gray-500 mt-1 tracking-wider uppercase">{{ stat.label }}</div>
         </div>
+      </div>
+
+      <!-- AI 数据解读（免费 AI 通道，流式输出） -->
+      <div v-if="showAi" class="mb-8 glass-panel p-6 motions-reveal" v-reveal>
+        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <span>✦</span> AI 数据解读
+            <span class="text-[10px] font-normal text-gray-500">基于核心指标 + 服务状态 + 操作日志</span>
+          </h3>
+          <button v-if="aiText && !aiBusy" @click="genAiInsight" class="text-[11px] text-purple-400 hover:text-purple-300 transition">重新解读</button>
+        </div>
+        <div v-if="aiBusy && !aiText" class="text-xs text-purple-300/80">正在分析数据…<span class="animate-pulse">▍</span></div>
+        <div v-else-if="aiText" class="text-xs leading-relaxed text-gray-300 whitespace-pre-wrap">{{ aiText }}</div>
+        <div v-else class="text-xs text-gray-500">正在准备数据…</div>
       </div>
 
       <!-- Main Grid -->
@@ -116,6 +138,7 @@
 import { ref, onMounted } from 'vue'
 import { getDashboard, getAdminLogs, getVisitSummary, getServicesHealth, startService, stopService, getDefaultServices, mergeServices } from '@/api/admin'
 import { confirm as dlgConfirm, alert as dlgAlert } from '@/composables/useDialog'
+import { aiChatStream } from '@/api/freeAi'
 
 // 核心指标卡片（用户/文章/订单/营收/今日访问）— 全部来自接口
 const stats = ref([
@@ -131,6 +154,54 @@ const services = ref(getDefaultServices())
 
 // 最近操作日志列表 — 来自接口
 const recentLogs = ref([])
+
+// ── AI 数据解读（免费通道，流式输出）──
+const showAi = ref(false)
+const aiBusy = ref(false)
+const aiText = ref('')
+
+function toggleAiInsight() {
+  showAi.value = !showAi.value
+  if (showAi.value && !aiText.value && !aiBusy.value) genAiInsight()
+}
+
+// 汇总当前页面可见的核心数据，作为 AI 解读的输入
+function buildInsightContext() {
+  const lines = stats.value.map(s => `- ${s.label}: ${s.value}`)
+  const svc = services.value.map(s => `- ${s.label || s.name}(:${s.port}): ${s.status}`)
+  const down = services.value.filter(s => s.status !== 'RUNNING' && !s.core)
+  const logs = recentLogs.value.slice(0, 10).map(l => `- ${l.operatorName || '?'} ${l.module || ''} ${l.action || ''} ${l.targetName || ''}`.trim())
+  return [
+    '站点核心指标：',
+    ...lines,
+    '微服务状态：',
+    ...svc,
+    down.length ? `离线服务：${down.map(s => s.label || s.name).join('、')}` : '服务按注册表均在线（或仅核心服务受控）',
+    logs.length ? '最近操作日志：' : '最近无操作日志',
+    ...logs,
+  ].join('\n')
+}
+
+async function genAiInsight() {
+  if (aiBusy.value) return
+  aiBusy.value = true
+  aiText.value = ''
+  try {
+    await aiChatStream(
+      [{ role: 'user', content: '请解读这些数据' }],
+      d => { aiText.value += d },
+      {
+        system: '你是站点运营分析助手。根据以下后台数据用中文输出简洁分析：1) 数据概览（一行）；2) 值得注意的点（异常/风险/趋势，逐条）；3) 建议动作（2-3 条，可执行）。总字数不超过 200 字，不用客套。\n\n' + buildInsightContext(),
+        max_tokens: 500,
+      }
+    )
+    aiText.value = aiText.value || '（未返回内容）'
+  } catch (e) {
+    aiText.value = '（解读失败：' + (e?.message || '服务暂时不可用') + '）'
+  } finally {
+    aiBusy.value = false
+  }
+}
 
 // 格式化为 HH:mm:ss 时间
 function formatTime(t) {
