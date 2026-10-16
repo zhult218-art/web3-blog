@@ -10,9 +10,24 @@
 #
 # 用法：powershell -ExecutionPolicy Bypass -File start-all-services.ps1
 #       （或直接双击 start-all-services.bat）
+#       -NoWait：跳过末尾固定 20s 等待与端口自检（供 watchdog / 滚动重启调用，
+#                调用方自行轮询端口就绪）
 # ============================================================
+param([switch]$NoWait, [string]$Only)
 
 $ErrorActionPreference = "Stop"
+
+# 端口探测用裸 TCP socket：换页/内存压力下 Get-NetTCPConnection 可能挂起数十分钟
+# （2026-10-16 watchdog 实例实测卡死 25 分钟），connect 300ms 超时稳定可靠。
+function Test-PortFast {
+    param([int]$Port)
+    $c = New-Object Net.Sockets.TcpClient
+    try {
+        $iar = $c.BeginConnect('127.0.0.1', $Port, $null, $null)
+        $ok  = $iar.AsyncWaitHandle.WaitOne(300, $false)
+        return [bool]($ok -and $c.Connected)
+    } catch { return $false } finally { $c.Close() }
+}
 
 # ── 目录定位（脚本位于仓库根，后端在 <root>\backend） ──
 $root = $PSScriptRoot
@@ -202,7 +217,7 @@ if ($env:NACOS_HOME -and (Test-Path (Join-Path $env:NACOS_HOME "bin\startup.cmd"
     $nacosCmd = @("F:\tools\nacos\bin\startup.cmd", "C:\tools\nacos\bin\startup.cmd") |
         Where-Object { Test-Path $_ } | Select-Object -First 1
 }
-if ($nacosCmd) {
+if ($nacosCmd -and -not $Only) {
     $nacosBin = Split-Path $nacosCmd -Parent
     $nacosHome = Split-Path $nacosBin -Parent
     # standalone 模式；JAVA_HOME 已在进程环境，cmd 子进程可继承
@@ -225,28 +240,47 @@ if ($nacosCmd) {
 }
 
 # ── 1. Java 微服务 ──
+# port 为各服务「实际监听」端口（实证：ai-proxy=8093、jarvis=9001、admin=9002，
+# 与 jar 名直觉顺序不同；修改前请以 Get-NetTCPConnection 实测为准）。
+# 启动前按 port 幂等跳过：watchdog 每 5 分钟触发本脚本，已运行的服务绝不能重复拉起，
+# 否则重复实例会白占内存并因端口占用/OOM 连环崩溃（2026-10-16 事故根因）。
 $services = @(
-    @{ name = "gateway";          jar = "gateway\target\gateway-1.0.0.jar" },
-    @{ name = "user-service";     jar = "user-service\target\user-service-1.0.0.jar" },
-    @{ name = "blog-service";     jar = "blog-service\target\blog-service-1.0.0.jar" },
-    @{ name = "forum-service";    jar = "forum-service\target\forum-service-1.0.0.jar" },
-    @{ name = "shop-service";     jar = "shop-service\target\shop-service-1.0.0.jar" },
-    @{ name = "media-service";    jar = "media-service\target\media-service-1.0.0.jar" },
-    @{ name = "quant-service";    jar = "quant-service\target\quant-service-1.0.0.jar" },
-    @{ name = "tool-service";     jar = "tool-service\target\tool-service-1.0.0.jar" },
-    @{ name = "software-service"; jar = "software-service\target\software-service-1.0.0.jar" },
-    @{ name = "resource-service"; jar = "resource-service\target\resource-service-1.0.0.jar" },
-    @{ name = "ai-proxy-service"; jar = "ai-proxy-service\target\ai-proxy-service-1.0.0.jar" },
-    @{ name = "jarvis-service";   jar = "jarvis-service\target\jarvis-service-1.0.0.jar" },
-    @{ name = "admin-service";    jar = "admin-service\target\admin-service-1.0.0.jar" }
+    @{ name = "gateway";          port = 8080; jar = "gateway\target\gateway-1.0.0.jar" },
+    @{ name = "user-service";     port = 8081; jar = "user-service\target\user-service-1.0.0.jar" },
+    @{ name = "blog-service";     port = 8082; jar = "blog-service\target\blog-service-1.0.0.jar" },
+    @{ name = "forum-service";    port = 8083; jar = "forum-service\target\forum-service-1.0.0.jar" },
+    @{ name = "shop-service";     port = 8084; jar = "shop-service\target\shop-service-1.0.0.jar" },
+    @{ name = "media-service";    port = 8085; jar = "media-service\target\media-service-1.0.0.jar" },
+    @{ name = "quant-service";    port = 8086; jar = "quant-service\target\quant-service-1.0.0.jar" },
+    @{ name = "tool-service";     port = 8087; jar = "tool-service\target\tool-service-1.0.0.jar" },
+    @{ name = "software-service"; port = 8090; jar = "software-service\target\software-service-1.0.0.jar" },
+    @{ name = "resource-service"; port = 8089; jar = "resource-service\target\resource-service-1.0.0.jar" },
+    @{ name = "ai-proxy-service"; port = 8093; jar = "ai-proxy-service\target\ai-proxy-service-1.0.0.jar" },
+    @{ name = "jarvis-service";   port = 9001; jar = "jarvis-service\target\jarvis-service-1.0.0.jar" },
+    @{ name = "admin-service";    port = 9002; jar = "admin-service\target\admin-service-1.0.0.jar" }
 )
+
+# 低内存 JVM 参数（16GB 机器跑 13 个 JVM 的保命配置，2026-10-16 native OOM 后定版）：
+#   -Xmx300m/-Xms128m      堆按需提交，不预触内存
+#   -Xss512k               线程栈减半（默认 1MB，百级线程省几十 MB）
+#   MaxMetaspaceSize=192m  封顶类元数据（默认无上限，长跑微服务会缓慢膨胀）
+#   CompressedClassSpace=128m  缩小 compressed class 保留空间（默认 1GB reserve）
+#   ReservedCodeCache=128m C2 JIT 代码缓存封顶（上次崩溃点 Chunk::new 即此处 arena 分配）
+#   +UseSerialGC           单线程 GC：小堆本地开发足够，省掉 G1 region/remembered set
+#                          结构与并行 GC 线程栈，单 JVM 提交内存可降约 200-300MB
+$JvmOpts = "-Xms128m -Xmx300m -Xss512k -XX:MaxMetaspaceSize=192m -XX:CompressedClassSpaceSize=128m -XX:ReservedCodeCacheSize=128m -XX:+UseSerialGC"
 
 Write-Host "[INFO] JAVA_HOME=$env:JAVA_HOME" -ForegroundColor Cyan
 Write-Host "启动 Java 微服务..." -ForegroundColor Cyan
 foreach ($svc in $services) {
+    if ($Only -and $svc.name -ne $Only) { continue }
     $jarPath = Join-Path $base $svc.jar
     if (-not (Test-Path $jarPath)) {
         Write-Host "  跳过 $($svc.name)：未找到 $($svc.jar)，请先执行 mvn package。" -ForegroundColor Yellow
+        continue
+    }
+    if (Test-PortFast -Port $svc.port) {
+        Write-Host "  $($svc.name) 已在运行（:$($svc.port)），跳过" -ForegroundColor DarkGray
         continue
     }
     $svcDir = Split-Path $jarPath -Parent
@@ -255,14 +289,14 @@ foreach ($svc in $services) {
     # 2026-10-10：software-service 默认端口 8088 被腾讯更新代理占用，改用 8090。
     if ($svc.name -eq "user-service") {
         Start-HiddenProcess -Name $svc.name -File $java `
-            -Arguments "-Xmx320m -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7892 -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=7892 -jar `"$jarPath`"" `
+            -Arguments "$JvmOpts -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7892 -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=7892 -jar `"$jarPath`"" `
             -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
     } elseif ($svc.name -eq "software-service") {
         Start-HiddenProcess -Name $svc.name -File $java `
-            -Arguments "-Xmx320m -jar `"$jarPath`" --server.port=8090" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
+            -Arguments "$JvmOpts -jar `"$jarPath`" --server.port=8090" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
     } else {
         Start-HiddenProcess -Name $svc.name -File $java `
-            -Arguments "-Xmx320m -jar `"$jarPath`"" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
+            -Arguments "$JvmOpts -jar `"$jarPath`"" -WorkDir $svcDir -LogDir (Join-Path $svcDir "logs") | Out-Null
     }
     Start-Sleep -Milliseconds 400
 }
@@ -273,8 +307,12 @@ Write-Host "启动网易云音乐代理（3000）..." -ForegroundColor Cyan
 $ncmDir = Join-Path $root "node-service\netease-music-api"
 $ncmEntry = Join-Path $ncmDir "server.js"
 if ($node -and (Test-Path $ncmEntry)) {
-    Start-HiddenProcess -Name "netease-music-api" -File $node -Arguments "`"$ncmEntry`"" `
-        -WorkDir $ncmDir -LogDir $ncmDir | Out-Null
+    if (Test-PortFast -Port 3000) {
+        Write-Host "  netease-music-api 已在运行（:3000），跳过" -ForegroundColor DarkGray
+    } else {
+        Start-HiddenProcess -Name "netease-music-api" -File $node -Arguments "`"$ncmEntry`"" `
+            -WorkDir $ncmDir -LogDir $ncmDir | Out-Null
+    }
 } else {
     Write-Host "  跳过 netease-music-api：未找到 node 或 server.js（音乐馆仍可用 Audius / iTunes 免费源）" -ForegroundColor Yellow
 }
@@ -286,8 +324,12 @@ Write-Host "启动聊天网关（3010）..." -ForegroundColor Cyan
 $chatGwDir = Join-Path $root "node-service\chat-gateway"
 $chatGwEntry = Join-Path $chatGwDir "server.js"
 if ($node -and (Test-Path $chatGwEntry)) {
-    Start-HiddenProcess -Name "chat-gateway" -File $node -Arguments "`"$chatGwEntry`"" `
-        -WorkDir $chatGwDir -LogDir $chatGwDir | Out-Null
+    if (Test-PortFast -Port 3010) {
+        Write-Host "  chat-gateway 已在运行（:3010），跳过" -ForegroundColor DarkGray
+    } else {
+        Start-HiddenProcess -Name "chat-gateway" -File $node -Arguments "`"$chatGwEntry`"" `
+            -WorkDir $chatGwDir -LogDir $chatGwDir | Out-Null
+    }
 } else {
     Write-Host "  跳过 chat-gateway：未找到 node 或 server.js（聊天将不可用）" -ForegroundColor Yellow
 }
@@ -298,9 +340,13 @@ if ($node -and (Test-Path $chatGwEntry)) {
 Write-Host "启动统一 py-service（9006）..." -ForegroundColor Cyan
 $pySvcDir = Join-Path $root "py-service"
 if ($py -and (Test-Path (Join-Path $pySvcDir "main.py"))) {
-    Start-HiddenProcess -Name "py-service" -File $py `
-        -Arguments "-m uvicorn main:app --host 0.0.0.0 --port 9006" `
-        -WorkDir $pySvcDir -LogDir $pySvcDir | Out-Null
+    if (Test-PortFast -Port 9006) {
+        Write-Host "  py-service 已在运行（:9006），跳过" -ForegroundColor DarkGray
+    } else {
+        Start-HiddenProcess -Name "py-service" -File $py `
+            -Arguments "-m uvicorn main:app --host 0.0.0.0 --port 9006" `
+            -WorkDir $pySvcDir -LogDir $pySvcDir | Out-Null
+    }
 } else {
     Write-Host "  跳过 py-service：未找到 python 或 main.py" -ForegroundColor Yellow
 }
@@ -311,7 +357,7 @@ if ($py -and (Test-Path (Join-Path $pySvcDir "main.py"))) {
 Write-Host "启动 Vibe-Research 服务（8900）..." -ForegroundColor Cyan
 $vibeDir = Join-Path (Split-Path (Split-Path $root -Parent) -Parent) 'Quant\Vibe-Research\backend'
 $vibePy = Join-Path $vibeDir ".venv\Scripts\python.exe"
-if ((Test-Path $vibePy) -and (Test-Path (Join-Path $vibeDir "app.py"))) {
+if ((-not $Only) -and (Test-Path $vibePy) -and (Test-Path (Join-Path $vibeDir "app.py"))) {
     Start-HiddenProcess -Name "vibe-research" -File $vibePy `
         -Arguments "-m uvicorn app:app --host 127.0.0.1 --port 8900" `
         -WorkDir $vibeDir -LogDir $vibeDir | Out-Null
@@ -326,9 +372,13 @@ if ($node -and (Test-Path (Join-Path $feDir "node_modules"))) {
     # node_modules/.bin/npx 不可靠，直接用 node 调 vite
     $viteBin = Join-Path $feDir "node_modules\vite\bin\vite.js"
     if (Test-Path $viteBin) {
-        Start-HiddenProcess -Name "vite-frontend" -File $node `
-            -Arguments "`"$viteBin`" --host" `
-            -WorkDir $feDir -LogDir (Join-Path $feDir "logs") | Out-Null
+        if (Test-PortFast -Port 5173) {
+            Write-Host "  vite-frontend 已在运行（:5173），跳过" -ForegroundColor DarkGray
+        } else {
+            Start-HiddenProcess -Name "vite-frontend" -File $node `
+                -Arguments "`"$viteBin`" --host" `
+                -WorkDir $feDir -LogDir (Join-Path $feDir "logs") | Out-Null
+        }
     } else {
         # 回退：npx vite
         Start-HiddenProcess -Name "vite-frontend" -File $node `
@@ -370,13 +420,17 @@ if ($sakuraRunning) {
 }
 
 # ── 端口自检 ──
-Write-Host "`n等待 20s 让服务完成启动..." -ForegroundColor Cyan
-Start-Sleep -Seconds 20
-Write-Host "`n=== 端口检查 ===" -ForegroundColor Cyan
-foreach ($p in @(3306,6379,8848,8080,8081,8082,8083,8084,8085,8086,8087,8089,8090,8093,9001,9002,3000,5173,9006,8900,3010)) {
-    $listening = netstat -ano | Select-String ":$p" | Select-String "LISTENING"
-    if ($listening) { Write-Host "  :$p  OK" -ForegroundColor Green }
-    else { Write-Host "  :$p  DOWN" -ForegroundColor Red }
+if ($NoWait) {
+    Write-Host "[INFO] -NoWait 已指定，跳过末尾等待与端口自检" -ForegroundColor DarkGray
+} else {
+    Write-Host "`n等待 20s 让服务完成启动..." -ForegroundColor Cyan
+    Start-Sleep -Seconds 20
+    Write-Host "`n=== 端口检查 ===" -ForegroundColor Cyan
+    foreach ($p in @(3306,6379,8848,8080,8081,8082,8083,8084,8085,8086,8087,8089,8090,8093,9001,9002,3000,5173,9006,8900,3010)) {
+        $listening = netstat -ano | Select-String ":$p" | Select-String "LISTENING"
+        if ($listening) { Write-Host "  :$p  OK" -ForegroundColor Green }
+        else { Write-Host "  :$p  DOWN" -ForegroundColor Red }
+    }
+    Write-Host "`n前端地址：http://localhost:5173" -ForegroundColor Cyan
+    Write-Host "隧道地址：https://frp-six.com:44598" -ForegroundColor Cyan
 }
-Write-Host "`n前端地址：http://localhost:5173" -ForegroundColor Cyan
-Write-Host "隧道地址：https://frp-six.com:44598" -ForegroundColor Cyan
