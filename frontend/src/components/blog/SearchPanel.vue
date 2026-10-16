@@ -14,6 +14,19 @@
 
 <!-- 结果 -->
         <div class="max-h-[50vh] overflow-y-auto">
+          <!-- AI 智能解读：自然语言理解 + 候选结果语义化推荐 -->
+          <div v-if="keyword.trim()" class="px-5 pt-4">
+            <div class="flex items-center gap-3 flex-wrap">
+              <button class="ai-search-btn" :disabled="aiBusy" @click="runAiSearch">
+                {{ aiBusy ? '✦ AI 思考中…' : '✦ AI 智能解读' }}
+              </button>
+              <span class="text-[10px] text-gray-600">支持自然语言提问，如"怎么学习 Solidity"</span>
+              <button v-if="aiText && !aiBusy" class="text-[10px] text-gray-500 hover:text-cyan-300 transition" @click="runAiSearch">重新解读</button>
+            </div>
+            <div v-if="aiText || aiBusy" class="ai-search-answer mt-3">
+              <span class="whitespace-pre-wrap">{{ aiText }}</span><span v-if="aiBusy" class="animate-pulse">▍</span>
+            </div>
+          </div>
           <div v-if="searching" class="py-10 text-center text-xs text-gray-500">搜索中...</div>
           <template v-else-if="keyword.trim()">
             <div v-if="!searching && !groups.length" class="py-10 text-center text-xs text-gray-600">没有找到相关内容，换个关键词试试</div>
@@ -58,6 +71,7 @@ import { getToolList } from '@/api/tools'
 import { getResourceList } from '@/api/resources'
 import { getSoftwareList } from '@/api/software'
 import { getSiteList } from '@/api/sites'
+import { aiChatStream } from '@/api/freeAi'
 
 const ui = useUiStore()
 const router = useRouter()
@@ -65,6 +79,11 @@ const keyword = ref('')
 const resultsByType = ref({})
 const searching = ref(false)
 const inputEl = ref(null)
+
+// ── AI 智能解读（免费通道，流式）：结合关键词与站内候选结果给出语义化回答 ──
+const aiBusy = ref(false)
+const aiText = ref('')
+let aiSeq = 0
 
 let timer = null
 let searchSeq = 0
@@ -146,8 +165,50 @@ async function doSearch(kw) {
   }
 }
 
+// 站内候选结果摘要（供 AI 解读引用，保留路径格式）
+function resultsDigest() {
+  const lines = []
+  for (const g of groups.value) {
+    for (const it of g.items.slice(0, 3)) {
+      lines.push(`- [${g.label}] ${it.title}${it.sub ? '：' + String(it.sub).slice(0, 50) : ''} → ${it.route}`)
+    }
+  }
+  return lines.length ? lines.join('\n') : '（站内没有匹配结果）'
+}
+
+async function runAiSearch() {
+  const kw = keyword.value.trim()
+  if (!kw || aiBusy.value) return
+  const seq = ++aiSeq
+  aiBusy.value = true
+  aiText.value = ''
+  const sys = [
+    '你是极光数字空间的站内智能搜索助手。用户会输入关键词或自然语言问题。',
+    '请用中文简洁作答（总字数 ≤150 字）：',
+    '1) 先用一句话直接回答用户想找的东西或问题本身；',
+    '2) 然后从下面「站内候选结果」中挑最相关的 1-3 项，逐条列出标题与路径（保留原路径格式，如 /blog/post/34）；',
+    '3) 若候选为空，基于常识给简短建议，并提示可尝试的站内入口。',
+    '不要编造不存在的站内数据。',
+    '',
+    '站内候选结果：',
+    resultsDigest(),
+    '',
+    '站点主要入口：首页/ 博客/blog 社区/community 音乐馆/music 量化终端/quant 相册/album 资源/resources 工具/tools',
+  ].join('\n')
+  try {
+    await aiChatStream([{ role: 'user', content: kw }], d => { if (seq === aiSeq) aiText.value += d }, { system: sys, max_tokens: 450 })
+    if (seq === aiSeq) aiText.value = aiText.value || '（未返回内容）'
+  } catch (e) {
+    if (seq === aiSeq) aiText.value = '（AI 解读失败：' + (e?.message || '服务暂时不可用') + '）'
+  } finally {
+    if (seq === aiSeq) aiBusy.value = false
+  }
+}
+
 watch(keyword, (kw) => {
   clearTimeout(timer)
+  aiSeq++          // 使在途 AI 解读失效，避免旧答案串入新关键词
+  aiText.value = ''
   timer = setTimeout(() => doSearch(kw), 300)
 })
 
@@ -156,6 +217,9 @@ watch(() => ui.searchOpen, (open) => {
     keyword.value = ui.pendingSearch || ''
     ui.pendingSearch = ''
     resultsByType.value = {}
+    aiSeq++
+    aiText.value = ''
+    aiBusy.value = false
     if (keyword.value.trim()) doSearch(keyword.value)
     nextTick(() => inputEl.value?.focus())
   }
@@ -184,6 +248,13 @@ onBeforeUnmount(() => clearTimeout(timer))
 <style scoped>
 .badge { @apply shrink-0 px-1.5 py-0.5 rounded-md text-[10px] text-purple-300 bg-purple-500/10 border border-purple-400/20; }
 .group-title { @apply text-[11px] font-semibold text-cyan-300/90; }
+.ai-search-btn {
+  @apply inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] text-purple-200 transition-all
+    bg-purple-500/15 border border-purple-400/30 hover:bg-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.ai-search-answer {
+  @apply rounded-xl border border-purple-400/20 bg-purple-500/[0.06] px-3.5 py-3 text-xs leading-relaxed text-gray-200;
+}
 .group-section { @apply border-b border-white/[0.04]; }
 .group-section:last-child { @apply border-b-0; }
 .result-row {
