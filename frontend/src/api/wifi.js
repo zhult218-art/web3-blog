@@ -3,6 +3,17 @@
 // 页面路由本身是 /wifi，代理前缀必须错开（用 /wifiapi），否则页面请求会被吞。
 // ============================================================
 import request from './request'
+import { useAuthStore } from '@/stores/modules/auth'
+
+// WebSocket 无法携带 Authorization 头：改带 ?token=<JWT>（后端 core/auth.py 校验）
+const wsTokenQuery = () => {
+  try {
+    const t = useAuthStore().token
+    return t ? `?token=${encodeURIComponent(t)}` : ''
+  } catch {
+    return ''
+  }
+}
 
 const wf = (path, config) =>
   request.request({
@@ -39,7 +50,7 @@ export const getSessionLogs = (sid, offset = 0) =>
 export const stopSession = (sid) => wf(`/sessions/${sid}/stop`, { method: 'post' })
 export const sessionWsUrl = (sid) => {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${window.location.host}/wifiapi/sessions/${sid}/ws`
+  return `${proto}//${window.location.host}/wifiapi/sessions/${sid}/ws${wsTokenQuery()}`
 }
 
 // ── Windows 邪恶孪生热点 ──
@@ -77,5 +88,5 @@ export const listCrackJobs = () => wf('/crack/jobs')
 export const stopCrackJob = (jid) => wf(`/crack/jobs/${jid}/stop`, { method: 'post' })
 export const crackWsUrl = (jid) => {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${window.location.host}/wifiapi/crack/jobs/${jid}/ws`
+  return `${proto}//${window.location.host}/wifiapi/crack/jobs/${jid}/ws${wsTokenQuery()}`
 }

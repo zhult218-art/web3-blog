@@ -5,13 +5,17 @@ from __future__ import annotations
 import asyncio
 import os
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+
+from core.auth import WIFI_PERM, require_auth
 
 from . import capabilities, engine, wincrack
 from .capabilities import IS_LINUX, IS_WINDOWS
 
-router = APIRouter(prefix="/api/wifi", tags=["wifi"])
+# 全路由鉴权（含 WebSocket）：须登录且具 wifi 权限（ADMIN 恒通过），
+# 运维直连可带 X-Admin-Token；浏览器 WS 用 ?token=<JWT>。
+router = APIRouter(prefix="/api/wifi", tags=["wifi"], dependencies=[Depends(require_auth(WIFI_PERM))])
 
 
 @router.get("/capabilities")

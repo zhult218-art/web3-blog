@@ -3,6 +3,17 @@
 // 页面路由本身是 /osint，代理前缀用 /osintapi 错开。
 // ============================================================
 import request from './request'
+import { useAuthStore } from '@/stores/modules/auth'
+
+// WebSocket 无法携带 Authorization 头：改带 ?token=<JWT>（后端 core/auth.py 校验）
+const wsTokenQuery = () => {
+  try {
+    const t = useAuthStore().token
+    return t ? `?token=${encodeURIComponent(t)}` : ''
+  } catch {
+    return ''
+  }
+}
 
 const oi = (path, config) =>
   request.request({
@@ -42,5 +53,5 @@ export const stopScan = (jid) => oi(`/scans/${jid}/stop`, { method: 'post' })
 // WebSocket 实时日志
 export const scanWsUrl = (jid) => {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${window.location.host}/osintapi/scans/${jid}/ws`
+  return `${proto}//${window.location.host}/osintapi/scans/${jid}/ws${wsTokenQuery()}`
 }

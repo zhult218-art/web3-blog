@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+
+from core.auth import OSINT_PERM, require_auth
 
 from . import engine
 
-router = APIRouter(prefix="/api/osint", tags=["osint"])
+# 全路由鉴权（含 WebSocket）：须登录且具 osint 权限（ADMIN 恒通过），
+# 运维直连可带 X-Admin-Token；浏览器 WS 用 ?token=<JWT>。
+router = APIRouter(prefix="/api/osint", tags=["osint"], dependencies=[Depends(require_auth(OSINT_PERM))])
 
 
 @router.get("/capabilities")
