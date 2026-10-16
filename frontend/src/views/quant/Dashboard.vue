@@ -304,13 +304,22 @@ const MockEngine = (() => {
 
 /* ═══【三】数据获取层 ═══ */
 let lastLogSeq = 0
+// 真实数据源标记：仅当本次成功从后端取到数据才为 true（回落模拟数据时如实展示）
+const isLive = ref(false)
 async function getSnapshot() {
   if (CONFIG.DATA_SOURCE === 'api') {
     try {
       const res = await fetch(CONFIG.API_URL, { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
+      isLive.value = true
       return json.data ? json.data : json
-    } catch (e) { if (import.meta.env.DEV) console.warn('[quant] 拉取后端失败，回落模拟数据：', e.message) }
+    } catch (e) {
+      isLive.value = false
+      if (import.meta.env.DEV) console.warn('[quant] 拉取后端失败，回落模拟数据：', e.message)
+    }
+  } else {
+    isLive.value = false
   }
   return MockEngine.tick()
 }
@@ -324,7 +333,10 @@ const account = reactive({
 const positions = ref([])
 const logs = ref([])
 const stamp = ref('')
-const sourceLabel = computed(() => CONFIG.DATA_SOURCE === 'api' ? 'LIVE · A股实时' : '模拟数据')
+const sourceLabel = computed(() => {
+  if (CONFIG.DATA_SOURCE !== 'api') return '模拟数据'
+  return isLive.value ? 'LIVE · A股实时' : '模拟数据（后端不可达）'
+})
 const tradesLabel = ref('单笔盈亏 · 近30笔')
 
 // KPI 卡片配置（阈值告警在渲染层判断，数值全部来自快照）
