@@ -616,6 +616,33 @@
 .backdrop-strong { backdrop-filter: blur(24px); }
 .backdrop-medium { backdrop-filter: blur(12px); }
 
+/* 移动端 GPU 较弱，大面积实时模糊开销极大 → 降低模糊半径（观感接近，显著省电发热） */
+@media (max-width: 768px) {
+  .backdrop-strong {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  .backdrop-medium {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+
+/* ============================================================
+   REDUCED MOTION（系统开启「减少动效」）
+   关闭全站常驻/无限动画与过渡，避免持续重绘带来的耗电发热
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ============================================================
    LINE CLAMP UTILITY
    ============================================================ */

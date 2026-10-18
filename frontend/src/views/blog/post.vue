@@ -1,5 +1,7 @@
 <template>
   <div class="relative min-h-screen">
+    <!-- 本路由为顶层独立全宽布局（router 中 /blog/post/:id 不嵌套 BlogLayout），
+         背景需由本页自行挂载；Web3Layout / BlogLayout 各自的背景不作用于本页 -->
     <ThreeBackground />
     <ParticleBackground />
     <Web3Nav />

@@ -45,9 +45,24 @@ router = APIRouter(prefix="/api/voice", tags=["voice"])
 router.include_router(tts.router)
 
 SENT_DELIM = set(",，。！？；.!?;\n")
+GUIDE_MARK = "[[GUIDE]]"   # 引导块标记：只用于路由跳转，绝不能朗读（含其中的 JSON）
 MAX_HISTORY_TURNS = 8
 ASR_MIN_INTERVAL = 0.12     # 两次部分解码最小间隔（秒），避免高频解码占满 CPU
 ASR_MIN_SAMPLES = 3200      # 攒够 200ms 才跑一次部分解码
+
+
+def _hold_len(buf: str) -> int:
+    """返回需要扣留的尾部字符数：仅当结尾是 GUIDE_MARK 的真前缀时才扣留。
+
+    固定扣留 len(GUIDE_MARK)-1 个字符会把每句首字都往后拖，导致首句出声变慢；
+    这里只在该结尾确实可能是"半个标记"（如 "[[GU"）时扣留对应长度，否则返回 0
+    立即全量下发。完整标记由上层 find 处理，故最长只扣留到 len(GUIDE_MARK)-1。
+    """
+    max_k = min(len(GUIDE_MARK) - 1, len(buf))
+    for k in range(max_k, 0, -1):
+        if GUIDE_MARK.startswith(buf[-k:]):
+            return k
+    return 0
 
 
 @router.websocket("/ws")
@@ -150,25 +165,64 @@ async def voice_ws(websocket: WebSocket) -> None:
         cancelled = False
         buf = ""
         full = ""
+        pending = ""        # 扣留的尾巴：防止 [[GUIDE]] 的半个标记被提前下发/朗读
+        guide_tail = None   # 一旦出现引导块，其后内容只暂存、绝不朗读
+
+        async def flush_sentences(final: bool = False) -> None:
+            """按句切分并下发 sentence（TTS 队列）。"""
+            nonlocal buf
+            while True:
+                pos = -1
+                for i, ch in enumerate(buf):
+                    if ch in SENT_DELIM:
+                        pos = i
+                        break
+                if pos == -1:
+                    break
+                sentence = buf[: pos + 1].strip()
+                buf = buf[pos + 1:]
+                if sentence:
+                    await send({"type": EV_SENTENCE, "text": sentence})
+            if final and buf.strip():
+                sentence = buf.strip()
+                buf = ""
+                await send({"type": EV_SENTENCE, "text": sentence})
+
+        async def emit(chunk: str) -> None:
+            """下发正文增量并切句。引导块绝不经过这里。"""
+            nonlocal buf
+            if not chunk:
+                return
+            await send({"type": EV_TEXT, "text": chunk})
+            buf += chunk
+            await flush_sentences()
+
         try:
             async for delta in llm.stream_reply(history[-MAX_HISTORY_TURNS:]):
                 full += delta
-                buf += delta
-                await send({"type": EV_TEXT, "text": delta})
-                while True:
-                    pos = -1
-                    for i, ch in enumerate(buf):
-                        if ch in SENT_DELIM:
-                            pos = i
-                            break
-                    if pos == -1:
-                        break
-                    sentence = buf[: pos + 1].strip()
-                    buf = buf[pos + 1:]
-                    if sentence:
-                        await send({"type": EV_SENTENCE, "text": sentence})
-            if buf.strip():
-                await send({"type": EV_SENTENCE, "text": buf.strip()})
+                if guide_tail is not None:
+                    # 引导块之后的内容：只累积，不进正文也不朗读
+                    guide_tail += delta
+                    continue
+                pending += delta
+                idx = pending.find(GUIDE_MARK)
+                if idx != -1:
+                    # 检测到引导块：正文到此为止
+                    head = pending[:idx]
+                    guide_tail = pending[idx:]
+                    pending = ""
+                    await emit(head)
+                    continue
+                # 尚未出现标记：只扣留可能构成半个标记的尾部，其余立即下发（保证首句出声够快）
+                keep = _hold_len(pending)
+                if len(pending) > keep:
+                    head = pending[: len(pending) - keep]
+                    pending = pending[len(pending) - keep:]
+                    await emit(head)
+            if pending:
+                await emit(pending)
+                pending = ""
+            await flush_sentences(final=True)
             clean, g2 = guide.extract_llm_guide(full)
             if g2:
                 await send({"type": EV_GUIDE, **g2})

@@ -9,8 +9,8 @@
       ref="bgVideoEl"
       :src="bgVideo && !videoFailed ? bgVideo.video : undefined"
       :poster="bgVideo ? bgVideo.poster : undefined"
-      muted loop playsinline disablepictureinpicture preload="metadata"
-      @error="videoFailed = true"
+      muted loop playsinline disablepictureinpicture preload="auto"
+      @error="onBgVideoError"
       :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }"
     ></video>
     <img v-if="bgVideo && (videoFailed || !canPlayVideo)" :src="bgVideo.poster" :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }" />
@@ -121,6 +121,15 @@ const bgVideo = computed(() => (bgWallpaper.value?.video ? bgWallpaper.value : n
 const bgVideoEl = ref(null)
 // 视频加载/播放出错时降级为静态海报，避免黑屏与反复报错
 const videoFailed = ref(false)
+
+// 媒体元素 error 事件处理：MEDIA_ERR_ABORTED(1) 只是换源/预载被中止
+// （浏览器读够 metadata 后会主动中断剩余请求，控制台因此出现 net::ERR_ABORTED），
+// 并非真实故障。若把它当作失败会让壁纸被永久降级成静态海报，故此处忽略。
+function onBgVideoError() {
+  const v = bgVideoEl.value
+  if (v && v.error && v.error.code === 1) return
+  videoFailed.value = true
+}
 
 function tryPlayVideo() {
   const v = bgVideoEl.value

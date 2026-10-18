@@ -5,14 +5,20 @@
 <script setup>
 // ============================================================
 // 全局 Canvas 粒子连线背景（ParticleBackground）
-// 100 个缓慢上升的圆点粒子，距离 <100px 的粒子间画连线形成网络效果
+// 缓慢上升的圆点粒子，距离 <100px 的粒子间画连线形成网络效果
+// 移动端自动减粒子并关闭连线（见 useDeviceCapability）
 // ============================================================
 import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { useDeviceCapability } from '@/composables/useDeviceCapability'
+
+// 设备能力：移动端 / 低配 / 减少动效 → 静态帧渲染；移动端降粒子数并省掉连线计算
+const { isMobile, staticBackground } = useDeviceCapability()
 
 const canvas = ref(null)
 let ctx = null
 let particles = []
 let raf = 0
+let running = false
 let mouse = { x: -1000, y: -1000 }
 
 // 单个粒子：位置 / 速度 / 大小 / 颜色色相 / 透明度
@@ -54,11 +60,11 @@ function resize() {
   if (!c) return
   c.width = window.innerWidth
   c.height = window.innerHeight
-  particles = Array.from({ length: 100 }, () => new Particle(c.width, c.height))
+  particles = Array.from({ length: isMobile ? 40 : 100 }, () => new Particle(c.width, c.height))
 }
 
-// 绘制一帧：粒子更新 + 邻近连线 + 循环动画
-function draw() {
+// 绘制一帧：粒子更新 + 邻近连线（移动端跳过连线，省掉 O(n²) 计算与逐线描边）
+function renderFrame() {
   const c = canvas.value
   if (!c || !ctx) return
   ctx.clearRect(0, 0, c.width, c.height)
@@ -68,24 +74,54 @@ function draw() {
     p.draw(ctx)
   }
 
-  // Connect nearby particles for network effect
-  for (let i = 0; i < particles.length; i++) {
-    for (let j = i + 1; j < particles.length; j++) {
-      const dx = particles[i].x - particles[j].x
-      const dy = particles[i].y - particles[j].y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < 100) {
-        ctx.beginPath()
-        ctx.moveTo(particles[i].x, particles[i].y)
-        ctx.lineTo(particles[j].x, particles[j].y)
-        ctx.strokeStyle = `rgba(168,85,247,${0.06 * (1 - dist / 100)})`
-        ctx.lineWidth = 0.5
-        ctx.stroke()
+  // Connect nearby particles for network effect（仅桌面）
+  if (!isMobile) {
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x
+        const dy = particles[i].y - particles[j].y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < 100) {
+          ctx.beginPath()
+          ctx.moveTo(particles[i].x, particles[i].y)
+          ctx.lineTo(particles[j].x, particles[j].y)
+          ctx.strokeStyle = `rgba(168,85,247,${0.06 * (1 - dist / 100)})`
+          ctx.lineWidth = 0.5
+          ctx.stroke()
+        }
       }
     }
   }
+}
 
-  raf = requestAnimationFrame(draw)
+// ── 循环控制：静态降级 / 切后台暂停 ──
+function loop() {
+  if (!running) return
+  renderFrame()
+  raf = requestAnimationFrame(loop)
+}
+
+function startLoop() {
+  if (running || staticBackground) return
+  running = true
+  loop()
+}
+
+function stopLoop() {
+  running = false
+  cancelAnimationFrame(raf)
+}
+
+// 切到后台 / 息屏 → 停止渲染；恢复可见 → 重启，避免后台空转耗电发热
+function onVisibility() {
+  if (document.hidden) stopLoop()
+  else startLoop()
+}
+
+// 窗口尺寸变化：重设画布（静态模式下画布被清空，需补渲染一帧）
+function onResize() {
+  resize()
+  if (staticBackground) renderFrame()
 }
 
 function onMouseMove(e) {
@@ -96,14 +132,18 @@ function onMouseMove(e) {
 onMounted(() => {
   resize()
   ctx = canvas.value.getContext('2d')
-  draw()
-  window.addEventListener('resize', resize)
+  // 静态降级：只渲染一帧；否则启动动画循环
+  if (staticBackground) renderFrame()
+  else startLoop()
+  window.addEventListener('resize', onResize)
   window.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('visibilitychange', onVisibility)
 })
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(raf)
-  window.removeEventListener('resize', resize)
+  stopLoop()
+  window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onMouseMove)
+  document.removeEventListener('visibilitychange', onVisibility)
 })
 </script>

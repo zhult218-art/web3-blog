@@ -236,5 +236,11 @@ INSERT INTO `proxy_model` (`model_name`,`rate_type`,`model_rate`,`completion_rat
 ('gpt-4o',             0, 15.0000, 3.0000, 120, 'GPT-4o 多模态'),
 ('gpt-4o-mini',        0, 0.9000,  1.0000, 130, 'GPT-4o mini'),
 ('qwen-plus',          0, 1.6000,  1.0000, 140, '通义千问 Plus'),
-('qwen-max',           0, 6.4000,  1.0000, 150, '通义千问 Max')
+('qwen-max',           0, 6.4000,  1.0000, 150, '通义千问 Max'),
+-- 本机免费模型池（dsh-our-free-model，:18900）。渠道本身由 ai-proxy-service 启动期
+-- 播种（其 api_key_cipher 为机器相关密文，无法写入静态 SQL）；此处仅预置模型倍率行，
+-- 使全新库上线后这些模型即时上架可路由/可计费。
+('deepseek-v4.1-flash-free', 0, 1.0000, 1.0000, 95, '本机免费池 DeepSeek V4.1 Flash'),
+('glm-5.3-flash-free',       0, 1.0000, 1.0000, 95, '本机免费池 GLM-5.3 Flash'),
+('mimo-v2.6-flash-free',     0, 1.0000, 1.0000, 95, '本机免费池 MiMo V2.6 Flash')
 ON DUPLICATE KEY UPDATE `updated_at`=`updated_at`;

@@ -1,0 +1,3781 @@
+{
+  "jobs": {
+    "categories": [
+      {
+        "key": "central",
+        "name": "央国企",
+        "icon": "🏛️",
+        "description": "国务院国资委监管的中央企业与部属央企，覆盖电网、能源、通信、军工、建筑等国民经济命脉行业，招聘规模大、稳定性强。"
+      },
+      {
+        "key": "tech",
+        "name": "互联网大厂",
+        "icon": "💻",
+        "description": "头部互联网与科技公司，涵盖电商、社交、内容、AI、游戏、硬件等领域，岗位多、薪资高、节奏快。"
+      },
+      {
+        "key": "foreign",
+        "name": "外企",
+        "icon": "🌍",
+        "description": "跨国公司在华机构与全球总部，流程规范、重视工作生活平衡，覆盖科技、工业、快消、医药、咨询等。"
+      },
+      {
+        "key": "bank",
+        "name": "银行券商",
+        "icon": "💰",
+        "description": "国有银行、股份制银行、城商行、保险、券商与基金公司，金融牌照机构，校招与社招常年开放。"
+      },
+      {
+        "key": "inst",
+        "name": "事业编/公考",
+        "icon": "📜",
+        "description": "公务员、事业单位、科研院所、高校与基层项目招考入口，以编制与稳定性为核心吸引力。"
+      },
+      {
+        "key": "defense",
+        "name": "国防军工",
+        "icon": "🚀",
+        "description": "航天、航空、兵器、船舶、核工业等国防科工单位与其下属研究院所，涉密岗位多、稳定性与使命感强。"
+      },
+      {
+        "key": "auto",
+        "name": "汽车制造",
+        "icon": "🚗",
+        "description": "传统车企与新能源新势力，覆盖整车、三电、智能驾驶与供应链，是制造与软硬件人才的重要去向。"
+      },
+      {
+        "key": "bio",
+        "name": "医药生物",
+        "icon": "🧬",
+        "description": "创新药、CRO/CDMO、医疗器械与中药企业，研发岗位门槛高、成长性强。"
+      }
+    ],
+    "items": [
+      {
+        "cat": "central",
+        "name": "国家电网",
+        "url": "https://zhaopin.sgcc.com.cn/",
+        "tag": "电网",
+        "description": "全球最大公用事业企业，主营电网建设运营与电力供应，校招社招并行，以电气与计算机类为主，总部及省级公司门槛较高。"
+      },
+      {
+        "cat": "central",
+        "name": "南方电网",
+        "url": "http://95598.csg.cn/",
+        "tag": "电网",
+        "description": "覆盖广东广西云南贵州海南五省区的电网央企，主营输配电与电力营销，以校招为主，电气类应届生需求大，竞争略低于国网。"
+      },
+      {
+        "cat": "central",
+        "name": "中国石油",
+        "url": "https://zhaopin.cnpc.com.cn/",
+        "tag": "能源",
+        "description": "国内最大油气生产商，业务覆盖勘探开发到炼化销售全链条，校招社招兼有，油气地质与化工专业对口，一线岗位较为偏远。"
+      },
+      {
+        "cat": "central",
+        "name": "中国石化",
+        "url": "https://job.sinopec.com/",
+        "tag": "能源",
+        "description": "上下游一体化能源化工央企，主营炼油化工与成品油销售，校招规模大，化工机械类专业对口，加油站与炼厂岗位较多。"
+      },
+      {
+        "cat": "central",
+        "name": "中国海油",
+        "url": "https://join.cnooc.com.cn/",
+        "tag": "能源",
+        "description": "专注海上油气勘探开发的央企，主营海洋石油与天然气生产，校招偏好石油工程与海洋类专业，海上平台待遇高但条件艰苦。"
+      },
+      {
+        "cat": "central",
+        "name": "中国华能",
+        "url": "https://zhaopin.chng.com.cn/",
+        "tag": "电力",
+        "description": "五大发电集团之一，主营火电水电风电与新能源发电，校招以电气热能与新能源专业为主，电厂多位于能源基地。"
+      },
+      {
+        "cat": "central",
+        "name": "中国华电",
+        "url": "https://zhaopin.chd.com.cn/",
+        "tag": "电力",
+        "description": "大型发电央企，业务涵盖火电水电与风光新能源及煤炭，校招社招并行，能源动力电气类为主，基层电厂岗位需求量大。"
+      },
+      {
+        "cat": "central",
+        "name": "国家能源",
+        "url": "https://www.ceic.com/",
+        "tag": "能源",
+        "description": "煤电一体化能源央企，主营煤炭开采与火力发电及运输，校招采矿电气类专业对口，矿区与电厂岗位地域性较强。"
+      },
+      {
+        "cat": "central",
+        "name": "国家电投",
+        "url": "https://zhaopin.spic.com.cn/",
+        "tag": "电力",
+        "description": "五大发电集团之一，以清洁能源和核电为特色，主营电力与新能源开发，校招偏好电气核能与新能源专业。"
+      },
+      {
+        "cat": "central",
+        "name": "中核集团",
+        "url": "https://cnnc.zhiye.com/",
+        "tag": "核工业",
+        "description": "核工业全产业链央企，主营核电建设运营与核燃料循环，校招社招门槛高，核工程与核技术专业为主，多需硕博。"
+      },
+      {
+        "cat": "central",
+        "name": "中国电信",
+        "url": "https://chinatelecom.com.cn/zhaopin/",
+        "tag": "通信",
+        "description": "三大电信运营商之一，主营固定宽带与移动通信及云网服务，校招社招并行，通信计算机类为主，省市分公司岗位多。"
+      },
+      {
+        "cat": "central",
+        "name": "中国移动",
+        "url": "https://hr.10086.cn/",
+        "tag": "通信",
+        "description": "用户规模最大的电信运营商，主营移动通信与数字经济业务，校招规模大，通信计算机类专业对口，技术岗竞争激烈。"
+      },
+      {
+        "cat": "central",
+        "name": "中国联通",
+        "url": "https://hr.chinaunicom.cn/",
+        "tag": "通信",
+        "description": "三大电信运营商之一，主营移动宽带通信与产业互联网，校招社招兼有，通信计算机及市场营销专业为主。"
+      },
+      {
+        "cat": "central",
+        "name": "中国铁塔",
+        "url": "https://www.chinatowercom.cn/",
+        "tag": "通信",
+        "description": "由三家运营商共建的通信基础设施企业，主营基站铁塔建设与维护，校招以通信工程与计算机专业为主，站点分布广。"
+      },
+      {
+        "cat": "central",
+        "name": "中国建筑",
+        "url": "https://jobs.cscec.com/",
+        "tag": "建筑",
+        "description": "全球最大投资建设集团，主营房屋建筑与基础设施工程承包及地产，校招规模大，土木工程类为主，项目岗位常驻工地。"
+      },
+      {
+        "cat": "central",
+        "name": "中国中铁",
+        "url": "https://zhaopin.crec.cn/",
+        "tag": "基建",
+        "description": "大型基建央企，主营铁路公路与城市轨道工程施工，校招以土木桥梁隧道专业为主，一线项目部岗位流动性强。"
+      },
+      {
+        "cat": "central",
+        "name": "中国铁建",
+        "url": "https://zhaopin.crcc.cn/",
+        "tag": "基建",
+        "description": "铁路与市政基建央企，主营铁路公路隧道桥梁工程承包，校招社招并行，土木工程类专业对口，项目岗位驻外较多。"
+      },
+      {
+        "cat": "central",
+        "name": "中国交建",
+        "url": "https://job.ccccltd.cn/",
+        "tag": "基建",
+        "description": "以港航疏浚和公路桥梁见长的基建央企，主营交通基础设施投资建设，校招偏好港航土木类专业，海外项目机会多。"
+      },
+      {
+        "cat": "central",
+        "name": "中国电建",
+        "url": "https://www.powerchina.cn/",
+        "tag": "电力·基建",
+        "description": "主营水利水电与电力工程建设及新能源投资，校招以水利水电土木电气专业为主，勘测设计院岗位多要求硕士。"
+      },
+      {
+        "cat": "central",
+        "name": "中国能建",
+        "url": "https://www.ceec.net.cn/",
+        "tag": "能源·基建",
+        "description": "能源电力工程建设央企，主营火电电网与新能源工程总承包，校招偏好电气能动土木专业，设计院门槛较高。"
+      },
+      {
+        "cat": "central",
+        "name": "中国中车",
+        "url": "https://www.crrcgo.com.cn/",
+        "tag": "装备制造",
+        "description": "全球最大轨道交通装备制造商，主营高铁动车与城轨车辆研发制造，校招机械电气车辆专业为主，研发岗多需硕博。"
+      },
+      {
+        "cat": "central",
+        "name": "中国通号",
+        "url": "https://www.crsc.cn/",
+        "tag": "轨道交通",
+        "description": "轨道交通通信信号系统央企，主营高铁地铁列控与通信信号技术，校招偏好通信自动化专业，研发岗多要求硕士。"
+      },
+      {
+        "cat": "central",
+        "name": "中国中化",
+        "url": "https://www.sinochem.com/",
+        "tag": "化工",
+        "description": "综合性化工央企，主营石油化工与农化新材料业务，校招社招并行，化工材料类专业对口，研发与管理岗并重。"
+      },
+      {
+        "cat": "central",
+        "name": "中粮集团",
+        "url": "https://cofco.zhiye.com/",
+        "tag": "粮油食品",
+        "description": "大型粮油食品央企，主营粮食贸易加工与食品品牌运营，校招偏好食品农学与经管专业，业务遍及全球。"
+      },
+      {
+        "cat": "central",
+        "name": "中国五矿",
+        "url": "https://www.minmetals.com.cn/",
+        "tag": "矿冶",
+        "description": "金属矿产央企，主营冶金矿产贸易与工程建设及金融，校招偏好矿冶材料与经管专业，海外资源项目较多。"
+      },
+      {
+        "cat": "central",
+        "name": "中国铝业",
+        "url": "https://www.chalco.com.cn/",
+        "tag": "有色金属",
+        "description": "全球最大氧化铝与电解铝企业，主营铝土矿开采与铝加工，校招偏好冶金材料与采矿专业，冶炼厂多在中西部。"
+      },
+      {
+        "cat": "central",
+        "name": "中国宝武",
+        "url": "https://www.baowugroup.com/",
+        "tag": "钢铁",
+        "description": "全球最大钢铁企业集团，主营钢铁冶炼加工与新材料，校招偏好冶金材料机械专业，研发岗需硕博，智能制造成重点。"
+      },
+      {
+        "cat": "central",
+        "name": "鞍钢集团",
+        "url": "https://www.ansteel.cn/",
+        "tag": "钢铁",
+        "description": "老牌大型钢铁央企，主营钢铁冶炼与矿产资源开发，校招以冶金材料机械专业为主，厂区主要位于辽宁等地。"
+      },
+      {
+        "cat": "central",
+        "name": "中钢集团",
+        "url": "https://www.sinosteel.com/",
+        "tag": "钢铁服务",
+        "description": "钢铁行业综合性服务央企，主营冶金矿产贸易与工程设备，校招社招兼有，材料贸易与工程类专业对口。"
+      },
+      {
+        "cat": "central",
+        "name": "中国建材",
+        "url": "https://www.cnbm.com.cn/",
+        "tag": "建材",
+        "description": "全球最大建材企业，主营水泥玻璃与新型建材及工程服务，校招偏好材料化工机械专业，海外工程岗位多。"
+      },
+      {
+        "cat": "central",
+        "name": "中国电子",
+        "url": "https://www.cec.com.cn/",
+        "tag": "电子信息",
+        "description": "电子信息产业央企，主营网络安全与集成电路及数字化服务，校招偏好电子计算机专业，核心技术岗多要求硕士。"
+      },
+      {
+        "cat": "central",
+        "name": "中国电科",
+        "url": "https://cetc.zhiye.com/",
+        "tag": "电子科技",
+        "description": "国有大型电子科技集团，主营雷达通信与信息系统及软件，校招以电子通信计算机专业为主，研究所多需硕博。"
+      },
+      {
+        "cat": "central",
+        "name": "中国航天科技",
+        "url": "https://www.spacechina.com/",
+        "tag": "航天",
+        "description": "航天领域核心央企，主营运载火箭与卫星飞船的研制发射，校招门槛高，航空航天与电子类专业为主，多需硕博。"
+      },
+      {
+        "cat": "central",
+        "name": "中国航天科工",
+        "url": "https://www.casic.com.cn/",
+        "tag": "航天",
+        "description": "航天防务央企，主营导弹武器与航天信息及装备制造，校招偏好航空航天电子专业，研究所岗位多需硕博。"
+      },
+      {
+        "cat": "central",
+        "name": "中国航空工业",
+        "url": "https://www.avic.com/",
+        "tag": "航空",
+        "description": "航空装备制造央企，主营军民用飞机与机载系统研制，校招航空机械电子专业为主，主机厂研发岗多需硕士。"
+      },
+      {
+        "cat": "central",
+        "name": "中国兵器工业",
+        "url": "https://www.norincogroup.com.cn/",
+        "tag": "兵器",
+        "description": "陆军装备研制央企，主营坦克火炮与弹药及光电信息装备，校招偏好兵器机械电子专业，研究所多需硕博。"
+      },
+      {
+        "cat": "central",
+        "name": "中国兵器装备",
+        "url": "https://www.chinasouth.com.cn/",
+        "tag": "兵器",
+        "description": "兵器与汽车并重的央企，主营轻武器与特种装备及汽车零部件，校招机械电子车辆专业为主，军品岗位政审严格。"
+      },
+      {
+        "cat": "central",
+        "name": "中国船舶集团",
+        "url": "https://www.cssc.net.cn/",
+        "tag": "船舶",
+        "description": "全球最大造船集团，主营军用舰船与民用船舶及海工装备，校招船舶轮机与电气专业为主，船厂与研究所并重。"
+      },
+      {
+        "cat": "central",
+        "name": "中国商飞",
+        "url": "https://www.comac.cc/",
+        "tag": "民用航空",
+        "description": "国产大飞机研制央企，主营民用客机研发制造与总装试飞，校招门槛高，航空机械电子专业为主，多需硕博。"
+      },
+      {
+        "cat": "central",
+        "name": "中国航发",
+        "url": "https://www.aecc.cn/",
+        "tag": "航空发动机",
+        "description": "航空发动机研制央企，主营军用与民用航空发动机及燃气轮机，校招航空动力与机械专业为主，研究所多需硕士。"
+      },
+      {
+        "cat": "central",
+        "name": "中国邮政",
+        "url": "https://www.chinapost.com.cn/",
+        "tag": "邮政物流",
+        "description": "中国邮政主营邮政寄递、金融与电商物流业务，校招社招并重，网点覆盖全国，岗位地域分布广且门槛适中。"
+      },
+      {
+        "cat": "central",
+        "name": "招商局",
+        "url": "https://www.cmhk.com/",
+        "tag": "综合",
+        "description": "招商局集团是百年央企，业务横跨交通、金融、地产与实业，校招社招均有，偏好名校金融与工程类专业人才。"
+      },
+      {
+        "cat": "central",
+        "name": "华润集团",
+        "url": "https://crc.zhiye.com/",
+        "tag": "综合",
+        "description": "华润集团为多元化央企，涵盖消费品、电力、地产与医药等板块，校招社招并行，管培生项目竞争激烈。"
+      },
+      {
+        "cat": "central",
+        "name": "中信集团",
+        "url": "https://job.citicgroup.com/",
+        "tag": "综合金融",
+        "description": "中信集团是大型综合性央企，以金融为主业兼营实业，校招社招均招，金融与经济类专业背景要求较高。"
+      },
+      {
+        "cat": "central",
+        "name": "光大集团",
+        "url": "https://www.cebg.com.cn/",
+        "tag": "综合金融",
+        "description": "光大集团为金融控股央企，业务含银行、证券、保险与实业，校招社招并举，看重金融经济类背景。"
+      },
+      {
+        "cat": "central",
+        "name": "保利集团",
+        "url": "https://www.poly.com.cn/",
+        "tag": "综合",
+        "description": "保利集团以房地产开发为核心，兼营国际贸易与文化业务，校招社招均有，工程与营销类岗位需求大。"
+      },
+      {
+        "cat": "central",
+        "name": "中旅集团",
+        "url": "https://www.ctg.cn/",
+        "tag": "旅游",
+        "description": "中国旅游集团主营旅行社、免税与酒店业务，校招社招并行，旅游管理与零售服务类岗位较多。"
+      },
+      {
+        "cat": "central",
+        "name": "华侨城",
+        "url": "https://www.oct.com.cn/",
+        "tag": "文旅",
+        "description": "华侨城是文旅央企，主营主题公园、地产与文化产业，校招社招均有，设计运营与工程类岗位为主。"
+      },
+      {
+        "cat": "central",
+        "name": "中国黄金",
+        "url": "https://www.sinochemgold.com/",
+        "tag": "矿冶",
+        "description": "中国黄金集团主营黄金勘探、开采与冶炼，校招社招并重，地质采矿与冶金类专业门槛较高。"
+      },
+      {
+        "cat": "central",
+        "name": "国药集团",
+        "url": "https://www.sinopharm.com/",
+        "tag": "医药",
+        "description": "国药集团是医药健康央企，涵盖制药、流通与疫苗研发，校招社招均有，医药生物类专业优先。"
+      },
+      {
+        "cat": "central",
+        "name": "中储粮",
+        "url": "https://www.sinograin.com/",
+        "tag": "粮油",
+        "description": "中储粮负责中央粮油储备管理，主营仓储与购销，校招社招并有，粮油储藏与食品类专业较对口。"
+      },
+      {
+        "cat": "tech",
+        "name": "阿里巴巴",
+        "url": "https://talent.alibaba.com/",
+        "tag": "电商·云",
+        "description": "阿里巴巴以电商、云计算与数字金融为核心，校招社招均招，技术岗要求扎实的算法与工程能力。"
+      },
+      {
+        "cat": "tech",
+        "name": "腾讯",
+        "url": "https://careers.tencent.com/",
+        "tag": "社交·游戏",
+        "description": "腾讯主营社交、游戏与云服务，校招社招持续开放，技术岗看重算法与项目经验，竞争较为激烈。"
+      },
+      {
+        "cat": "tech",
+        "name": "百度",
+        "url": "https://talent.baidu.com/",
+        "tag": "搜索·AI",
+        "description": "百度以搜索与人工智能为核心业务，校招社招均招，AI与算法岗位门槛较高且需求量大。"
+      },
+      {
+        "cat": "tech",
+        "name": "字节跳动",
+        "url": "https://jobs.bytedance.com/",
+        "tag": "内容·AI",
+        "description": "字节跳动主营短视频、信息流与AI业务，校招社招并行，技术岗看重算法能力与项目实战。"
+      },
+      {
+        "cat": "tech",
+        "name": "美团",
+        "url": "https://zhaopin.meituan.com/",
+        "tag": "本地生活",
+        "description": "美团聚焦本地生活服务与即时配送，校招社招均招，技术运营岗需求大，节奏较快压力偏高。"
+      },
+      {
+        "cat": "tech",
+        "name": "京东",
+        "url": "https://talent.jd.com/",
+        "tag": "电商·物流",
+        "description": "京东主营电商零售与自建物流，校招社招均招，供应链、技术与物流类岗位需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "网易",
+        "url": "https://hr.163.com/",
+        "tag": "游戏·内容",
+        "description": "网易主营游戏、音乐与在线教育内容，校招社招均有，游戏研发与美术岗门槛较高。"
+      },
+      {
+        "cat": "tech",
+        "name": "拼多多",
+        "url": "https://www.pinduoduo.com/careers",
+        "tag": "电商",
+        "description": "拼多多主营电商与社区团购业务，校招社招并行，技术岗要求较高且工作强度较大。"
+      },
+      {
+        "cat": "tech",
+        "name": "小米",
+        "url": "https://hr.xiaomi.com/",
+        "tag": "硬件·IoT",
+        "description": "小米主营智能手机与物联网生态硬件，校招社招均招，硬件、软件与供应链类岗位较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "华为",
+        "url": "https://career.huawei.com/",
+        "tag": "通信·芯片",
+        "description": "华为主营通信设备、芯片与终端产品，校招社招均招，研发岗门槛高，看重学历与算法基础。"
+      },
+      {
+        "cat": "tech",
+        "name": "荣耀",
+        "url": "https://www.hihonor.com/",
+        "tag": "智能终端",
+        "description": "荣耀主营智能手机与智能终端产品，校招社招并有，研发与市场岗需求大，偏好电子通信背景。"
+      },
+      {
+        "cat": "tech",
+        "name": "vivo",
+        "url": "https://hr.vivo.com/",
+        "tag": "智能终端",
+        "description": "vivo主营智能手机及智能硬件，校招社招均招，硬件、软件与影像算法岗位需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "OPPO",
+        "url": "https://careers.oppo.com/",
+        "tag": "智能终端",
+        "description": "OPPO主营智能手机与智能硬件，校招社招并行，研发与算法岗需求大，偏好电子通信类专业。"
+      },
+      {
+        "cat": "tech",
+        "name": "一加",
+        "url": "https://www.oneplus.com/careers",
+        "tag": "智能终端",
+        "description": "一加是主打海外高端市场的手机品牌，校招社招规模较小，研发与海外市场岗为主。"
+      },
+      {
+        "cat": "tech",
+        "name": "真我Realme",
+        "url": "https://www.realme.com/careers",
+        "tag": "智能终端",
+        "description": "真我Realme是主打年轻与海外市场的手机品牌，校招社招岗位相对有限，以研发与市场岗为主。"
+      },
+      {
+        "cat": "tech",
+        "name": "联想",
+        "url": "https://talent.lenovo.com/",
+        "tag": "PC·服务",
+        "description": "联想主营个人电脑、服务器与IT服务，校招社招均有，硬件、软件与供应链类岗位需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "滴滴出行",
+        "url": "https://talent.didiglobal.com/",
+        "tag": "出行",
+        "description": "滴滴出行主营网约车与出行平台服务，校招社招均招，技术岗需求大，偏好算法与数据背景。"
+      },
+      {
+        "cat": "tech",
+        "name": "快手",
+        "url": "https://zhaopin.kuaishou.cn/",
+        "tag": "短视频",
+        "description": "快手主营短视频与直播电商，校招社招并行，技术岗看重算法能力，内容运营岗需求也较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "B站",
+        "url": "https://jobs.bilibili.com/",
+        "tag": "视频社区",
+        "description": "哔哩哔哩主营视频社区与游戏代理业务，校招社招均有，技术与内容运营岗位需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "携程",
+        "url": "https://job.ctrip.com/",
+        "tag": "旅游",
+        "description": "携程主营在线旅游预订与服务，校招社招均招，技术、产品与运营岗位需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "去哪儿",
+        "url": "https://www.qunar.com/",
+        "tag": "旅游",
+        "description": "去哪儿网主营在线机票与酒店预订，校招社招均有，技术与产品运营岗位需求较为集中。"
+      },
+      {
+        "cat": "tech",
+        "name": "同程",
+        "url": "https://www.ly.com/",
+        "tag": "旅游",
+        "description": "同程旅行主营在线旅游预订平台，校招社招并行，技术、产品与运营岗位需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "贝壳找房",
+        "url": "https://zhaopin.ke.com/",
+        "tag": "房产",
+        "description": "贝壳找房主营房产交易与居住服务平台，校招社招均招，技术岗需求大，也大量招收经纪人。"
+      },
+      {
+        "cat": "tech",
+        "name": "链家",
+        "url": "https://www.lianjia.com/",
+        "tag": "房产",
+        "description": "链家主营二手房交易与租赁服务，校招社招均有，大量招收房产经纪人，入职门槛相对较低。"
+      },
+      {
+        "cat": "tech",
+        "name": "58同城",
+        "url": "https://www.58.com/",
+        "tag": "分类信息",
+        "description": "58同城主营分类信息与本地生活服务平台，校招社招均招，技术、产品与销售运营岗需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "新浪",
+        "url": "https://career.sina.com.cn/",
+        "tag": "门户·社交",
+        "description": "新浪主营门户资讯与微博社交业务，校招社招均有，技术、内容与运营岗位需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "搜狐",
+        "url": "https://career.sohu.com/",
+        "tag": "门户·视频",
+        "description": "搜狐主营门户资讯与视频业务，校招社招规模有限，以技术、内容编辑与运营岗为主。"
+      },
+      {
+        "cat": "tech",
+        "name": "360",
+        "url": "https://hr.360.cn/",
+        "tag": "安全·搜索",
+        "description": "360主营网络安全与搜索业务，校招社招均招，安全与算法岗门槛较高，岗位需求较为稳定。"
+      },
+      {
+        "cat": "tech",
+        "name": "科大讯飞",
+        "url": "https://job.iflytek.com/",
+        "tag": "语音AI",
+        "description": "科大讯飞主营智能语音与人工智能技术，校招社招均招，AI算法岗门槛较高且需求较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "商汤科技",
+        "url": "https://www.sensetime.com/cn/careers",
+        "tag": "AI视觉",
+        "description": "国内头部AI视觉企业，主攻大模型与计算机视觉，覆盖智慧城市、汽车与医疗；校招算法研发岗为主，偏好硕博，面试重算法与项目。"
+      },
+      {
+        "cat": "tech",
+        "name": "旷视科技",
+        "url": "https://megvii.com/careers",
+        "tag": "AI视觉",
+        "description": "以人脸识别和物流机器人见长的AI视觉公司，业务含消费物联网与智慧物流；校招社招并重，算法岗门槛高，看重竞赛与论文。"
+      },
+      {
+        "cat": "tech",
+        "name": "依图科技",
+        "url": "https://www.yitutech.com/careers",
+        "tag": "AI",
+        "description": "专注计算机视觉与医疗AI的上海企业，涉及安防、医疗影像和自研芯片；招聘算法与工程岗，校招偏好名校硕博，技术面较深。"
+      },
+      {
+        "cat": "tech",
+        "name": "云从科技",
+        "url": "https://www.cloudwalk.com/",
+        "tag": "AI",
+        "description": "发源于中科院的人脸识别AI公司，深耕金融、机场安防与政务场景；主要校招算法和解决方案岗，要求扎实的CV与数学基础。"
+      },
+      {
+        "cat": "tech",
+        "name": "第四范式",
+        "url": "https://www.4paradigm.com/careers",
+        "tag": "AI",
+        "description": "企业级AI平台公司，提供机器学习平台与决策智能方案，服务金融零售；校招社招算法和ToB研发，偏好有竞赛或大厂经验者。"
+      },
+      {
+        "cat": "tech",
+        "name": "蚂蚁集团",
+        "url": "https://talent.antgroup.com/",
+        "tag": "金融科技",
+        "description": "支付宝母公司，主营支付、数字金融与区块链等科技业务；每年大规模校招技术岗，门槛高，算法与工程岗竞争尤为激烈。"
+      },
+      {
+        "cat": "tech",
+        "name": "菜鸟",
+        "url": "https://talent.cainiao.com/",
+        "tag": "物流",
+        "description": "阿里旗下智慧物流平台，整合仓储、配送与物流科技网络；校招覆盖研发与供应链岗，社招看重物流与算法结合的实战经验。"
+      },
+      {
+        "cat": "tech",
+        "name": "满帮",
+        "url": "https://www.manbang.com/",
+        "tag": "货运物流",
+        "description": "数字化货运平台，运营运满满与货车帮，连接货主与司机；校招技术运营岗，社招偏好物流数据与算法背景，平台体量较大。"
+      },
+      {
+        "cat": "tech",
+        "name": "货拉拉",
+        "url": "https://www.huolala.cn/",
+        "tag": "货运物流",
+        "description": "同城货运与搬家互联网平台，业务覆盖全国及海外市场；校招社招并重，技术岗重算法与地图调度，门槛适中、节奏快。"
+      },
+      {
+        "cat": "tech",
+        "name": "小红书",
+        "url": "https://job.xiaohongshu.com/",
+        "tag": "生活社区",
+        "description": "生活方式社区与电商平台，内容种草驱动商业化增长；校招社招活跃，算法与产品岗热门，门槛高、面试重业务理解。"
+      },
+      {
+        "cat": "tech",
+        "name": "得物",
+        "url": "https://www.dewu.com/",
+        "tag": "潮流电商",
+        "description": "潮流商品鉴别与交易平台，主营球鞋服饰并做电商闭环；校招技术产品岗，社招看电商与鉴别经验，成长速度较快。"
+      },
+      {
+        "cat": "tech",
+        "name": "Shopee",
+        "url": "https://careers.shopee.com/",
+        "tag": "跨境电商",
+        "description": "东南亚及拉美头部电商平台，隶属Sea集团，业务覆盖多国；校招量大，技术岗重算法与英语，门槛中等、出海机会多。"
+      },
+      {
+        "cat": "tech",
+        "name": "SHEIN",
+        "url": "https://www.shein.com/careers",
+        "tag": "跨境电商",
+        "description": "全球化快时尚跨境电商，靠柔性供应链实现快速上新；校招社招并重，算法与供应链岗需求大，节奏快、英语是加分项。"
+      },
+      {
+        "cat": "tech",
+        "name": "TikTok",
+        "url": "https://careers.tiktok.com/",
+        "tag": "出海短视频",
+        "description": "字节跳动旗下短视频平台，覆盖全球市场与推荐算法体系；校招社招技术岗，门槛高，对算法能力与英语要求突出。"
+      },
+      {
+        "cat": "tech",
+        "name": "Soul",
+        "url": "https://www.soulapp.cn/",
+        "tag": "社交",
+        "description": "主打兴趣社交与灵魂匹配的社交平台，靠虚拟形象连接用户；校招社招技术产品岗，算法推荐岗热度高，门槛中等。"
+      },
+      {
+        "cat": "tech",
+        "name": "陌陌",
+        "url": "https://www.immomo.com/",
+        "tag": "社交",
+        "description": "早期陌生人社交代表，现属挚文集团，覆盖直播与社交增值业务；校招技术运营岗，社招看直播与推荐经验，竞争相对温和。"
+      },
+      {
+        "cat": "tech",
+        "name": "完美世界",
+        "url": "https://www.wanmei.com/",
+        "tag": "游戏",
+        "description": "老牌游戏与影视双主业公司，拥有端游与二次元产品线；校招美术策划程序岗，社招看项目经验，门槛中等偏上。"
+      },
+      {
+        "cat": "tech",
+        "name": "巨人网络",
+        "url": "https://www.ztgame.com/",
+        "tag": "游戏",
+        "description": "以征途系列闻名的老牌游戏厂商，主营MMO与休闲游戏；校招策划程序美术岗，社招重项目经历，整体门槛适中。"
+      },
+      {
+        "cat": "tech",
+        "name": "盛趣游戏",
+        "url": "https://www.shandagames.com/",
+        "tag": "游戏",
+        "description": "原盛大游戏，运营传奇等经典IP，主打MMO和IP改编游戏；校招社招策划与程序岗，看重游戏情怀与项目经验。"
+      },
+      {
+        "cat": "tech",
+        "name": "三七互娱",
+        "url": "https://www.37.com/",
+        "tag": "游戏",
+        "description": "以页游和手游发行见长的游戏公司，擅长买量与海外发行；校招社招运营和投放岗较多，门槛适中、业绩导向强。"
+      },
+      {
+        "cat": "tech",
+        "name": "吉比特",
+        "url": "https://www.g-bits.com/",
+        "tag": "游戏",
+        "description": "厦门上市游戏公司，代表作品问道，坚持精品自研与长线运营；校招程序策划岗，社招看重项目与稳定性，待遇口碑好。"
+      },
+      {
+        "cat": "tech",
+        "name": "米哈游",
+        "url": "https://www.mihoyo.com/",
+        "tag": "游戏",
+        "description": "代表作原神与崩坏系列的二次元游戏公司，技术与美术并重；校招门槛高，程序美术策划岗竞争激烈，社招看重作品。"
+      },
+      {
+        "cat": "tech",
+        "name": "莉莉丝",
+        "url": "https://www.lilithgames.com/",
+        "tag": "游戏",
+        "description": "上海出海游戏公司，代表作剑与远征、万国觉醒；校招社招并行，海外发行与程序岗需求大，门槛偏高。"
+      },
+      {
+        "cat": "tech",
+        "name": "鹰角网络",
+        "url": "https://www.hypergryph.com/",
+        "tag": "游戏",
+        "description": "明日方舟开发商的二次元游戏公司，注重美术与叙事品质；校招美术策划程序岗，门槛高，社招尤其看重作品集。"
+      },
+      {
+        "cat": "tech",
+        "name": "叠纸游戏",
+        "url": "https://www.papegames.com/",
+        "tag": "游戏",
+        "description": "主打女性向游戏的上海公司，代表作恋与制作人、恋与深空；校招美术策划岗，社招看女性向项目经验，门槛偏高。"
+      },
+      {
+        "cat": "tech",
+        "name": "金山软件",
+        "url": "https://www.wps.cn/",
+        "tag": "办公软件",
+        "description": "老牌软件公司，业务涵盖WPS办公、西山居游戏与云服务；校招社招技术岗较多，门槛中等，办公与游戏业务并行。"
+      },
+      {
+        "cat": "tech",
+        "name": "WPS",
+        "url": "https://www.wps.cn/careers",
+        "tag": "办公软件",
+        "description": "金山办公旗下国民级办公软件，覆盖文档表格与协作云；校招技术产品岗，社招看办公软件经验，用户规模极大。"
+      },
+      {
+        "cat": "tech",
+        "name": "用友",
+        "url": "https://www.yonyou.com/",
+        "tag": "企业服务",
+        "description": "国内老牌企业管理软件厂商，主营ERP、财务与云服务；校招社招研发与实施岗，偏ToB，门槛中等、行业积累值钱。"
+      },
+      {
+        "cat": "tech",
+        "name": "金蝶",
+        "url": "https://www.kingdee.com/",
+        "tag": "企业服务",
+        "description": "企业管理云服务商，提供财务、ERP与SaaS产品；校招技术咨询岗，社招看ToB与企业信息化经验，门槛中等。"
+      },
+      {
+        "cat": "tech",
+        "name": "广联达",
+        "url": "https://www.glodon.com/",
+        "tag": "建筑软件",
+        "description": "建设工程领域信息化龙头，主营造价与施工数字化软件；校招研发产品岗，社招看建筑行业背景，门槛中等偏上。"
+      },
+      {
+        "cat": "tech",
+        "name": "中通",
+        "url": "https://www.zto.com/",
+        "tag": "快递",
+        "description": "通达系快递企业之一，以加盟制网络与规模化电商件取胜；校招技术运营岗，社招看物流经验，网点多、节奏快。"
+      },
+      {
+        "cat": "tech",
+        "name": "圆通",
+        "url": "https://www.yto.net.cn/",
+        "tag": "快递",
+        "description": "通达系快递公司，主营快递揽派与航空货运，网点覆盖广；校招社招运营与技术岗，门槛适中，基层管理岗位需求大。"
+      },
+      {
+        "cat": "tech",
+        "name": "申通",
+        "url": "https://www.sto.cn/",
+        "tag": "快递",
+        "description": "老牌通达系快递企业，主营电商快递与仓配一体服务；校招运营技术岗，社招看重物流管理经验，转正机会较多。"
+      },
+      {
+        "cat": "tech",
+        "name": "韵达",
+        "url": "https://www.yundaex.com/",
+        "tag": "快递",
+        "description": "通达系快递公司，以加盟网络和电商快递件量著称；校招技术运营岗，社招看物流与网点管理经验，门槛适中。"
+      },
+      {
+        "cat": "tech",
+        "name": "顺丰",
+        "url": "https://hr.sf-express.com/",
+        "tag": "快递",
+        "description": "国内直营制快递龙头，主营时效快递、冷链与供应链物流；校招技术运营岗门槛偏高，社招看物流与供应链经验。"
+      },
+      {
+        "cat": "tech",
+        "name": "京东物流",
+        "url": "https://www.jdl.com/",
+        "tag": "物流",
+        "description": "京东旗下自营物流体系，提供仓配一体与供应链解决方案；校招技术运营岗，社招看供应链经验，一体化程度高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Google",
+        "url": "https://www.google.com/about/careers/app/",
+        "tag": "搜索·AI",
+        "description": "全球搜索与广告巨头，业务涵盖搜索、云、AI与Android；校招门槛极高，重算法与系统设计，社招看大厂经验与英语。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Microsoft",
+        "url": "https://careers.microsoft.com/",
+        "tag": "云·办公",
+        "description": "全球软件巨头，主营Azure云、Office与Windows生态；校招门槛高，重算法与工程能力，社招看英文与技术深度。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Apple",
+        "url": "https://www.apple.com/jobs/",
+        "tag": "消费电子",
+        "description": "全球消费电子龙头，产品含iPhone、Mac与自研芯片；校招门槛极高，重硬件与算法能力，社招看项目经验与英语。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Amazon",
+        "url": "https://www.amazon.jobs/",
+        "tag": "电商·云",
+        "description": "全球电商与云计算巨头，AWS与零售业务并重，中国设有研发岗；校招门槛高，重算法与系统设计，社招看英文与经验。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Meta",
+        "url": "https://www.metacareers.com/",
+        "tag": "社交·VR",
+        "description": "全球社交媒体与元宇宙巨头，旗下有Facebook、Instagram，主营社交广告与VR头显；在华以社招为主，门槛高，看重算法能力与英语水平。"
+      },
+      {
+        "cat": "foreign",
+        "name": "IBM",
+        "url": "https://www.ibm.com/employment/",
+        "tag": "咨询·IT",
+        "description": "老牌IT与咨询巨头，业务涵盖云计算、人工智能与企业级服务；校招社招并行，技术岗看重编程与英语，咨询岗偏好名校背景。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Intel",
+        "url": "https://jobs.intel.com/",
+        "tag": "芯片",
+        "description": "全球半导体龙头，主营CPU、数据中心与晶圆代工业务；校招社招均有，芯片与软件岗门槛高，通常要求相关专业硕士学历。"
+      },
+      {
+        "cat": "foreign",
+        "name": "AMD",
+        "url": "https://www.amd.com/en/corporate/careers",
+        "tag": "芯片",
+        "description": "高性能CPU与GPU设计厂商，主营锐龙处理器和显卡产品；招聘以芯片设计、验证岗为主，社招居多，要求微电子等相关背景。"
+      },
+      {
+        "cat": "foreign",
+        "name": "NVIDIA",
+        "url": "https://www.nvidia.com/en-us/about-nvidia/careers/",
+        "tag": "GPU·AI",
+        "description": "全球GPU与AI计算龙头，主营显卡、数据中心加速卡与CUDA生态；校招社招并重，算法与芯片岗门槛极高，竞争非常激烈。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Qualcomm",
+        "url": "https://www.qualcomm.com/company/careers",
+        "tag": "芯片",
+        "description": "移动芯片与通信专利巨头，主营骁龙处理器和5G基带芯片；招聘以芯片、通信研发为主，要求相关专业，英语要求较高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Oracle",
+        "url": "https://www.oracle.com/corporate/careers/",
+        "tag": "数据库·云",
+        "description": "全球数据库与企业软件巨头，主营Oracle数据库和云服务；以社招为主，技术岗看重数据库与Java经验，整体门槛较高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Cisco",
+        "url": "https://jobs.cisco.com/",
+        "tag": "网络",
+        "description": "全球网络设备龙头，主营路由器、交换机与网络安全方案；校招社招均有，网络与软件岗要求扎实的网络协议基础。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Dell",
+        "url": "https://www.dell.com/learn/corporate/en-us/careers",
+        "tag": "硬件",
+        "description": "全球PC与服务器厂商，主营电脑、存储和企业IT解决方案；校招社招并行，硬件、供应链与销售岗为主，英语要求较高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "HP",
+        "url": "https://www.hp.com/careers",
+        "tag": "硬件",
+        "description": "全球PC与打印设备厂商，主营电脑、打印机与企业服务；招聘以硬件、软件和销售岗为主，校招偏好相关专业本科以上。"
+      },
+      {
+        "cat": "foreign",
+        "name": "VMware",
+        "url": "https://www.vmware.com/company/careers.html",
+        "tag": "云计算",
+        "description": "虚拟化与云计算软件龙头，主营虚拟化平台与云管理软件；以社招为主，技术岗要求扎实的虚拟化与系统底层功底。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Red Hat",
+        "url": "https://www.redhat.com/en/jobs",
+        "tag": "开源·Linux",
+        "description": "全球开源软件巨头，主营企业级Linux与容器平台；以社招为主，技术岗看重开源社区贡献与Linux运维能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "SAP",
+        "url": "https://www.sap.com/careers.html",
+        "tag": "企业软件",
+        "description": "全球企业级软件龙头，主营ERP、数据库与云解决方案；校招社招均有，顾问岗需懂业务，技术岗看重英语能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Samsung",
+        "url": "https://www.samsung.com/about-us/careers/",
+        "tag": "电子",
+        "description": "韩国电子巨头，主营手机、半导体、显示面板与家电；在华以研发和销售为主，校招门槛高，要求电子等相关专业。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Sony",
+        "url": "https://www.sony.com/en/SonyInfo/Careers/",
+        "tag": "电子·娱乐",
+        "description": "日本电子与娱乐巨头，主营影像设备、游戏机、音乐和影视业务；招聘涵盖硬件研发与内容岗，校招偏好相关专业。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Toshiba",
+        "url": "https://www.toshiba.com/tai-careers/",
+        "tag": "电子",
+        "description": "日本老牌电子企业，主营半导体、能源与工业设备；以社招为主，在华招聘规模较小，技术岗要求相关专业背景。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Panasonic",
+        "url": "https://www.panasonic.com/global/careers.html",
+        "tag": "电子",
+        "description": "日本电子巨头，主营家电、电池、汽车电子与工业方案；在华以研发制造为主，校招偏好机电相关专业。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Hitachi",
+        "url": "https://www.hitachi.com/careers/",
+        "tag": "电子·工业",
+        "description": "日本综合工业巨头，主营电梯、轨道交通、能源与IT系统；校招社招均有，工程岗要求相关专业，日企文化鲜明。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Siemens",
+        "url": "https://www.siemens.com/global/en/company/jobs.html",
+        "tag": "工业",
+        "description": "德国工业巨头，主营自动化、电气化、数字化与医疗设备；校招社招并行，工程与软件岗门槛高，要求英语能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Bosch",
+        "url": "https://www.bosch.com/careers/",
+        "tag": "工业·汽车",
+        "description": "德国工业与汽车零部件巨头，主营汽车技术、工业设备与家电；在华招聘以汽车电子研发为主，要求相关专业背景。"
+      },
+      {
+        "cat": "foreign",
+        "name": "GE通用电气",
+        "url": "https://www.ge.com/careers",
+        "tag": "工业",
+        "description": "美国工业巨头，主营航空发动机、能源与医疗设备；招聘以工程技术岗为主，校招偏好相关专业，英语要求较高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Honeywell",
+        "url": "https://careers.honeywell.com/",
+        "tag": "工业",
+        "description": "美国工业集团，主营航空、自动化控制与特性材料；以社招为主，工程与软件岗要求相关专业和良好的英语能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "3M",
+        "url": "https://www.3m.com/3M/en_US/careers-us/",
+        "tag": "工业",
+        "description": "美国材料科技巨头，主营胶带、医疗与工业材料；在华以研发和销售为主，校招偏好化工材料相关专业。"
+      },
+      {
+        "cat": "foreign",
+        "name": "P&G宝洁",
+        "url": "https://www.pg.com/careers/",
+        "tag": "日化",
+        "description": "全球日化龙头，主营洗护、美妆与家居清洁用品；校招管培生项目知名且门槛高，看重商业思维与英语能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Unilever",
+        "url": "https://www.unilever.com/careers/",
+        "tag": "日化",
+        "description": "英荷日化巨头，主营食品、洗护与美妆；校招社招均有，管培生项目热门，要求英语与快消行业商业敏感度。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Nestlé雀巢",
+        "url": "https://www.nestle.com/careers",
+        "tag": "食品",
+        "description": "全球食品饮料龙头，主营咖啡、奶粉、糖果与宠物食品；校招社招并行，管培生门槛高，看重英语与营销能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Coca-Cola",
+        "url": "https://www.coca-colacompany.com/careers",
+        "tag": "饮料",
+        "description": "全球饮料巨头，主营可乐、果汁与瓶装水；招聘以销售、营销与供应链岗为主，校招偏好相关专业背景。"
+      },
+      {
+        "cat": "foreign",
+        "name": "PepsiCo",
+        "url": "https://www.pepsicojobs.com/",
+        "tag": "饮料食品",
+        "description": "全球饮料与休闲食品巨头，主营百事可乐、乐事薯片等；校招社招均有，营销与供应链岗为主，英语要求较高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "L'Oréal欧莱雅",
+        "url": "https://www.loreal.com/careers",
+        "tag": "美妆",
+        "description": "全球美妆龙头，主营护肤、彩妆与香水；校招管培生项目知名，偏重营销与数字岗，要求英语与行业热情。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Estée Lauder",
+        "url": "https://www.elcompanies.com/careers",
+        "tag": "美妆",
+        "description": "全球高端美妆集团，旗下有雅诗兰黛、海蓝之谜等品牌；招聘以零售、营销与电商岗为主，校招门槛高，要求英语。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Johnson&Johnson",
+        "url": "https://www.careers.jnj.com/",
+        "tag": "医药·日化",
+        "description": "美国医药与消费品巨头，主营制药、医疗器械与日化；校招社招并行，医药与商业岗门槛高，英语要求高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "GSK",
+        "url": "https://www.gsk.com/en-gb/careers/",
+        "tag": "医药",
+        "description": "英国制药巨头，主营疫苗、处方药与消费健康品；以社招为主，研发与医药岗要求相关专业，英语能力重要。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Sanofi赛诺菲",
+        "url": "https://www.sanofi.com/en/careers",
+        "tag": "医药",
+        "description": "法国制药巨头，主营疫苗、处方药与罕见病用药；校招社招均有，医药代表与研发岗为主，要求相关专业。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Roche罗氏",
+        "url": "https://careers.roche.com/",
+        "tag": "医药",
+        "description": "瑞士制药与诊断巨头，主营肿瘤药与体外诊断；招聘以研发、医学与诊断岗为主，门槛高，要求英语能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Novartis",
+        "url": "https://www.novartis.com/careers",
+        "tag": "医药",
+        "description": "瑞士制药巨头，主营创新药、肿瘤药与眼科药物；以社招为主，研发与医学岗要求相关专业，英语要求较高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Pfizer辉瑞",
+        "url": "https://www.pfizer.com/careers",
+        "tag": "医药",
+        "description": "全球制药巨头，主营疫苗、抗感染药与肿瘤药；校招社招并行，研发与医学岗门槛高，要求相关专业背景。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Bayer拜耳",
+        "url": "https://www.bayer.com/careers",
+        "tag": "医药·化工",
+        "description": "德国医药与化工巨头，主营制药、健康消费品与农化产品；校招社招均有，医药与农业岗为主，要求相关专业。"
+      },
+      {
+        "cat": "foreign",
+        "name": "McKinsey麦肯锡",
+        "url": "https://www.mckinsey.com/careers",
+        "tag": "咨询",
+        "description": "全球顶级战略咨询公司，主营企业战略与管理咨询；校招社招均有，门槛极高，看重名校背景、逻辑与英语。"
+      },
+      {
+        "cat": "foreign",
+        "name": "BCG波士顿咨询",
+        "url": "https://www.bcg.com/careers",
+        "tag": "咨询",
+        "description": "全球三大战略咨询之一，主营战略、运营与数字化咨询；校招门槛极高，偏好名校与实习经历，英语要求高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Bain贝恩",
+        "url": "https://www.bain.com/careers/",
+        "tag": "咨询",
+        "description": "全球顶级战略咨询公司，主营战略、并购与私募咨询；校招门槛极高，看重名校背景、案例分析能力与英语。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Deloitte德勤",
+        "url": "https://www.deloitte.com/careers",
+        "tag": "审计咨询",
+        "description": "四大会计师事务所之一，主营审计、税务、咨询与财务顾问，校招社招均有，偏好财会金融背景，英语要求较高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "PwC普华永道",
+        "url": "https://www.pwc.com/careers",
+        "tag": "审计咨询",
+        "description": "全球四大会计师事务所，业务涵盖审计鉴证、税务与咨询，校招规模大，重视英语与财会专业基础。"
+      },
+      {
+        "cat": "foreign",
+        "name": "KPMG毕马威",
+        "url": "https://home.kpmg/careers",
+        "tag": "审计咨询",
+        "description": "四大会计师事务所之一，提供审计、税务与咨询服务，校招社招并行，对财会金融及英语能力要求较高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "EY安永",
+        "url": "https://careers.ey.com/",
+        "tag": "审计咨询",
+        "description": "四大会计师事务所，主营审计、税务、交易与咨询服务，校招覆盖广，看重财会专业与外语能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Accenture埃森哲",
+        "url": "https://www.accenture.com/us-en/careers",
+        "tag": "咨询IT",
+        "description": "全球咨询与IT服务巨头，主营战略、数字化与技术咨询，校招社招均有，重视项目经验与外语能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Capgemini凯捷",
+        "url": "https://www.capgemini.com/careers/",
+        "tag": "咨询IT",
+        "description": "法国IT咨询与服务公司，主营数字化转型、云计算与系统集成，招聘技术与咨询岗，要求英语与技术背景。"
+      },
+      {
+        "cat": "foreign",
+        "name": "DHL",
+        "url": "https://careers.dhl.com/",
+        "tag": "物流",
+        "description": "全球物流快递巨头，主营国际快递、供应链与货运代理，校招社招均有，英语好、抗压能力强者优先。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Maersk马士基",
+        "url": "https://www.maersk.com/careers",
+        "tag": "航运物流",
+        "description": "丹麦航运物流集团，主营集装箱航运与供应链管理，招聘航运、物流与商务岗，英语要求高。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Schlumberger斯伦贝谢",
+        "url": "https://careers.slb.com/",
+        "tag": "油气服务",
+        "description": "全球油气技术服务龙头，主营钻井、测井与油田服务，招聘石油工程等技术岗，偏好理工背景与英语能力。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Airbus空中客车",
+        "url": "https://www.airbus.com/careers.html",
+        "tag": "航空",
+        "description": "欧洲航空制造巨头，主营民航客机与防务航天业务，招聘工程师与项目管理岗，要求航空或机械专业背景。"
+      },
+      {
+        "cat": "foreign",
+        "name": "Boeing波音",
+        "url": "https://www.boeing.com/careers",
+        "tag": "航空",
+        "description": "美国航空航天制造商，主营民用客机与防务系统，招聘航空、机械与软件工程师，重视专业与英语能力。"
+      },
+      {
+        "cat": "bank",
+        "name": "工商银行",
+        "url": "https://job.icbc.com.cn/",
+        "tag": "国有行",
+        "description": "国有大型商业银行，主营存贷、结算与综合金融服务，校招规模大岗位多，偏好经济金融财会类专业。"
+      },
+      {
+        "cat": "bank",
+        "name": "建设银行",
+        "url": "https://job2.ccb.com/",
+        "tag": "国有行",
+        "description": "国有大型商业银行，主营公司金融、个人金融与住房金融，校招社招均有，看重经济金融专业与证书。"
+      },
+      {
+        "cat": "bank",
+        "name": "农业银行",
+        "url": "https://job.abchina.com/",
+        "tag": "国有行",
+        "description": "国有大型商业银行，网点与县域业务覆盖广，主营三农金融与商业银行服务，校招量大，偏好金融专业。"
+      },
+      {
+        "cat": "bank",
+        "name": "中国银行",
+        "url": "https://www.boc.cn/aboutboc/bi4/index.html",
+        "tag": "国有行",
+        "description": "国际化程度最高的国有大行，主营外汇、贸易金融与跨境业务，校招看重英语水平与金融背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "交通银行",
+        "url": "https://job.bankcomm.com/",
+        "tag": "国有行",
+        "description": "国有大型商业银行，主营公司、零售与金融市场业务，校招社招均有，偏好经济金融及复合背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "邮储银行",
+        "url": "https://www.psbc.com/careers",
+        "tag": "国有行",
+        "description": "国有大型商业银行，依托邮政网点发展零售与县域金融，代理网点众多，校招规模大，偏好本地生源。"
+      },
+      {
+        "cat": "bank",
+        "name": "国家开发银行",
+        "url": "https://www.cdb.com.cn/",
+        "tag": "政策行",
+        "description": "政策性银行，主营基建、棚改与重大项目中长期贷款，校招门槛高，偏好名校经济金融类硕士。"
+      },
+      {
+        "cat": "bank",
+        "name": "中国进出口银行",
+        "url": "https://www.eximbank.gov.cn/",
+        "tag": "政策行",
+        "description": "政策性银行，支持进出口贸易与对外经济合作，招聘金融与外语人才，门槛较高，偏好名校背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "农发行",
+        "url": "https://www.adbc.com.cn/",
+        "tag": "政策行",
+        "description": "中国农业发展银行，政策性银行，主营粮棉油收储与农业农村基建贷款，校招稳定，偏好金融农业专业。"
+      },
+      {
+        "cat": "bank",
+        "name": "招商银行",
+        "url": "https://career.cmbchina.com/",
+        "tag": "股份行",
+        "description": "股份制银行，以零售金融与财富管理见长，服务与科技能力突出，校招竞争激烈，偏好金融与复合背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "中信银行",
+        "url": "https://job.citicbank.com/",
+        "tag": "股份行",
+        "description": "股份制银行，依托中信集团协同资源，主营对公、零售与金融市场业务，校招偏好金融与外语人才。"
+      },
+      {
+        "cat": "bank",
+        "name": "民生银行",
+        "url": "https://www.cmbc.com.cn/",
+        "tag": "股份行",
+        "description": "股份制银行，以民营企业和中小企业金融服务为特色，校招社招均有，看重营销能力与金融专业。"
+      },
+      {
+        "cat": "bank",
+        "name": "兴业银行",
+        "url": "https://job.cib.com.cn/",
+        "tag": "股份行",
+        "description": "股份制银行，以同业业务和绿色金融著称，主营对公与零售金融，校招偏好金融经济类专业背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "平安银行",
+        "url": "https://www.pingan.com/",
+        "tag": "股份行",
+        "description": "股份制银行，依托平安集团科技与零售资源，主营零售与综合金融，校招偏好金融与科技复合背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "浦发银行",
+        "url": "https://www.spdb.com.cn/",
+        "tag": "股份行",
+        "description": "股份制银行，总行位于上海，主营对公、零售与金融市场业务，校招偏好金融与经济类专业。"
+      },
+      {
+        "cat": "bank",
+        "name": "光大银行",
+        "url": "https://www.cebbank.com/",
+        "tag": "股份行",
+        "description": "股份制银行，隶属光大集团，主营公司、零售与财富管理业务，校招社招均有，偏好金融专业。"
+      },
+      {
+        "cat": "bank",
+        "name": "华夏银行",
+        "url": "https://www.hxb.com.cn/",
+        "tag": "股份行",
+        "description": "股份制银行，主营对公、零售与金融市场业务，网点覆盖全国，校招偏好经济金融专业背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "广发银行",
+        "url": "https://www.cgbchina.com.cn/",
+        "tag": "股份行",
+        "description": "股份制银行，总部位于广州，依托中国人寿股东背景，主营零售与信用卡业务，偏好金融营销人才。"
+      },
+      {
+        "cat": "bank",
+        "name": "浙商银行",
+        "url": "https://www.czbank.com/",
+        "tag": "股份行",
+        "description": "股份制银行，总部位于杭州，以小微金融与供应链金融为特色，校招偏好金融专业及本地生源。"
+      },
+      {
+        "cat": "bank",
+        "name": "渤海银行",
+        "url": "https://www.cbhb.com.cn/",
+        "tag": "股份行",
+        "description": "股份制银行，总部位于天津，主营公司、零售与金融市场业务，规模较小，校招偏好金融专业人才。"
+      },
+      {
+        "cat": "bank",
+        "name": "恒丰银行",
+        "url": "https://www.hfbank.com.cn/",
+        "tag": "股份行",
+        "description": "股份制银行，总部位于济南，主营对公与零售金融业务，规模相对较小，校招看重金融专业背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "北京银行",
+        "url": "https://www.bankofbeijing.com.cn/",
+        "tag": "城商行",
+        "description": "城市商业银行，总部位于北京，以首都区域对公与零售业务为主，校招社招均有，偏好本地金融人才。"
+      },
+      {
+        "cat": "bank",
+        "name": "上海银行",
+        "url": "https://www.bosc.cn/",
+        "tag": "城商行",
+        "description": "城市商业银行，总部位于上海，主营区域对公、零售与养老金融，校招偏好金融专业与本科以上学历。"
+      },
+      {
+        "cat": "bank",
+        "name": "宁波银行",
+        "url": "https://www.nbcb.com.cn/",
+        "tag": "城商行",
+        "description": "城市商业银行，以经营稳健和盈利能力强著称，主营中小企业金融，校招竞争激烈，偏好金融财经专业。"
+      },
+      {
+        "cat": "bank",
+        "name": "江苏银行",
+        "url": "https://www.jsbchina.cn/",
+        "tag": "城商行",
+        "description": "城市商业银行，总部位于南京，主营区域对公与零售金融，经营稳健，校招偏好金融经济类专业。"
+      },
+      {
+        "cat": "bank",
+        "name": "南京银行",
+        "url": "https://www.njcb.com.cn/",
+        "tag": "城商行",
+        "description": "城市商业银行，总部位于南京，以债券同业与中小企业金融服务见长，校招偏好金融专业与本地生源。"
+      },
+      {
+        "cat": "bank",
+        "name": "杭州银行",
+        "url": "https://www.hzbank.com.cn/",
+        "tag": "城商行",
+        "description": "城市商业银行，总部位于杭州，主营小微与科技金融服务，区域优势明显，校招偏好金融专业与本地生源。"
+      },
+      {
+        "cat": "bank",
+        "name": "微众银行",
+        "url": "https://www.webank.com/",
+        "tag": "互联网银行",
+        "description": "腾讯发起设立的互联网银行，主营线上信贷与财富管理，技术岗需求大，偏好金融科技与计算机背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "网商银行",
+        "url": "https://www.mybank.cn/",
+        "tag": "互联网银行",
+        "description": "蚂蚁集团旗下的互联网银行，主要服务小微商家与个体户，主营线上信贷，招聘技术与风控类人才。"
+      },
+      {
+        "cat": "bank",
+        "name": "中国人寿",
+        "url": "https://www.chinalife.com.cn/",
+        "tag": "保险",
+        "description": "国有大型寿险集团，主营人身保险与资产管理，校招社招并重，精算与金融科技岗门槛较高。"
+      },
+      {
+        "cat": "bank",
+        "name": "中国人保",
+        "url": "https://www.epicc.com.cn/",
+        "tag": "保险",
+        "description": "以财险为核心的大型保险集团，主营车险与财产险，校招规模大，管理与技术岗竞争激烈。"
+      },
+      {
+        "cat": "bank",
+        "name": "平安保险",
+        "url": "https://www.pingan.com/careers",
+        "tag": "保险",
+        "description": "综合金融保险集团，覆盖保险、银行与科技板块，校招社招并行，管培与科技岗偏好名校背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "太平洋保险",
+        "url": "https://www.cpic.com.cn/",
+        "tag": "保险",
+        "description": "头部综合保险集团，涵盖寿险财险与养老投资，校招面向应届生，金融与精算岗门槛较高。"
+      },
+      {
+        "cat": "bank",
+        "name": "新华保险",
+        "url": "https://www.newchinalife.com/",
+        "tag": "保险",
+        "description": "全国性大型寿险公司，主营人身险与健康险，校招以管培生为主，业绩考核压力较大。"
+      },
+      {
+        "cat": "bank",
+        "name": "泰康保险",
+        "url": "https://www.taikanglife.com/",
+        "tag": "保险",
+        "description": "大型保险金融集团，主打寿险与医养健康产业，校招社招并行，医养与投资岗门槛较高。"
+      },
+      {
+        "cat": "bank",
+        "name": "友邦保险",
+        "url": "https://www.aia.com/careers",
+        "tag": "保险",
+        "description": "外资寿险公司，专注中高端人身保障与财富管理，招聘多走社招，看重英语与销售能力。"
+      },
+      {
+        "cat": "bank",
+        "name": "中信证券",
+        "url": "https://www.citics.com/",
+        "tag": "券商",
+        "description": "头部综合券商，投行研究与资管业务领先，校招门槛高，偏好名校金融硕士毕业生。"
+      },
+      {
+        "cat": "bank",
+        "name": "海通证券",
+        "url": "https://www.htsec.com/",
+        "tag": "券商",
+        "description": "老牌综合类券商，经纪投行与资管并重，校招以名校硕士为主，实习经历是硬指标。"
+      },
+      {
+        "cat": "bank",
+        "name": "国泰君安",
+        "url": "https://www.gtja.com/careers",
+        "tag": "券商",
+        "description": "头部综合券商，机构业务与投研实力强，校招竞争激烈，倾向名校金融经济背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "广发证券",
+        "url": "https://www.gf.com.cn/careers",
+        "tag": "券商",
+        "description": "综合类券商，经纪与投行业务均衡发展，校招社招并行，偏好重点院校财经类毕业生。"
+      },
+      {
+        "cat": "bank",
+        "name": "招商证券",
+        "url": "https://www.newone.com.cn/",
+        "tag": "券商",
+        "description": "综合型券商，财富管理与投行优势突出，校招门槛较高，看重名校背景与实习履历。"
+      },
+      {
+        "cat": "bank",
+        "name": "华泰证券",
+        "url": "https://www.htsc.com/careers",
+        "tag": "券商",
+        "description": "科技驱动型券商，经纪市占率领先并自研交易平台，校招偏好理工与金融复合背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "申万宏源",
+        "url": "https://www.swhysc.com/",
+        "tag": "券商",
+        "description": "大型综合券商，卖方研究实力业内知名，校招以名校硕士为主，研究岗竞争激烈。"
+      },
+      {
+        "cat": "bank",
+        "name": "银河证券",
+        "url": "https://www.chinastock.com.cn/",
+        "tag": "券商",
+        "description": "国有综合券商，经纪网点遍布全国，校招规模大，一线营销岗需求多晋升通道清晰。"
+      },
+      {
+        "cat": "bank",
+        "name": "中金公司",
+        "url": "https://www.cicc.com/careers",
+        "tag": "券商",
+        "description": "顶级投行型券商，并购与高端投行业务领先，校招门槛极高，偏好清北复交与海外名校。"
+      },
+      {
+        "cat": "bank",
+        "name": "中信建投",
+        "url": "https://www.csc108.com/",
+        "tag": "券商",
+        "description": "头部投行型券商，IPO承销实力强劲，校招竞争激烈，看重名校背景与投行实习经历。"
+      },
+      {
+        "cat": "bank",
+        "name": "国信证券",
+        "url": "https://www.guosen.com.cn/",
+        "tag": "券商",
+        "description": "综合类券商，投行与经纪业务稳健，校招面向重点院校，投行岗偏好金融法律复合背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "东方财富",
+        "url": "https://www.eastmoney.com/",
+        "tag": "券商",
+        "description": "互联网券商与财经资讯平台，主营证券经纪与基金销售，校招偏技术运营与产品岗。"
+      },
+      {
+        "cat": "bank",
+        "name": "华夏基金",
+        "url": "https://www.chinaamc.com/",
+        "tag": "基金",
+        "description": "老牌头部公募基金，主动权益投资业绩突出，校招门槛高，偏好名校硕士与量化背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "易方达基金",
+        "url": "https://www.efunds.com.cn/",
+        "tag": "基金",
+        "description": "管理规模领先的公募基金公司，权益与固收产品齐全，校招看重名校与投研实力。"
+      },
+      {
+        "cat": "bank",
+        "name": "嘉实基金",
+        "url": "https://www.jsfund.cn/",
+        "tag": "基金",
+        "description": "大型公募基金公司，主动投资与养老目标基金并重，校招门槛较高，偏好金融硕士。"
+      },
+      {
+        "cat": "bank",
+        "name": "南方基金",
+        "url": "https://www.southernfund.com/",
+        "tag": "基金",
+        "description": "老牌公募基金公司，产品线完整投研体系成熟，校招以名校硕士为主竞争激烈。"
+      },
+      {
+        "cat": "bank",
+        "name": "汇添富",
+        "url": "https://www.99fund.com/",
+        "tag": "基金",
+        "description": "头部公募基金公司，权益投资能力突出，校招偏好名校硕士，投研岗需扎实财务功底。"
+      },
+      {
+        "cat": "bank",
+        "name": "中欧基金",
+        "url": "https://www.zcfund.com/",
+        "tag": "基金",
+        "description": "以主动权益见长的公募基金公司，校招规模小门槛高，偏好名校金融研究背景。"
+      },
+      {
+        "cat": "bank",
+        "name": "银华基金",
+        "url": "https://www.yhfund.com.cn/",
+        "tag": "基金",
+        "description": "老牌公募基金公司，固收与权益产品均衡布局，校招以名校硕士为主，投研岗竞争激烈。"
+      },
+      {
+        "cat": "inst",
+        "name": "中央机关公考",
+        "url": "http://www.scs.gov.cn/",
+        "tag": "公务员",
+        "description": "国家部委统一招录公务员的考试通道，应届往届均可报考，笔试面试层层筛选门槛高。"
+      },
+      {
+        "cat": "inst",
+        "name": "国家公务员局",
+        "url": "http://www.scs.gov.cn/",
+        "tag": "公务员",
+        "description": "主管全国公务员招录的官方机构，发布国考公告与职位表，是报考国考的唯一权威入口。"
+      },
+      {
+        "cat": "inst",
+        "name": "各省公务员考试",
+        "url": "http://www.chinagwy.org/",
+        "tag": "公务员",
+        "description": "由各省自行组织的公务员招录考试，俗称省考，多面向本省岗位，竞争激烈宜早备考。"
+      },
+      {
+        "cat": "inst",
+        "name": "事业单位招聘",
+        "url": "http://www.shiyebian.net/",
+        "tag": "事业编",
+        "description": "面向事业编制岗位的公开招聘渠道，覆盖教育医疗等系统，需通过笔试面试方能入编。"
+      },
+      {
+        "cat": "inst",
+        "name": "全国事业单位",
+        "url": "https://www.sydwzp.com/",
+        "tag": "事业编",
+        "description": "汇总各地事业编招聘信息的平台，涵盖学校医院与科研院所，报考需符合专业户籍要求。"
+      },
+      {
+        "cat": "inst",
+        "name": "中国科学院",
+        "url": "https://www.cas.cn/rcdw/zpxx/",
+        "tag": "科研",
+        "description": "国家最高学术机构与科研中心，下属百余家研究所，招聘科研岗以博士为主并看论文成果。"
+      },
+      {
+        "cat": "inst",
+        "name": "中国工程院",
+        "url": "https://www.cae.cn/",
+        "tag": "科研",
+        "description": "国家工程科学技术界最高荣誉机构，主要为院士提供咨询，不直接对外招聘常设岗位。"
+      },
+      {
+        "cat": "inst",
+        "name": "中国社会科学院",
+        "url": "https://www.cass.cn/",
+        "tag": "社科",
+        "description": "国家级社会科学研究机构，下设多家研究所，招聘科研岗以博士为主，看重学术发表。"
+      },
+      {
+        "cat": "inst",
+        "name": "国家自然科学基金",
+        "url": "https://www.nsfc.gov.cn/",
+        "tag": "科研基金",
+        "description": "资助基础研究的国家级科研基金，面向高校院所科研人员，申请需依托单位与高质量课题。"
+      },
+      {
+        "cat": "inst",
+        "name": "中国物理研究院",
+        "url": "https://www.ciap.ac.cn/",
+        "tag": "科研",
+        "description": "核武器与国防尖端科研机构，招聘以理工科硕博为主，门槛高且需通过严格政审。"
+      },
+      {
+        "cat": "inst",
+        "name": "高校人才网",
+        "url": "https://www.gaoxiaojob.com/",
+        "tag": "高校",
+        "description": "汇总全国高校教师与行政岗位招聘信息的网站，博士投递为主，看重学历与科研成果。"
+      },
+      {
+        "cat": "inst",
+        "name": "中国教育在线",
+        "url": "https://www.eol.cn/",
+        "tag": "教育",
+        "description": "综合教育信息服务平台，提供考研公考与高校招聘资讯，是升学就业的重要信息入口。"
+      },
+      {
+        "cat": "inst",
+        "name": "博士人才网",
+        "url": "https://www.1000plan.com/",
+        "tag": "高层次人才",
+        "description": "面向博士群体的招聘信息平台，发布高校院所与博士后岗位，需提交学位与成果材料。"
+      },
+      {
+        "cat": "inst",
+        "name": "公立医院招聘",
+        "url": "https://www.21wecan.com/",
+        "tag": "医院事业编",
+        "description": "汇总公立医院事业编与合同制岗位的招聘渠道，医护为主，需执业资格与规培经历。"
+      },
+      {
+        "cat": "inst",
+        "name": "卫生人才网",
+        "url": "https://www.21wecan.com/",
+        "tag": "医疗卫生",
+        "description": "国家卫生健康系统的人才招聘平台，汇集全国公立医院与疾控机构的医疗、护理、医技岗位校招社招信息，门槛为医学相关专业与执业资格。"
+      },
+      {
+        "cat": "inst",
+        "name": "中小学教师招聘",
+        "url": "https://www.jyb.cn/",
+        "tag": "教育",
+        "description": "各地教育部门与中小学的教师招聘入口，面向师范类及持教师资格证的应往届生，需通过笔试、面试与资格审查，岗位多为事业编制。"
+      },
+      {
+        "cat": "inst",
+        "name": "军队文职",
+        "url": "http://81rc.81.cn/",
+        "tag": "军队文职",
+        "description": "军队面向社会公开招考文职人员的统一渠道，涵盖教学、科研、医疗等岗位，需政审体检合格并参加全军统一笔试、面试。"
+      },
+      {
+        "cat": "inst",
+        "name": "解放军文职",
+        "url": "http://81rc.81.cn/",
+        "tag": "军队文职",
+        "description": "军队文职人员公开招考的信息发布渠道，面向高校毕业生与社会人才，需符合政治考核、体检及年龄学历要求并参加统一考试。"
+      },
+      {
+        "cat": "inst",
+        "name": "三支一扶",
+        "url": "http://www.scsyf.com/",
+        "tag": "基层项目",
+        "description": "国家基层服务项目，招录高校毕业生到基层从事支教、支农、支医和帮扶工作，服务期满在考编考研上有政策优惠。"
+      },
+      {
+        "cat": "inst",
+        "name": "西部计划",
+        "url": "https://xibu.youth.cn/",
+        "tag": "基层项目",
+        "description": "大学生志愿服务西部计划，招募应届毕业生到西部基层服务一至三年，服务期满享考研加分、定向招录等升学就业优惠。"
+      },
+      {
+        "cat": "inst",
+        "name": "特岗教师",
+        "url": "https://www.teacher.zj.cn/",
+        "tag": "基层项目",
+        "description": "面向农村义务教育学校的教师补充计划，招聘高校毕业生到中西部县以下学校任教，三年服务期满考核合格可直接入编。"
+      },
+      {
+        "cat": "inst",
+        "name": "大学生村官",
+        "url": "https://www.54cunguan.com/",
+        "tag": "基层项目",
+        "description": "选聘高校毕业生到村任职的基层项目，从事村务管理与乡村振兴工作，需考试选拔并有定向培养与考核转编等出路。"
+      },
+      {
+        "cat": "defense",
+        "name": "航天科技一院",
+        "url": "https://www.calt.com/",
+        "tag": "运载火箭",
+        "description": "中国航天科技集团第一研究院，主攻长征系列运载火箭研制，校招以航天、力学、控制类专业硕博为主，涉密岗位需政审。"
+      },
+      {
+        "cat": "defense",
+        "name": "航天科技五院",
+        "url": "https://www.cast.cn/",
+        "tag": "空间技术",
+        "description": "即中国空间技术研究院，负责卫星与载人飞船等航天器研制，招聘航空航天、电子类硕博，涉密岗位政审与体检严格。"
+      },
+      {
+        "cat": "defense",
+        "name": "航天科技八院",
+        "url": "https://www.sast.net.cn/",
+        "tag": "航天",
+        "description": "航天科技集团第八研究院，主攻运载火箭与防空导弹研制，招收航空航天、材料、控制类专业硕博生，入所需严格政审。"
+      },
+      {
+        "cat": "defense",
+        "name": "航天科工二院",
+        "url": "https://www.casic.com.cn/",
+        "tag": "防御",
+        "description": "中国航天科工集团第二研究院，专注防空导弹与雷达等防御装备研制，校招面向电子、控制、信息类硕博并需政审。"
+      },
+      {
+        "cat": "defense",
+        "name": "航天科工三院",
+        "url": "https://www.casic3y.com.cn/",
+        "tag": "飞航",
+        "description": "航天科工集团第三研究院，主攻飞航导弹与无人机系统研制，招聘飞行器、控制、动力类硕博，入职涉密岗位需政审。"
+      },
+      {
+        "cat": "defense",
+        "name": "航空工业一飞院",
+        "url": "https://www.avic.com/",
+        "tag": "航空",
+        "description": "中航工业第一飞机设计研究院，负责大中型军民用飞机总体设计，校招以飞行器设计、力学类硕博为主，需通过政审。"
+      },
+      {
+        "cat": "defense",
+        "name": "中国航发商发",
+        "url": "https://www.acae.com.cn/",
+        "tag": "航空发动机",
+        "description": "中国航发商用航空发动机公司，研制国产大涵道比民用涡扇发动机，招聘航空发动机、材料、力学类硕博，研发门槛高。"
+      },
+      {
+        "cat": "defense",
+        "name": "中航工业",
+        "url": "https://www.avic.com/careers",
+        "tag": "航空装备",
+        "description": "中国航空工业集团，主营军用与民用航空器及机载系统研制，校招覆盖飞行器、电子、材料类专业，涉密岗位需政审。"
+      },
+      {
+        "cat": "defense",
+        "name": "中船重工研究所",
+        "url": "https://csic.zhiye.com/",
+        "tag": "船舶研究",
+        "description": "中国船舶重工集团下属研究所，从事舰船与海洋装备的研发设计，招聘船舶、机械、电子类硕博，涉密岗位政审严格。"
+      },
+      {
+        "cat": "defense",
+        "name": "兵器工业集团",
+        "url": "https://www.norincogroup.com.cn/",
+        "tag": "兵器装备",
+        "description": "中国兵器工业集团，主营坦克、火炮等地面武器装备与弹药研制，校招面向机械、材料、火炸药类专业，需政审。"
+      },
+      {
+        "cat": "defense",
+        "name": "核工业集团",
+        "url": "https://www.cnnc.com.cn/",
+        "tag": "核工业",
+        "description": "中国核工业集团，覆盖核电、核燃料与核技术应用全产业链，招聘核工程、物理、化工类专业人才，需政审与体检。"
+      },
+      {
+        "cat": "defense",
+        "name": "中国电科研究所",
+        "url": "https://cetc.zhiye.com/",
+        "tag": "电子对抗",
+        "description": "中国电子科技集团下属研究所，主攻雷达、电子对抗与信息安全装备，校招面向电子、通信、计算机类硕博，需政审。"
+      },
+      {
+        "cat": "defense",
+        "name": "中国工程物理研究院",
+        "url": "https://www.caep.ac.cn/",
+        "tag": "国防科研",
+        "description": "位于四川的国家级国防科研机构，从事核物理与高新技术武器研究，招聘物理、力学、材料类硕博，政审与保密严格。"
+      },
+      {
+        "cat": "defense",
+        "name": "总装部",
+        "url": "http://www.mod.gov.cn/",
+        "tag": "军队",
+        "description": "即原总装备部所属军队相关单位，负责武器装备研制与试验管理，主要通过军队文职或直招渠道招录，需军籍政审体检。"
+      },
+      {
+        "cat": "auto",
+        "name": "比亚迪",
+        "url": "https://job.byd.com/",
+        "tag": "新能源车",
+        "description": "中国新能源汽车龙头企业，主营整车、动力电池与半导体业务，校招覆盖机械、电子、软件类专业，社招需求同样旺盛。"
+      },
+      {
+        "cat": "auto",
+        "name": "吉利",
+        "url": "https://www.geely.com/careers",
+        "tag": "汽车",
+        "description": "浙江吉利控股集团，旗下拥有吉利、极氪、沃尔沃等品牌，校招海内外毕业生，岗位覆盖整车研发、软件与制造。"
+      },
+      {
+        "cat": "auto",
+        "name": "长城汽车",
+        "url": "https://www.gwm-job.com/",
+        "tag": "汽车",
+        "description": "河北保定起家的民营车企，主营SUV与皮卡并加速新能源布局，校招以车辆、机械、电子类专业为主，重视应届培养。"
+      },
+      {
+        "cat": "auto",
+        "name": "长安汽车",
+        "url": "https://www.changan.com.cn/",
+        "tag": "汽车",
+        "description": "中国兵器装备集团旗下整车企业，主销燃油与新能源乘用车，校招覆盖车辆工程、软件、自动化类专业，社招亦有需求。"
+      },
+      {
+        "cat": "auto",
+        "name": "上汽集团",
+        "url": "https://www.saicmotor.com/careers",
+        "tag": "汽车",
+        "description": "上海汽车集团，国内产销规模领先的整车集团，旗下含荣威、智己等品牌，校招覆盖研发、制造与营销等岗位。"
+      },
+      {
+        "cat": "auto",
+        "name": "一汽集团",
+        "url": "https://www.faw.com.cn/",
+        "tag": "汽车",
+        "description": "中国第一汽车集团，总部位于长春，拥有红旗、解放等品牌，校招以车辆、机械、电子类应届生为主，社招规模亦大。"
+      },
+      {
+        "cat": "auto",
+        "name": "东风汽车",
+        "url": "https://www.dfmc.com.cn/",
+        "tag": "汽车",
+        "description": "东风汽车集团，总部位于武汉，业务覆盖商用车、乘用车与新能源，校招车辆、机械、软件类专业，社招岗位较多。"
+      },
+      {
+        "cat": "auto",
+        "name": "广汽集团",
+        "url": "https://www.gac-motor.com/",
+        "tag": "汽车",
+        "description": "广州汽车集团，旗下有传祺、埃安等自主品牌并与日系合资，校招覆盖整车研发、制造与智能网联相关岗位。"
+      },
+      {
+        "cat": "auto",
+        "name": "北汽集团",
+        "url": "https://www.baicmotor.com/",
+        "tag": "汽车",
+        "description": "北京汽车集团，涵盖自主品牌与北京奔驰、现代等合资业务，校招车辆、机械、电子类应届生，聚焦新能源转型。"
+      },
+      {
+        "cat": "auto",
+        "name": "奇瑞汽车",
+        "url": "https://www.chery.cn/",
+        "tag": "汽车",
+        "description": "安徽芜湖的自主品牌车企，出口量居国内前列，校招车辆、机械、电子类专业，社招偏重海外市场与研发岗位。"
+      },
+      {
+        "cat": "auto",
+        "name": "江淮汽车",
+        "url": "https://www.jac.com.cn/",
+        "tag": "汽车",
+        "description": "安徽合肥的整车企业，主营商用车与乘用车并与大众开展合作，校招车辆、机械、自动化类专业应届生。"
+      },
+      {
+        "cat": "auto",
+        "name": "蔚来",
+        "url": "https://nio.com/careers",
+        "tag": "新能源车",
+        "description": "中国高端智能电动车企业，主打换电补能与用户服务模式，校招面向车辆、软件、算法类应届生，研发岗竞争激烈。"
+      },
+      {
+        "cat": "auto",
+        "name": "小鹏汽车",
+        "url": "https://www.xiaopeng.com/careers",
+        "tag": "新能源车",
+        "description": "广州的智能电动车企业，以自动驾驶与智能座舱为技术特色，校招重点招揽算法、软件、车辆类应届毕业生。"
+      },
+      {
+        "cat": "auto",
+        "name": "理想汽车",
+        "url": "https://www.lixiang.com/careers",
+        "tag": "新能源车",
+        "description": "北京的智能电动车企业，主打增程式动力与家庭SUV，校招覆盖车辆、软件、算法类专业，研发岗要求较高。"
+      },
+      {
+        "cat": "auto",
+        "name": "上汽大众",
+        "url": "https://www.csvw.com/",
+        "tag": "合资汽车",
+        "description": "上汽与大众的合资整车企业，生产大众与斯柯达品牌车型，校招车辆、机械、自动化类专业应届生，体系成熟。"
+      },
+      {
+        "cat": "auto",
+        "name": "一汽大众",
+        "url": "https://www.faw-vw.com/",
+        "tag": "合资汽车",
+        "description": "一汽与大众合资的乘用车企业，产销规模长期领先，校招车辆、机械、电子类专业，待遇在合资车企中较优。"
+      },
+      {
+        "cat": "auto",
+        "name": "华晨宝马",
+        "url": "https://www.bmw-brilliance.cn/",
+        "tag": "合资汽车",
+        "description": "宝马与华晨的合资企业，在沈阳生产宝马车型，校招车辆、机械、自动化类专业，德系管理流程规范严格。"
+      },
+      {
+        "cat": "auto",
+        "name": "北京奔驰",
+        "url": "https://www.bbbc.com.cn/",
+        "tag": "合资汽车",
+        "description": "北汽与奔驰的合资企业，在北京生产奔驰乘用车，校招车辆、机械、自动化类专业，培训与标准体系完善。"
+      },
+      {
+        "cat": "auto",
+        "name": "特斯拉中国",
+        "url": "https://www.tesla.cn/careers",
+        "tag": "新能源车",
+        "description": "特斯拉在华整车制造与销售主体，主营纯电车型及储能业务，校招社招覆盖整车工程、智能驾驶与超级工厂制造岗，门槛较高且看重工程实践能力。"
+      },
+      {
+        "cat": "bio",
+        "name": "恒瑞医药",
+        "url": "https://www.hrs.com.cn/",
+        "tag": "医药",
+        "description": "国内创新药与仿制药龙头，聚焦肿瘤、麻醉、造影等赛道，校招面向药学、化学、生物背景，研发岗多要求硕博学历，社招重相关项目经验。"
+      },
+      {
+        "cat": "bio",
+        "name": "药明康德",
+        "url": "https://www.wuxiapptec.com/careers",
+        "tag": "CRO",
+        "description": "全球领先的一体化医药研发生产服务企业，提供从药物发现到商业化生产的全流程外包，校招对口化学、生物、药学，硕博为主，英文能力是加分项。"
+      },
+      {
+        "cat": "bio",
+        "name": "药明生物",
+        "url": "https://www.wuxibiologics.com/careers",
+        "tag": "生物药",
+        "description": "专注于生物药发现、开发与生产的CRDMO平台，涵盖抗体与偶联药物，招聘生物工程、细胞培养等方向，校招门槛多为硕士及以上。"
+      },
+      {
+        "cat": "bio",
+        "name": "迈瑞医疗",
+        "url": "https://www.mindray.com/careers",
+        "tag": "医疗器械",
+        "description": "国内医疗器械龙头，产品覆盖生命信息与支持、体外诊断和医学影像，校招以生物医学工程、电子、机械为主，研发岗重学历与项目经历。"
+      },
+      {
+        "cat": "bio",
+        "name": "联影医疗",
+        "url": "https://www.united-imaging.com/careers",
+        "tag": "医疗器械",
+        "description": "国产高端医学影像与放射治疗设备厂商，主攻CT、磁共振与PET等大型设备，招聘电子、算法、生医工方向，研发岗偏爱硕博及海归背景。"
+      },
+      {
+        "cat": "bio",
+        "name": "百济神州",
+        "url": "https://www.beigene.com/careers",
+        "tag": "创新药",
+        "description": "国际化创新药企，专注肿瘤靶向与免疫治疗药物研发商业化，校招面向生物、药学、临床背景，研发岗要求硕博，重视英文文献与国际视野。"
+      },
+      {
+        "cat": "bio",
+        "name": "信达生物",
+        "url": "https://www.innoventbio.com/careers",
+        "tag": "生物药",
+        "description": "国内创新生物制药企业，聚焦单抗与免疫治疗药物的研发生产，招聘分子生物、细胞工程等方向，校招以硕士为主并看重实验技能。"
+      },
+      {
+        "cat": "bio",
+        "name": "君实生物",
+        "url": "https://www.junshipharma.com/",
+        "tag": "生物药",
+        "description": "以单克隆抗体为核心的创新药企，覆盖肿瘤免疫与抗感染领域，校招面向生物、药学、临床专业，研发岗多要求硕士及以上学历。"
+      },
+      {
+        "cat": "bio",
+        "name": "复星医药",
+        "url": "https://www.fosunpharma.com/",
+        "tag": "医药",
+        "description": "覆盖制药、医疗器械与医疗服务的综合性医药集团，业务横跨国内外，校招涵盖药学、临床、市场等岗位，偏重综合能力与英语水平。"
+      },
+      {
+        "cat": "bio",
+        "name": "云南白药",
+        "url": "https://www.yunnanbaiyao.com.cn/",
+        "tag": "中药",
+        "description": "以中成药起家的大健康集团，主营止血类药品并拓展日化与保健品，校招覆盖药学、市场营销与供应链，门槛适中，看重稳定性与执行力。"
+      },
+      {
+        "cat": "bio",
+        "name": "片仔癀",
+        "url": "https://www.pzt.com.cn/",
+        "tag": "中药",
+        "description": "老字号中药企业，核心产品为独家配方片仔癀，兼营日化与化妆品，校招以中药、药学及营销岗为主，整体招聘规模不大且门槛中等。"
+      },
+      {
+        "cat": "bio",
+        "name": "同仁堂",
+        "url": "https://www.tongrentang.com/",
+        "tag": "中药",
+        "description": "百年中药老字号，主营中成药、饮片与健康产品并布局零售连锁，校招面向中药学与药学专业，岗位偏稳定，重传统工艺与合规意识。"
+      },
+      {
+        "cat": "bio",
+        "name": "华大基因",
+        "url": "https://www.bgi.com/careers",
+        "tag": "基因测序",
+        "description": "国内基因测序与精准医学服务龙头，业务含生育健康、肿瘤检测与科研测序，校招面向生物信息与分子生物方向，硕博为主并看重生信编程能力。"
+      },
+      {
+        "cat": "bio",
+        "name": "金斯威",
+        "url": "https://www.genscript.com/careers",
+        "tag": "生物技术",
+        "description": "生物技术领域企业，从事生命科学试剂与相关技术服务，招聘生物、化学方向研发与技术支持岗，校招门槛多为本科至硕士，偏应用型人才。"
+      },
+      {
+        "cat": "bio",
+        "name": "泰格医药",
+        "url": "https://www.tigermedgrp.com/careers",
+        "tag": "CRO",
+        "description": "国内领先的临床CRO企业，提供临床试验运营、数据统计与注册申报服务，校招面向药学、医学与统计专业，常需英文沟通与项目协调能力。"
+      },
+      {
+        "cat": "bio",
+        "name": "康龙化成",
+        "url": "https://www.pharmaron.com/careers",
+        "tag": "CRO",
+        "description": "一体化药物研发服务企业，覆盖药物发现、临床前与临床开发环节，招聘化学、生物、药学方向，校招以硕博为主并看重有机合成功底。"
+      }
+    ]
+  },
+  "earn": {
+    "categories": [
+      {
+        "key": "bounty",
+        "name": "安全众测·漏洞赏金",
+        "icon": "🔐",
+        "description": "通过提交软件/网站漏洞、参与 SRC 或众测项目，按漏洞等级获得现金赏金——技能门槛高、单笔回报可观。"
+      },
+      {
+        "key": "web3",
+        "name": "Web3·链上赏金",
+        "icon": "⛓️",
+        "description": "通过审计智能合约、参与链上安全竞赛或完成 Web3 生态任务，赚取代币、USDC 或项目奖励。"
+      },
+      {
+        "key": "ossbounty",
+        "name": "开源·代码赏金",
+        "icon": "💻",
+        "description": "通过修复开源项目 issue、参与算法/数据科学竞赛拿奖金，或靠开源赞助获得收入。"
+      },
+      {
+        "key": "freelance",
+        "name": "自由职业·接单",
+        "icon": "🧑‍💻",
+        "description": "出售自己的设计、开发、写作、翻译等技能，按项目或工时向全球客户收费。"
+      },
+      {
+        "key": "microtask",
+        "name": "众包微任务·问卷",
+        "icon": "📝",
+        "description": "通过完成小任务、填写付费问卷、参与可用性测试获取报酬，门槛低、单笔小、可碎片化时间做。"
+      },
+      {
+        "key": "ailabel",
+        "name": "AI训练·数据标注",
+        "icon": "🤖",
+        "description": "为 AI 公司做数据标注、语音转录、对话评估等，按时薪或按件计酬，是当前需求旺盛的线上工作。"
+      },
+      {
+        "key": "creator",
+        "name": "创作者变现",
+        "icon": "🎬",
+        "description": "通过内容平台的广告分成、粉丝打赏、付费订阅、直播带货把流量变成收入。"
+      },
+      {
+        "key": "knowledge",
+        "name": "知识付费·教学",
+        "icon": "📚",
+        "description": "把自己的专业经验做成课程、社群或付费内容，通过销售或订阅持续获得收益。"
+      },
+      {
+        "key": "affiliate",
+        "name": "联盟推广·返利",
+        "icon": "🔗",
+        "description": "通过推广链接帮商家带货、拉新，按成交或引流获得佣金（CPS/CPA），无需自己囤货发货。"
+      },
+      {
+        "key": "ecommerce",
+        "name": "电商·二手转售",
+        "icon": "🛒",
+        "description": "通过开店卖货（含无货源一件代发）、二手转卖、按需印制等方式赚取差价或分成。"
+      },
+      {
+        "key": "gig",
+        "name": "零工·按需服务",
+        "icon": "🛵",
+        "description": "通过跑单配送、网约车、跑腿、短租等按需服务，用时间与体力直接换取报酬。"
+      },
+      {
+        "key": "lab",
+        "name": "技能靶场·进阶",
+        "icon": "🎯",
+        "description": "本身不直接赚钱，但可免费练就渗透/CTF 技能，是通往漏洞赏金与安全就业的必经之路。"
+      }
+    ],
+    "items": [
+      {
+        "cat": "bounty",
+        "name": "补天平台",
+        "url": "https://www.butian.net/",
+        "tag": "提交漏洞 / 参与众测获赏金",
+        "description": "国内较早的漏洞众测平台之一，安全研究人员提交企业 SRC 漏洞或参与众测项目赚取赏金，需实名认证并通过技术审核。"
+      },
+      {
+        "cat": "bounty",
+        "name": "漏洞盒子",
+        "url": "https://www.vulbox.com/",
+        "tag": "众测项目与漏洞悬赏",
+        "description": "国内知名漏洞众测与安全众包平台，白帽可参与企业众测项目、提交漏洞获取奖金与积分，注册需实名并提交技术能力证明。"
+      },
+      {
+        "cat": "bounty",
+        "name": "漏洞银行",
+        "url": "https://www.bugbank.cn/",
+        "tag": "漏洞众测与安全服务",
+        "description": "面向企业的漏洞众测与安全服务平台，白帽通过参与悬赏项目和众测活动赚取赏金，门槛是具备真实漏洞挖掘能力。"
+      },
+      {
+        "cat": "bounty",
+        "name": "火线安全",
+        "url": "https://www.huoxian.cn/",
+        "tag": "众测、安全众包与赏金",
+        "description": "提供众测、安全众包与漏洞赏金的平台，安全研究员接单挖洞或参与项目获取报酬，需通过平台审核才能接取任务。"
+      },
+      {
+        "cat": "bounty",
+        "name": "腾讯安全应急响应中心",
+        "url": "https://security.tencent.com/",
+        "tag": "上报腾讯系漏洞获奖励",
+        "description": "腾讯官方漏洞收集平台，白帽向腾讯及旗下产品提交有效安全漏洞可获得现金与积分奖励，需实名注册并遵守披露规则。"
+      },
+      {
+        "cat": "bounty",
+        "name": "阿里安全响应中心",
+        "url": "https://security.alibaba.com/",
+        "tag": "上报阿里系漏洞获奖励",
+        "description": "阿里巴巴官方安全漏洞报告平台，研究人员提交阿里系业务漏洞可获现金奖励与荣誉，要求实名认证并遵循负责任披露。"
+      },
+      {
+        "cat": "bounty",
+        "name": "百度安全应急响应中心",
+        "url": "https://bsrc.baidu.com/",
+        "tag": "上报百度系漏洞获奖励",
+        "description": "百度官方接收安全漏洞的渠道，白帽上报百度产品漏洞可获得现金奖励和积分，需注册并遵守漏洞披露规范。"
+      },
+      {
+        "cat": "bounty",
+        "name": "京东安全响应中心",
+        "url": "https://security.jd.com/",
+        "tag": "上报京东系漏洞获奖励",
+        "description": "京东官方的漏洞收集与奖励平台，白帽提交京东业务有效漏洞可获现金奖励，需实名注册并通过漏洞有效性审核。"
+      },
+      {
+        "cat": "bounty",
+        "name": "360 安全应急响应中心",
+        "url": "https://security.360.cn/",
+        "tag": "上报 360 系漏洞获奖励",
+        "description": "360 官方漏洞接收平台，安全研究者上报 360 产品及业务漏洞可获奖励与积分，需实名认证并遵循披露流程。"
+      },
+      {
+        "cat": "bounty",
+        "name": "网易安全应急响应中心",
+        "url": "https://security.163.com/",
+        "tag": "上报网易系漏洞获奖励",
+        "description": "网易官方安全漏洞收集平台，白帽向网易系产品提交有效漏洞可获现金与积分奖励，需实名注册并遵守披露规范。"
+      },
+      {
+        "cat": "bounty",
+        "name": "小米安全中心",
+        "url": "https://sec.xiaomi.com/",
+        "tag": "上报小米系漏洞获奖励",
+        "description": "小米官方接收安全漏洞的平台，研究者上报小米及生态链产品漏洞可获奖励与致谢，需实名注册并遵循负责任披露。"
+      },
+      {
+        "cat": "bounty",
+        "name": "美团安全应急响应中心",
+        "url": "https://security.meituan.com/",
+        "tag": "上报美团系漏洞获奖励",
+        "description": "美团官方漏洞收集平台，白帽提交美团业务有效漏洞可获现金奖励与积分，需实名认证并遵守漏洞披露规则。"
+      },
+      {
+        "cat": "bounty",
+        "name": "字节跳动安全中心",
+        "url": "https://security.bytedance.com/",
+        "tag": "上报字节系漏洞获奖励",
+        "description": "字节跳动官方安全漏洞报告平台，研究者提交字节系产品漏洞可获现金奖励与荣誉，需实名注册并通过有效性审核。"
+      },
+      {
+        "cat": "bounty",
+        "name": "蚂蚁安全响应中心",
+        "url": "https://security.alipay.com/",
+        "tag": "上报蚂蚁 / 支付宝漏洞",
+        "description": "蚂蚁集团与支付宝官方漏洞收集平台，白帽上报有效安全漏洞可获奖励，聚焦支付与金融安全，需实名并遵守披露流程。"
+      },
+      {
+        "cat": "bounty",
+        "name": "平安安全应急响应中心",
+        "url": "https://security.pingan.com/",
+        "tag": "上报平安系漏洞获奖励",
+        "description": "平安集团官方漏洞接收平台，安全研究者上报平安系业务漏洞可获现金奖励，需实名注册并通过漏洞有效性审核。"
+      },
+      {
+        "cat": "bounty",
+        "name": "爱奇艺安全应急响应中心",
+        "url": "https://security.iqiyi.com/",
+        "tag": "上报漏洞获奖励",
+        "description": "爱奇艺官方漏洞收集平台，白帽提交爱奇艺产品与业务漏洞可获现金奖励和积分，需实名认证并遵循披露规范。"
+      },
+      {
+        "cat": "bounty",
+        "name": "微博安全中心",
+        "url": "https://security.weibo.com/",
+        "tag": "上报微博漏洞获奖励",
+        "description": "微博官方安全漏洞上报平台，研究者提交微博有效漏洞可获现金奖励与致谢，需实名注册并遵守负责任披露要求。"
+      },
+      {
+        "cat": "bounty",
+        "name": "快手安全中心",
+        "url": "https://security.kuaishou.com/",
+        "tag": "上报快手漏洞获奖励",
+        "description": "快手官方漏洞接收平台，白帽上报快手系产品有效漏洞可获现金与积分奖励，需实名认证并遵循披露流程。"
+      },
+      {
+        "cat": "bounty",
+        "name": "携程安全应急响应中心",
+        "url": "https://security.ctrip.com/",
+        "tag": "上报携程系漏洞获奖励",
+        "description": "携程官方漏洞收集平台，研究者提交携程系业务有效漏洞可获现金奖励，需实名注册并遵守漏洞披露规范。"
+      },
+      {
+        "cat": "bounty",
+        "name": "HackerOne",
+        "url": "https://hackerone.com/",
+        "tag": "参与 SRC / 漏洞悬赏获美金",
+        "description": "全球最大的漏洞赏金与安全众测平台，白帽参与各企业项目提交漏洞赚取美金，需通过能力验证，竞争激烈且审核严格。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Bugcrowd",
+        "url": "https://bugcrowd.com/",
+        "tag": "漏洞赏金与渗透众测",
+        "description": "知名漏洞赏金与众测平台，安全研究者参与企业项目挖洞获取报酬，需注册并通过技能审核，赏金按漏洞等级结算。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Intigriti",
+        "url": "https://www.intigriti.com/",
+        "tag": "欧洲众测与漏洞赏金",
+        "description": "欧洲领先的众测与漏洞赏金平台，白帽参与企业漏洞项目赚取奖金，需通过邀请或能力评估，客户多为欧盟机构企业。"
+      },
+      {
+        "cat": "bounty",
+        "name": "YesWeHack",
+        "url": "https://www.yeswehack.com/",
+        "tag": "众测平台 · 漏洞赏金",
+        "description": "欧洲众测与漏洞赏金平台，安全研究者提交企业漏洞获取现金奖励，注册需审核，项目多来自欧洲机构与企业。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Synack",
+        "url": "https://www.synack.com/",
+        "tag": "受邀渗透众测（高报酬）",
+        "description": "采用受邀制的渗透众测平台，通过与平台签约的白帽接单赚取高报酬，准入门槛高，需通过严格技能与背景审核。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Open Bug Bounty",
+        "url": "https://www.openbugbounty.org/",
+        "tag": "网站漏洞协调披露赏金",
+        "description": "非营利漏洞协调披露平台，白帽提交网站漏洞经协调披露后由站点致谢或给予赏金，无统一奖池，收入并不稳定。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Vulnerability Lab",
+        "url": "https://www.vulnerability-lab.com/",
+        "tag": "漏洞研究奖励",
+        "description": "漏洞研究与奖励平台，研究者提交漏洞可获得奖励或致谢，平台规模较小，赏金与承认依具体项目而定。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Cobalt",
+        "url": "https://www.cobalt.io/",
+        "tag": "渗透测试众测平台",
+        "description": "渗透测试众测平台，白帽以签约形式参与企业渗透项目按工时或项目获取报酬，需通过平台技能审核与背景调查。"
+      },
+      {
+        "cat": "bounty",
+        "name": "HackTrophy",
+        "url": "https://www.hacktrophy.com/",
+        "tag": "漏洞赏金平台",
+        "description": "漏洞赏金平台，安全研究者参与企业项目提交漏洞获取奖金，平台规模较小，适合积累漏洞披露与实战经验。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Zerodium",
+        "url": "https://zerodium.com/",
+        "tag": "0day 漏洞高价收购",
+        "description": "专注高价收购 0day 漏洞的公司，研究者提交高危未公开漏洞可获高额报酬，门槛极高且需严格保密与独家条款。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Google Bug Hunters",
+        "url": "https://bughunters.google.com/",
+        "tag": "谷歌产品漏洞奖励",
+        "description": "谷歌官方漏洞奖励计划，研究者提交谷歌及旗下产品漏洞可获美元奖金，需遵守计划范围与漏洞披露规则。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Microsoft MSRC",
+        "url": "https://www.microsoft.com/msrc/bounty",
+        "tag": "微软漏洞奖励计划",
+        "description": "微软安全响应中心漏洞奖励计划，研究者提交微软产品漏洞可获现金奖励，需按官方限定范围与流程提交。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Apple Security Bounty",
+        "url": "https://security.apple.com/bounty/",
+        "tag": "苹果漏洞奖励计划",
+        "description": "苹果官方漏洞奖励计划，研究者提交苹果系统与设备高危漏洞可获高额奖金，门槛高且限定在指定攻击面。"
+      },
+      {
+        "cat": "bounty",
+        "name": "Meta Bug Bounty",
+        "url": "https://bugbounty.meta.com/",
+        "tag": "Meta 产品漏洞奖励",
+        "description": "Meta 官方漏洞奖励计划，研究者提交 Facebook、Instagram 等产品漏洞可获奖金，需遵守限定范围与披露规则。"
+      },
+      {
+        "cat": "web3",
+        "name": "Immunefi",
+        "url": "https://immunefi.com/",
+        "tag": "Web3 / 智能合约漏洞赏金",
+        "description": "最大的 Web3 与智能合约漏洞赏金平台，安全研究者挖出合约或协议漏洞获取高额奖金，需熟悉链上安全，奖池常达百万美元。"
+      },
+      {
+        "cat": "web3",
+        "name": "Code4rena",
+        "url": "https://code4rena.com/",
+        "tag": "智能合约审计竞赛奖池",
+        "description": "智能合约审计竞赛平台，安全研究员参与项目审计比赛，按发现漏洞的严重度瓜分奖池，需具备 Solidity 与审计能力。"
+      },
+      {
+        "cat": "web3",
+        "name": "Sherlock",
+        "url": "https://www.sherlock.xyz/",
+        "tag": "审计竞赛 · 漏洞赏金",
+        "description": "提供智能合约审计竞赛与漏洞赏金的平台，研究员通过审计比赛或提交漏洞赚取奖励，需具备链上安全与审计经验。"
+      },
+      {
+        "cat": "web3",
+        "name": "Cantina",
+        "url": "https://cantina.xyz/",
+        "tag": "智能合约安全竞赛 / 众测",
+        "description": "面向 Web3 的智能合约安全竞赛与众测平台，研究者通过发现漏洞赢取奖金，需熟悉 Solidity 与常见合约风险。"
+      },
+      {
+        "cat": "web3",
+        "name": "HackenProof",
+        "url": "https://hackenproof.com/",
+        "tag": "Web3 / Web2 众测赏金",
+        "description": "覆盖 Web3 与 Web2 的众测赏金平台，白帽提交漏洞获取奖金，需通过审核，项目以 Web3 与加密领域居多。"
+      },
+      {
+        "cat": "web3",
+        "name": "Hats Finance",
+        "url": "https://hats.finance/",
+        "tag": "链上漏洞赏金",
+        "description": "链上漏洞赏金协议，项目方质押资金设立赏金池，白帽通过提交并经裁决的漏洞获得链上奖励，需理解智能合约安全。"
+      },
+      {
+        "cat": "web3",
+        "name": "Gitcoin",
+        "url": "https://gitcoin.co/",
+        "tag": "开源 / Web3 赏金与资助",
+        "description": "开源与 Web3 生态的赏金与资助平台，开发者通过完成任务、参与资助轮或黑客松获取报酬与赠款，需具备开发或社区运营能力。"
+      },
+      {
+        "cat": "web3",
+        "name": "Dework",
+        "url": "https://dework.xyz/",
+        "tag": "Web3 任务 / 赏金看板",
+        "description": "Web3 任务与项目看板平台，DAO 和组织在此发布赏金任务，完成开发、设计与运营任务后以代币结算，需先连接钱包与 Discord 账号。"
+      },
+      {
+        "cat": "web3",
+        "name": "Galxe",
+        "url": "https://galxe.com/",
+        "tag": "完成任务赚代币 / 奖励",
+        "description": "Web3 任务与激励平台，用户完成关注、链上交互等任务领取 NFT 与代币奖励，常与项目空投活动绑定，注意甄别钓鱼链接。"
+      },
+      {
+        "cat": "web3",
+        "name": "Layer3",
+        "url": "https://layer3.xyz/",
+        "tag": "链上任务赚奖励",
+        "description": "链上任务闯关平台，按指引完成钱包交互、跨链等操作赚取 XP 与奖励代币，收入与参与真实度挂钩，需自备一定 Gas 费用。"
+      },
+      {
+        "cat": "web3",
+        "name": "Zealy",
+        "url": "https://zealy.io/",
+        "tag": "社区任务赚 XP / 奖励",
+        "description": "社区任务与用户激励工具，项目方在上面发布品牌传播、内容创作等任务，用户完成任务累积 XP 兑换奖励与白名单资格。"
+      },
+      {
+        "cat": "web3",
+        "name": "Bountycaster",
+        "url": "https://bountycaster.xyz/",
+        "tag": "链上赏金看板",
+        "description": "搭建在 Farcaster 上的链上赏金看板，用户可围绕内容创作、开发、推广发布和领取赏金，以加密货币结算，需钱包收付。"
+      },
+      {
+        "cat": "web3",
+        "name": "Airdrops.io",
+        "url": "https://airdrops.io/",
+        "tag": "空投信息（撸空投变现）",
+        "description": "空投信息聚合站，汇总各项目的免费空投与活动清单，用户按教程参与交互后领取代币变现，风险高需自行甄别项目真伪。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Algora",
+        "url": "https://algora.io/",
+        "tag": "解决开源 issue 领赏金",
+        "description": "开源悬赏平台，企业为热门开源仓库的 issue 挂上赏金，开发者认领并提交合并请求通过审核后领取美元报酬，适合有经验的程序员。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "IssueHunt",
+        "url": "https://issuehunt.io/",
+        "tag": "GitHub issue 悬赏",
+        "description": "源自日本的 GitHub issue 悬赏平台，为开源项目的问题修复与功能开发提供奖金池，提交被合并的 PR 后可获得赏金分成。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Bountysource",
+        "url": "https://bountysource.com/",
+        "tag": "开源项目悬赏",
+        "description": "老牌开源项目悬赏平台，用户可为软件缺陷或功能需求注入赏金，开发者解决并合并代码后领取，适合熟悉对应技术栈的人。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "GitHub Sponsors",
+        "url": "https://github.com/sponsors",
+        "tag": "开源赞助收入",
+        "description": "GitHub 官方的开源赞助机制，开发者在主页设置赞助档位，接受个人与企业按月或一次性资助，需有持续维护的活跃项目。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Open Collective",
+        "url": "https://opencollective.com/",
+        "tag": "开源项目资金众筹",
+        "description": "开源社区资金众筹与透明记账平台，项目方接受捐赠并公开收支，维护者可申请报销或领薪，适合运营成规模的社区项目。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Google Summer of Code",
+        "url": "https://summerofcode.withgoogle.com/",
+        "tag": "参与开源项目领津贴",
+        "description": "谷歌主办的开源实习项目，学生与导师配对在暑假完成开源贡献，通过期中和期末评审后领取津贴，需提前申请并竞争入选。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Hacktoberfest",
+        "url": "https://hacktoberfest.com/",
+        "tag": "开源贡献（含奖励）",
+        "description": "数字海洋发起的十月开源贡献活动，向开源仓库提交合并请求即可获得纪念徽章与周边奖励，门槛低适合新手入门练手。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Devpost",
+        "url": "https://devpost.com/",
+        "tag": "黑客松 / 编程比赛奖金",
+        "description": "全球黑客松与编程比赛平台，参赛者组队开发作品提交评审，获胜可赢取现金奖品、赞助商资源与招聘机会，多要求线下或线上限时完成。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Kaggle",
+        "url": "https://www.kaggle.com/",
+        "tag": "数据科学竞赛奖金",
+        "description": "谷歌旗下数据科学竞赛平台，参赛者用机器学习模型冲击排行榜赢取奖金，同时提供数据集与 Notebook，适合算法与数据从业者。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Topcoder",
+        "url": "https://www.topcoder.com/",
+        "tag": "编程竞赛与外包接单",
+        "description": "老牌编程竞赛与外包社区，通过算法赛、设计赛和开发赛赢取奖金，也可承接企业外包项目获取报酬，按场次与项目结算。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "HackerRank",
+        "url": "https://www.hackerrank.com/",
+        "tag": "编程挑战 / 招聘",
+        "description": "编程技能测评平台，通过算法与工程挑战提升实战能力，成绩优秀者可被企业直接邀约面试，是求职者刷题与展示作品的场所。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "Codeforces",
+        "url": "https://codeforces.com/",
+        "tag": "算法竞赛奖金 / 赞助",
+        "description": "全球知名算法竞赛平台，定期举办 Rated 比赛并设奖金与赞助，成绩与段位可作为算法能力证明，适合程序竞赛与求职者练手。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "阿里天池",
+        "url": "https://tianchi.aliyun.com/",
+        "tag": "数据竞赛奖金",
+        "description": "阿里巴巴旗下数据科学竞赛平台，企业与机构发布算法赛题并设奖金，参赛者提交模型冲击榜单，表现优异者常获内推与实习机会。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "DataFountain",
+        "url": "https://www.datafountain.cn/",
+        "tag": "数据竞赛奖金",
+        "description": "国内数据科学竞赛平台，联合政府与企业发布大数据算法赛题并发放奖金，优胜队伍还可获得项目合作与人才推荐机会。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "百度飞桨 AI Studio",
+        "url": "https://aistudio.baidu.com/",
+        "tag": "算法竞赛奖金",
+        "description": "百度飞桨旗下的 AI 学习与竞赛社区，提供算力、数据集与课程，参加算法大赛赢取奖金，适合学生与算法爱好者打磨模型能力。"
+      },
+      {
+        "cat": "ossbounty",
+        "name": "讯飞开放平台挑战赛",
+        "url": "https://challenge.xfyun.cn/",
+        "tag": "AI 大赛奖金",
+        "description": "科大讯飞举办的 AI 开发者赛事，围绕语音、视觉与大模型等技术发布赛题，优胜者可获现金奖金、云资源与招聘绿色通道。"
+      },
+      {
+        "cat": "freelance",
+        "name": "Upwork",
+        "url": "https://www.upwork.com/",
+        "tag": "自由职业接单（按时 / 按项目）",
+        "description": "全球最大自由职业平台，按小时或固定项目承接开发、设计、写作等外包，平台抽成并托管资金，需完善资料与作品集积累信誉。"
+      },
+      {
+        "cat": "freelance",
+        "name": "Fiverr",
+        "url": "https://www.fiverr.com/",
+        "tag": "出售技能服务（打包 gig）",
+        "description": "技能服务电商平台，卖家把设计、剪辑、编程等能力打包成标准化 gig 明码标价，买家下单后交付收款，靠评价与曝光累积订单。"
+      },
+      {
+        "cat": "freelance",
+        "name": "Freelancer",
+        "url": "https://www.freelancer.com/",
+        "tag": "全球接单竞标",
+        "description": "全球自由职业竞标平台，雇主发布项目由自由职业者投标竞争，按项目或按小时结算，平台托管付款，新号需靠低价与好评起步。"
+      },
+      {
+        "cat": "freelance",
+        "name": "Toptal",
+        "url": "https://www.toptal.com/",
+        "tag": "顶级自由职业（高时薪）",
+        "description": "面向顶尖自由职业者的高端平台，需通过多轮英语与技术筛选后接单，客户多为知名企业，时薪高但准入门槛与竞争激烈。"
+      },
+      {
+        "cat": "freelance",
+        "name": "PeoplePerHour",
+        "url": "https://www.peopleperhour.com/",
+        "tag": "按小时接单",
+        "description": "英国起家的自由职业平台，以按小时计费的咨询与服务为主，覆盖开发、营销与设计，投标需附方案，平台收取服务费。"
+      },
+      {
+        "cat": "freelance",
+        "name": "Guru",
+        "url": "https://www.guru.com/",
+        "tag": "自由职业市场接单",
+        "description": "老牌自由职业市场，按项目与按小时承接软件、设计与写作任务，提供安全支付与发票工具，靠报价与作品集争取客户。"
+      },
+      {
+        "cat": "freelance",
+        "name": "99designs",
+        "url": "https://99designs.com/",
+        "tag": "设计竞赛 / 接单",
+        "description": "设计众包平台，客户发起 logo、包装与网页设计竞赛，设计师提交方案供挑选，中标者获奖金，未中标则无收入。"
+      },
+      {
+        "cat": "freelance",
+        "name": "DesignCrowd",
+        "url": "https://www.designcrowd.com/",
+        "tag": "设计众包竞赛",
+        "description": "设计众包竞赛平台，企业发布设计需求，全球设计师提交多版方案比拼，被选中的作品获得奖金，适合积累作品与练手。"
+      },
+      {
+        "cat": "freelance",
+        "name": "Workana",
+        "url": "https://www.workana.com/",
+        "tag": "拉美自由职业市场",
+        "description": "拉美地区领先的自由职业平台，面向西语与葡语市场承接开发、营销与设计任务，按项目结算，适合会小语种的接单者。"
+      },
+      {
+        "cat": "freelance",
+        "name": "Truelancer",
+        "url": "https://www.truelancer.com/",
+        "tag": "全球自由职业接单",
+        "description": "全球自由职业接单平台，覆盖编程、设计与数据标注等品类，采用投标与托管支付机制，新注册用户需从低预算项目积累评价。"
+      },
+      {
+        "cat": "freelance",
+        "name": "猪八戒网",
+        "url": "https://www.zbj.com/",
+        "tag": "服务众包接单",
+        "description": "国内老牌服务众包平台，雇主发布设计、开发、营销等需求，服务商投标接单赚取报酬，竞争激烈需拼价格与口碑。"
+      },
+      {
+        "cat": "freelance",
+        "name": "一品威客",
+        "url": "https://www.epwk.com/",
+        "tag": "创意服务众包",
+        "description": "国内创意服务众包平台，以 logo、包装与文案等设计任务为主，雇主悬赏征集方案，中标者领取赏金，适合个人设计师兼职。"
+      },
+      {
+        "cat": "freelance",
+        "name": "程序员客栈",
+        "url": "https://www.proginn.com/",
+        "tag": "程序员远程接单",
+        "description": "面向程序员的远程接单平台，企业发布软件外包与驻场项目，开发者签约按项目或按月结算，需实名认证与技能审核。"
+      },
+      {
+        "cat": "freelance",
+        "name": "开源众包",
+        "url": "https://zb.oschina.net/",
+        "tag": "软件开发众包",
+        "description": "国内软件开发众包服务平台，企业发布定制开发与系统集成需求，团队或个人投标承接，按里程碑交付验收后结算款项。"
+      },
+      {
+        "cat": "freelance",
+        "name": "码市 Coding",
+        "url": "https://mart.coding.net/",
+        "tag": "软件外包接单",
+        "description": "Coding 旗下的软件外包平台，企业发布开发项目，开发者投标承接并按阶段交付收款，需通过技术评估并接受合同约束。"
+      },
+      {
+        "cat": "freelance",
+        "name": "云沃客",
+        "url": "https://www.clouderwork.com/",
+        "tag": "自由职业云工作",
+        "description": "国内自由职业与云工作平台，发布软件开发、设计与运营等远程岗位，从业者在线接单按项目结算，适合追求灵活办公的人。"
+      },
+      {
+        "cat": "freelance",
+        "name": "时间财富网",
+        "url": "https://www.680.com/",
+        "tag": "威客众包接单",
+        "description": "国内威客众包平台，雇主发布设计、开发、文案等悬赏任务，会员投标完成后领取赏金，部分任务需缴保证金需留意规则。"
+      },
+      {
+        "cat": "microtask",
+        "name": "Amazon MTurk",
+        "url": "https://www.mturk.com/",
+        "tag": "微任务众包（标注 / 调查）",
+        "description": "亚马逊的众包微任务平台，工人完成数据标注、问卷与内容审核等零碎任务按件计酬，单价低适合碎片时间赚零花钱。"
+      },
+      {
+        "cat": "microtask",
+        "name": "Clickworker",
+        "url": "https://www.clickworker.com/",
+        "tag": "微任务众包",
+        "description": "德国老牌微任务众包平台，提供文字撰写、数据录入、音频采集与调查问卷等零活，按任务计酬，注册后需通过语言与技能测试，结算以欧元为主。"
+      },
+      {
+        "cat": "microtask",
+        "name": "Prolific",
+        "url": "https://www.prolific.com/",
+        "tag": "学术问卷 / 研究参与者",
+        "description": "英国学术研究众包平台，为高校与机构提供问卷和研究实验的参与者，报酬按小时计价较透明，需填写详细人口学资料以获得匹配任务，审核较严。"
+      },
+      {
+        "cat": "microtask",
+        "name": "Swagbucks",
+        "url": "https://www.swagbucks.com/",
+        "tag": "问卷 / 看视频 / 购物返利",
+        "description": "美国综合返利平台，通过做问卷、看视频、搜索网页和网购返现赚取积分，积分可兑换现金或礼品卡，单价偏低需长期累积，适合碎片时间。"
+      },
+      {
+        "cat": "microtask",
+        "name": "Toluna",
+        "url": "https://www.toluna.com/",
+        "tag": "付费问卷与投票",
+        "description": "全球市场调研社区平台，以付费问卷和投票为主要任务，注册后完成个人资料即可接收匹配调研，报酬以积分形式发放，调查机会随地区与人群而定。"
+      },
+      {
+        "cat": "microtask",
+        "name": "YouGov",
+        "url": "https://yougov.com/",
+        "tag": "民意 / 商业问卷奖励",
+        "description": "国际知名民意调查机构，参与者完成政治、消费与商业类问卷获取积分奖励，题目偏观点表达无对错，积分达标可提现，中签率取决于目标人群配额。"
+      },
+      {
+        "cat": "microtask",
+        "name": "Branded Surveys",
+        "url": "https://surveys.gobranded.com/",
+        "tag": "付费问卷赚钱",
+        "description": "北美付费问卷平台，完成任务获得积分并可兑换现金或礼品卡，问卷数量较多、门槛低，但偶有筛选题淘汰，需稳定作答才能累积收益。"
+      },
+      {
+        "cat": "microtask",
+        "name": "Survey Junkie",
+        "url": "https://www.surveyjunkie.com/",
+        "tag": "问卷赚钱",
+        "description": "美国主流问卷赚钱网站，通过完成消费与生活方式调查赚取积分换现金，注册自愿、提现门槛低，收入取决于每天可匹配的问卷数量。"
+      },
+      {
+        "cat": "microtask",
+        "name": "UserTesting",
+        "url": "https://www.usertesting.com/",
+        "tag": "软件 / 网站可用性测试",
+        "description": "远程可用性测试平台，用户对着网站或应用录制操作与评论视频即可获酬，测试单价较高，需配备麦克风并通过入门测试，机会按人群画像分配。"
+      },
+      {
+        "cat": "microtask",
+        "name": "Userlytics",
+        "url": "https://www.userlytics.com/",
+        "tag": "用户体验测试",
+        "description": "全球用户体验测试平台，按脚本录制网页或 App 的操作与反馈视频获取报酬，单次任务几十美元，需通过设备与语言审核，测试名额先到先得。"
+      },
+      {
+        "cat": "microtask",
+        "name": "TryMyUI",
+        "url": "https://www.trymyui.com/",
+        "tag": "网站体验测试",
+        "description": "网站与 App 体验测试平台，按要求完成导航任务并录制口述思路即可获得报酬，单次约十美元左右，需通过申请人筛选，任务量不稳定。"
+      },
+      {
+        "cat": "microtask",
+        "name": "microworkers",
+        "url": "https://www.microworkers.com/",
+        "tag": "微任务众包",
+        "description": "国际微任务众包平台，承接搜索点击、注册测试、内容发布等超小型任务，按件计酬并收取平台手续费，任务金额很小，适合熟悉网赚流程的人。"
+      },
+      {
+        "cat": "microtask",
+        "name": "JumpTask",
+        "url": "https://jumptask.io/",
+        "tag": "微任务赚代币",
+        "description": "以加密货币结算的微任务平台，用户完成问卷、试用应用和游戏任务赚取代币，可兑换主流币，门槛较低但任务收益有限，注意代币价格波动。"
+      },
+      {
+        "cat": "microtask",
+        "name": "腾讯搜活帮",
+        "url": "https://soho.qq.com/",
+        "tag": "腾讯数据标注 / 问卷任务",
+        "description": "腾讯旗下的数据标注与问卷众包平台，提供语音采集、图像标注、内容审核类任务，按件计酬，需实名并通过考核，适合利用碎片时间赚取零花钱。"
+      },
+      {
+        "cat": "microtask",
+        "name": "百度众测",
+        "url": "https://test.baidu.com/",
+        "tag": "问卷 / 标注 / 采集任务",
+        "description": "百度官方众包平台，发布问卷调研、数据采集、内容标注与产品测试任务，完成后发放积分或现金，需注册实名，任务量与报酬随项目波动。"
+      },
+      {
+        "cat": "microtask",
+        "name": "众人帮",
+        "url": "https://www.zrb.net/",
+        "tag": "悬赏任务 / 互助赚赏金",
+        "description": "国内悬赏众包平台，用户可发布或领取跑腿、代办、注册体验等互助任务赚取赏金，接单门槛低、到账快，但需警惕诈骗与不合规任务。"
+      },
+      {
+        "cat": "microtask",
+        "name": "爱调查",
+        "url": "https://www.51diaocha.com/",
+        "tag": "问卷赚钱",
+        "description": "国内付费问卷调查网站，注册后完成消费、生活类调研领取积分兑换现金，问卷单价不高、通过筛选率有限，适合碎片化时间长期参与。"
+      },
+      {
+        "cat": "microtask",
+        "name": "第一调查网",
+        "url": "https://www.1diaocha.com/",
+        "tag": "付费调查问卷",
+        "description": "国内老牌市场调研网站，通过填写商业问卷与参与投票获取积分奖励，积分可兑换话费或现金，注册简单但问卷单价低，需长期积累。"
+      },
+      {
+        "cat": "microtask",
+        "name": "集思吧",
+        "url": "https://www.jisibar.com/",
+        "tag": "问卷调研奖励",
+        "description": "国内问卷调研平台，完成品牌与消费类调查获得积分奖励，可兑换现金或礼品，题目较简短、门槛低，问卷量受人群配额影响。"
+      },
+      {
+        "cat": "microtask",
+        "name": "收奖网",
+        "url": "https://www.sojiang.com/",
+        "tag": "问卷 / 网赚任务",
+        "description": "国内问卷与网赚任务聚合平台，除付费调研外还收纳注册、试玩、转发等小任务，按完成量结算，需注意甄别任务合规性与提现规则。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "Scale AI / Outlier",
+        "url": "https://outlier.ai/",
+        "tag": "AI 训练 / 标注（时薪较高）",
+        "description": "美国 AI 数据标注与模型评估平台，招募具备专业知识的标注员做对话评级、代码与数学题评估，按小时计酬且时薪较高，需通过严格资格测试。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "DataAnnotation.tech",
+        "url": "https://www.dataannotation.tech/",
+        "tag": "AI 对话标注 / 编程评估",
+        "description": "远程 AI 训练数据平台，招募人员编写和评价 AI 对话、撰写与编程题解，按小时付费，需通过写作或编程能力测试，任务常按项目制开放。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "Appen",
+        "url": "https://appen.com/",
+        "tag": "数据采集 / 标注众包",
+        "description": "澳资数据服务公司，长期招聘远程数据采集与标注众包人员，覆盖语音、图像、文本和搜索评估项目，需通过项目测试，按任务或时薪结算。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "Surge AI",
+        "url": "https://www.surgehq.ai/",
+        "tag": "AI 数据标注（按件计酬）",
+        "description": "美国 AI 数据标注公司，为大规模语言模型提供人工反馈与内容标注，承接写作、编程、多语种等专业任务，按件计酬，单价高但资格审核严格。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "Sama",
+        "url": "https://www.sama.com/",
+        "tag": "数据标注 / 内容审核",
+        "description": "数据标注与内容审核服务商，为 AI 与社交平台提供图像框选、文本分类和内容安全审核众包工作，需培训考核上岗，部分岗位为远程外包。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "Labelbox",
+        "url": "https://labelbox.com/",
+        "tag": "数据标注平台",
+        "description": "面向企业的数据标注与模型评估平台，提供图像、文本、视频标注工具，个人可通过合作方项目接单，多面向团队与标注公司而非纯散户。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "Toloka",
+        "url": "https://toloka.ai/",
+        "tag": "全球微任务 / 数据标注",
+        "description": "源自俄罗斯的全球众包平台，承接图像标注、文本分类、信息查找等微任务，按件以美元结算，任务量丰富但单价低，需通过技能考试解锁高价任务。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "Mindrift",
+        "url": "https://mindrift.ai/",
+        "tag": "AI 训练师（写作 / 编程）",
+        "description": "面向大模型的 AI 训练师平台，招募写作与编程人才创作专业问答和反馈数据，按小时计酬、单价较高，需通过领域测试并支持远程多语种工作。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "Remotasks",
+        "url": "https://www.remotasks.com/",
+        "tag": "AI 数据标注任务",
+        "description": "Scale 旗下的数据标注平台，提供图像打点、文本标注和数学题解等远程任务，按件或按小时计酬，需完成培训与关卡考核才能领取高报酬任务。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "京东众智",
+        "url": "https://biao.jd.com/",
+        "tag": "数据标注 / 采集平台",
+        "description": "京东对外数据服务平台，承接图像标注、语音采集与文本处理众包任务，面向团队和个人开放，按件计酬，需入驻审核并遵守项目管理要求。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "数据堂",
+        "url": "https://www.datatang.com/",
+        "tag": "数据采集与标注",
+        "description": "国内专业数据资源服务商，提供语音、图像、文本等多模态数据的采集与标注外包，兼收个人众包任务，多在项目制下按量结算并需签署协议。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "海天瑞声",
+        "url": "https://www.data-baker.com/",
+        "tag": "语音 / 数据标注",
+        "description": "国内上市语音数据公司，主营语音识别、合成训练数据的采集与标注，长期招募方言与外语录音人员，按小时或按条结算，需通过录音质量审核。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "龙猫数据",
+        "url": "https://www.longmaosoft.com/",
+        "tag": "AI 数据标注平台",
+        "description": "国内 AI 数据标注平台，提供图像框选、语义分割、语音转写和 OCR 等众包任务，注册即可接单按件计酬，任务量与单价随项目浮动。"
+      },
+      {
+        "cat": "ailabel",
+        "name": "云测数据",
+        "url": "https://www.testin.cn/",
+        "tag": "AI 数据标注服务",
+        "description": "Testin 旗下数据标注服务品牌，为自动驾驶、智能语音等场景提供采集与标注众包，个人可报名参与项目，按件结算，需培训考核后上岗。"
+      },
+      {
+        "cat": "creator",
+        "name": "YouTube 合作伙伴计划",
+        "url": "https://www.youtube.com/creators/",
+        "tag": "广告 / 会员 / 超级留言分成",
+        "description": "视频创作者的官方变现渠道，达到千粉与观看时长门槛后可通过广告分成、会员、超级留言和短视频分成获得收入，需遵守平台内容政策。"
+      },
+      {
+        "cat": "creator",
+        "name": "TikTok 创作者",
+        "url": "https://www.tiktok.com/creators/",
+        "tag": "创作者基金 / 打赏 / 带货",
+        "description": "短视频创作者的变现体系，可通过创作者基金、直播打赏、礼物和带货佣金赚钱，需满足粉丝与播放量门槛并绑定目标市场账号，收益随地区差异大。"
+      },
+      {
+        "cat": "creator",
+        "name": "Twitch",
+        "url": "https://www.twitch.tv/",
+        "tag": "订阅 / 打赏 / 广告分成",
+        "description": "海外直播平台，主播通过订阅、打赏、广告和三方合作获得分成收入，需达到联盟门槛并稳定开播，收入高度依赖观众规模与直播内容。"
+      },
+      {
+        "cat": "creator",
+        "name": "Substack",
+        "url": "https://substack.com/",
+        "tag": "付费订阅 Newsletter",
+        "description": "海外 Newsletter 平台，作者通过免费加付费订阅模式发布文章并向读者收取月费，平台抽成后归作者所得，关键是积累垂直读者与持续产出。"
+      },
+      {
+        "cat": "creator",
+        "name": "Medium 合作伙伴",
+        "url": "https://medium.com/creators",
+        "tag": "付费墙阅读时长分成",
+        "description": "Medium 写作平台的创作者计划，作者加入后凭会员读者阅读时长获得分成，需绑定 Stripe 收款，收益取决于选题热度与读者停留时长。"
+      },
+      {
+        "cat": "creator",
+        "name": "Patreon",
+        "url": "https://www.patreon.com/",
+        "tag": "粉丝会员赞助",
+        "description": "海外创作者赞助平台，通过设置多档会员权益获得粉丝定期付费支持，适合有稳定受众的内容作者，平台按比例收取服务费并需自行维护社群。"
+      },
+      {
+        "cat": "creator",
+        "name": "Ko-fi",
+        "url": "https://ko-fi.com/",
+        "tag": "打赏 / 会员（0% 手续费）",
+        "description": "海外轻量打赏与会员平台，创作者可设置打赏、会员和商店功能接受粉丝赞助，普通打赏零手续费，提现走 PayPal 或 Stripe，需自行引流。"
+      },
+      {
+        "cat": "creator",
+        "name": "Buy Me a Coffee",
+        "url": "https://www.buymeacoffee.com/",
+        "tag": "打赏 / 会员赞助",
+        "description": "面向创作者的打赏与会员赞助平台，粉丝可小额赞助或订阅月度会员，创作者手续费极低，适合写作、播客、绘画等独立创作者变现。"
+      },
+      {
+        "cat": "creator",
+        "name": "Gumroad",
+        "url": "https://gumroad.com/",
+        "tag": "售卖数字内容 / 课程",
+        "description": "数字内容与课程售卖平台，创作者上传电子书、模板、课程等自行定价，平台按销售额抽取约百分之十手续费，适合独立设计师与知识博主。"
+      },
+      {
+        "cat": "creator",
+        "name": "Brave Creators",
+        "url": "https://creators.brave.com/",
+        "tag": "浏览器打赏分成",
+        "description": "基于 Brave 浏览器的创作者打赏项目，用户浏览时看到广告并贡献 BAT 代币，创作者凭内容获得分成，需先绑定站点并通过平台审核。"
+      },
+      {
+        "cat": "creator",
+        "name": "哔哩哔哩创作中心",
+        "url": "https://member.bilibili.com/",
+        "tag": "激励 / 充电 / 商业合作",
+        "description": "B 站创作激励、充电与商业合作后台，UP 主靠播放激励、粉丝充电和花火商单变现，需达到加入激励计划的播放与粉丝门槛。"
+      },
+      {
+        "cat": "creator",
+        "name": "抖音创作者中心",
+        "url": "https://creator.douyin.com/",
+        "tag": "中视频 / 带货 / 直播收益",
+        "description": "抖音中视频计划、直播打赏与电商带货的收益后台，创作者靠流量分成和佣金变现，需实名认证并满足开通各收益权限的粉丝门槛。"
+      },
+      {
+        "cat": "creator",
+        "name": "快手创作者中心",
+        "url": "https://cp.kuaishou.com/",
+        "tag": "磁力聚星 / 直播 / 带货",
+        "description": "快手磁力聚星接单、直播打赏与直播带货的收益入口，创作者靠商单和佣金赚钱，需实名认证并达到开通相应权限的要求。"
+      },
+      {
+        "cat": "creator",
+        "name": "小红书创作服务平台",
+        "url": "https://creator.xiaohongshu.com/",
+        "tag": "品牌合作 / 带货分佣",
+        "description": "小红书品牌合作与带货分佣的官方平台，博主通过蒲公英接商单、笔记挂链接赚佣金，需粉丝达标并完成实名认证方可接单。"
+      },
+      {
+        "cat": "creator",
+        "name": "知乎",
+        "url": "https://www.zhihu.com/",
+        "tag": "盐选 / 赞赏 / 商单",
+        "description": "知乎盐选专栏、赞赏与商单变现渠道，创作者靠付费内容分成、读者赞赏和品牌合作赚钱，需帐号等级达标并有一定粉丝基础。"
+      },
+      {
+        "cat": "creator",
+        "name": "微信公众号",
+        "url": "https://mp.weixin.qq.com/",
+        "tag": "流量主 / 赞赏 / 接单",
+        "description": "微信生态内容变现渠道，创作者靠流量主广告分成、读者赞赏和接单赚钱，需满足流量主开通的粉丝门槛并遵守平台规则。"
+      },
+      {
+        "cat": "creator",
+        "name": "微博",
+        "url": "https://weibo.com/",
+        "tag": "广告分成 / V+ 会员",
+        "description": "微博的广告分成与 V+ 会员变现体系，博主靠微博广告收益、付费会员和商单赚钱，需开通相应权限并达到粉丝或认证要求。"
+      },
+      {
+        "cat": "creator",
+        "name": "今日头条",
+        "url": "https://mp.toutiao.com/",
+        "tag": "广告分成 / 青云计划",
+        "description": "头条号的广告分成与青云计划收益，创作者靠图文视频广告分成和优质内容奖励变现，需通过新手期并开通创作收益权限。"
+      },
+      {
+        "cat": "creator",
+        "name": "百家号",
+        "url": "https://baijiahao.baidu.com/",
+        "tag": "内容广告分成",
+        "description": "百度旗下内容平台，创作者发布图文视频靠广告分成变现，需完成实名与新手转正并达到开通收益的指数门槛。"
+      },
+      {
+        "cat": "creator",
+        "name": "企鹅号",
+        "url": "https://om.qq.com/",
+        "tag": "内容分成 / 补贴",
+        "description": "腾讯内容开放平台，创作者发布内容靠广告分成和平台补贴赚钱，需完成实名认证并通过审核开通收益权限。"
+      },
+      {
+        "cat": "creator",
+        "name": "微信视频号",
+        "url": "https://channels.weixin.qq.com/",
+        "tag": "直播打赏 / 带货",
+        "description": "微信生态的短视频与直播变现渠道，创作者靠直播打赏、带货佣金和流量分成赚钱，需开通相应权限并遵守平台规则。"
+      },
+      {
+        "cat": "creator",
+        "name": "番茄小说",
+        "url": "https://fanqienovel.com/",
+        "tag": "网文写作稿费分成",
+        "description": "字节旗下免费网文平台，作者通过写作稿费与阅读广告分成赚钱，签约后按全勤与收益结算，适合新人入门网文创作。"
+      },
+      {
+        "cat": "creator",
+        "name": "起点中文网",
+        "url": "https://www.qidian.com/",
+        "tag": "网文写作稿费 / 订阅分成",
+        "description": "阅文旗下付费网文平台，作者靠稿费、订阅分成和打赏变现，需签约并稳定更新，是头部网文作者的重要阵地。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "Udemy",
+        "url": "https://www.udemy.com/teaching/",
+        "tag": "上架课程按销售分成",
+        "description": "全球在线课程市场，讲师上架视频课程按销售额分成，平台常做促销压低售价，需自主制作课程并积累学员评价。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "Skillshare",
+        "url": "https://www.skillshare.com/en/teach",
+        "tag": "按学员观看时长分成",
+        "description": "订阅制在线学习平台，讲师按学员观看时长获得分成，收入与内容受欢迎程度挂钩，需持续更新课程以保持收益。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "Teachable",
+        "url": "https://teachable.com/",
+        "tag": "自建课程平台售卖",
+        "description": "自建课程平台服务，创作者用其搭建课程网站自行售卖并保留定价权，按月付费套餐使用，适合个人知识品牌。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "Thinkific",
+        "url": "https://www.thinkific.com/",
+        "tag": "在线课程建站销售",
+        "description": "在线课程建站工具，创作者用它搭建并销售课程，支持自定价格与营销功能，按月订阅付费，适合独立讲师。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "Kajabi",
+        "url": "https://kajabi.com/",
+        "tag": "知识产品营销变现",
+        "description": "面向知识创业者的营销变现平台，整合课程、会员、邮件营销与支付，按月订阅使用，适合做高客单价知识产品。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "Coursera 开课",
+        "url": "https://www.coursera.org/teach",
+        "tag": "开课分成",
+        "description": "全球慕课平台合作开课，讲师与高校可开设课程或专项，按学习者付费分成，需通过平台审核并积累人气。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "网易云课堂",
+        "url": "https://study.163.com/",
+        "tag": "上传课程销售",
+        "description": "网易旗下在线学习平台，讲师上传课程按销售分成，覆盖职场与技能培训，需通过资质审核后开课。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "腾讯课堂",
+        "url": "https://ke.qq.com/",
+        "tag": "在线开课收益",
+        "description": "腾讯在线教育平台，机构与讲师开设直播或录播课获取收益，按课程销售分成，需完成机构或个人认证。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "慕课网",
+        "url": "https://www.imooc.com/",
+        "tag": "技术课程销售分成",
+        "description": "面向 IT 技术人群的在线课程平台，讲师录制技术课程按销售分成，需具备实战经验并通过平台审核。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "51CTO 学堂",
+        "url": "https://edu.51cto.com/",
+        "tag": "技术课程销售收益",
+        "description": "面向 IT 从业者的技术课程平台，讲师上传课程靠销售分成变现，需通过平台认证并产出高质量课程。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "知识星球",
+        "url": "https://www.zsxq.com/",
+        "tag": "付费社群变现",
+        "description": "付费社群工具，创作者建立圈子向成员收取年费变现，门槛低且内容无需审核，收入主要取决于社群运营能力。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "小鹅通",
+        "url": "https://www.xiaoe-tech.com/",
+        "tag": "知识店铺变现",
+        "description": "知识付费店铺工具，创作者用它开设课程、直播与会员变现，按套餐付费，适合自媒体搭建私域知识店铺。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "千聊",
+        "url": "https://www.qlchat.com/",
+        "tag": "直播 / 课程变现",
+        "description": "知识付费直播与课程平台，讲师开课或直播变现，支持付费问答与分销，需注册并完成认证后开播。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "得到",
+        "url": "https://www.dedao.cn/",
+        "tag": "知识付费创作",
+        "description": "知识付费内容平台，创作者受邀开设课程或专栏靠分成变现，以签约打磨内容为主，门槛较高偏向专业作者。"
+      },
+      {
+        "cat": "knowledge",
+        "name": "CSDN 学院",
+        "url": "https://edu.csdn.net/",
+        "tag": "技术专栏 / 课程收益",
+        "description": "面向程序员的学习平台，创作者开设技术专栏与课程靠分成变现，可同时写博客引流，需具备技术专长。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "Amazon Associates",
+        "url": "https://affiliate-program.amazon.com/",
+        "tag": "推广亚马逊商品赚佣金",
+        "description": "亚马逊官方联盟推广项目，通过专属链接推广商品赚取销售佣金，需注册并达到最低销量才能提现。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "AliExpress Affiliate",
+        "url": "https://portals.aliexpress.com/",
+        "tag": "推广速卖通商品赚佣金",
+        "description": "速卖通官方联盟推广项目，通过推广商品链接赚取佣金，面向跨境流量，需注册并通过审核后获取推广位。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "CJ Affiliate",
+        "url": "https://www.cj.com/",
+        "tag": "全球联盟广告佣金",
+        "description": "老牌全球联盟营销网络，汇聚众多品牌广告主，推广者按转化赚佣金，需申请入驻并通过广告主审批。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "ShareASale",
+        "url": "https://www.shareasale.com/",
+        "tag": "联盟营销佣金",
+        "description": "知名联盟营销平台，推广者可申请加入商家项目按销售赚佣金，门槛较低，适合新手入门做联盟推广。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "ClickBank",
+        "url": "https://www.clickbank.com/",
+        "tag": "数字产品联盟推广",
+        "description": "主打数字产品与信息课程的联盟平台，推广高佣金虚拟产品变现，佣金比例高但需注意产品口碑与合规。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "Rakuten Advertising",
+        "url": "https://rakutenadvertising.com/",
+        "tag": "联盟营销佣金",
+        "description": "乐天旗下全球联盟营销网络，推广者接入品牌项目按转化赚佣金，覆盖零售与旅游等大牌广告主。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "Awin",
+        "url": "https://www.awin.com/",
+        "tag": "全球联盟网络佣金",
+        "description": "欧洲老牌全球联盟网络，推广者申请广告主项目按销售分成，商家资源丰富，需审核通过后获取佣金。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "Impact",
+        "url": "https://impact.com/",
+        "tag": "品牌联盟合作佣金",
+        "description": "全球品牌合作联盟平台，推广者按转化赚佣金并可用自动化工具跟踪，适合内容或比价类流量变现。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "淘宝联盟/阿里妈妈",
+        "url": "https://aff.alimama.com/",
+        "tag": "淘宝客推广佣金",
+        "description": "阿里官方推广平台，淘宝客通过推广商品链接赚取佣金，需注册账号并了解佣金结算与违规规则。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "京东联盟",
+        "url": "https://union.jd.com/",
+        "tag": "京东商品 CPS 佣金",
+        "description": "京东官方CPS推广平台，通过分享商品链接赚取佣金，需实名认证并备案推广位，佣金按月结算、门槛较低。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "拼多多推广",
+        "url": "https://p.pinduoduo.com/",
+        "tag": "多多进宝推广佣金",
+        "description": "拼多多官方推广平台多多进宝，分享商品链接或优惠券获佣金，个人可免费注册，适合社群与内容带货。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "抖音精选联盟",
+        "url": "https://buyin.jinritemai.com/",
+        "tag": "短视频带货佣金",
+        "description": "抖音电商官方带货平台，达人挂车推广商品赚取佣金，需开通商品橱窗，粉丝量达标后收益更稳定。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "有赞",
+        "url": "https://www.youzan.com/",
+        "tag": "分销 / 带货分佣",
+        "description": "微信生态电商SaaS工具，支持分销带货与分佣，商家可自建微商城招募推广员，按成交额结算佣金。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "返利网",
+        "url": "https://www.fanli.com/",
+        "tag": "购物返利",
+        "description": "老牌购物返利平台，用户通过其链接下单获得返现，也可推广拉新赚佣金，返利比例较低但覆盖广。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "一淘",
+        "url": "https://www.etao.com/",
+        "tag": "淘宝购物返利",
+        "description": "阿里旗下淘宝天猫购物返利工具，下单前比价领取优惠券并获集分宝返利，适合自用省钱而非批量变现。"
+      },
+      {
+        "cat": "affiliate",
+        "name": "Shopify Affiliate",
+        "url": "https://www.shopify.com/affiliates",
+        "tag": "推广 Shopify 佣金",
+        "description": "Shopify官方联盟计划，推广其建站订阅可获得持续佣金分成，需有独立站或相关内容流量，结算以美元计。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "淘宝",
+        "url": "https://www.taobao.com/",
+        "tag": "开店 / 无货源赚差价",
+        "description": "国内最大电商平台，可通过开店卖货或无货源代发赚差价，个人可免费开C店，需自行解决货源与流量。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "天猫",
+        "url": "https://www.tmall.com/",
+        "tag": "品牌开店销售",
+        "description": "阿里旗下品牌电商平台，面向企业招商开店销售正品，需公司资质与品牌授权，缴纳保证金和技术服务费。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "拼多多",
+        "url": "https://www.pinduoduo.com/",
+        "tag": "开店 / 无货源赚差价",
+        "description": "低价社交电商平台，个人和企业均可开店卖货或无货源代发赚差价，入驻门槛低、流量红利仍在。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "京东",
+        "url": "https://www.jd.com/",
+        "tag": "开店 / 联盟带货",
+        "description": "自营与平台结合的综合电商，可开店销售或做联盟带货，POP店铺需企业资质，物流与售后体验较好。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "1688",
+        "url": "https://www.1688.com/",
+        "tag": "货源批发 / 一件代发",
+        "description": "阿里旗下批发采购平台，可寻找货源做一件代发或转手赚差价，适合无货源电商和跨境卖家选品。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "闲鱼",
+        "url": "https://2.taobao.com/",
+        "tag": "二手转卖 / 无货源赚差价",
+        "description": "阿里旗下二手交易平台，可转卖闲置或用无货源代发赚差价，实名即可开店，注意商品描述真实以免纠纷。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "转转",
+        "url": "https://www.zhuanzhuan.com/",
+        "tag": "二手交易变现",
+        "description": "二手交易与回收平台，个人可转卖自用闲置或批量收货转卖变现，平台提供验机与担保交易服务。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "抖音小店",
+        "url": "https://fxg.jinritemai.com/",
+        "tag": "短视频带货开店",
+        "description": "抖音官方电商店铺，结合短视频和直播带货卖货，个人与企业均可入驻，需缴纳类目保证金并做好内容运营。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "小红书店铺",
+        "url": "https://www.xiaohongshu.com/",
+        "tag": "内容电商开店",
+        "description": "小红书内容电商开店平台，通过笔记种草引流成交，适合生活方式类目，个人可零粉丝起步，重在内容质量。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "eBay",
+        "url": "https://www.ebay.com/",
+        "tag": "全球开店 / 二手拍卖",
+        "description": "全球老牌在线拍卖与购物平台，可开店卖新品或二手商品赚差价，需处理跨境物流与账号表现，适合外贸卖家。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "Etsy",
+        "url": "https://www.etsy.com/",
+        "tag": "手作 / 创意商品销售",
+        "description": "海外手作与创意商品电商平台，销售原创设计、手工制品和复古商品，开店费低，重在独特设计与品牌故事。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "Amazon 卖家",
+        "url": "https://sellercentral.amazon.com/",
+        "tag": "亚马逊开店 / FBA",
+        "description": "亚马逊全球开店，通过FBA或自发货销售商品赚取差价与利润，需企业资质，重视选品、合规与账号绩效。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "AliExpress",
+        "url": "https://www.aliexpress.com/",
+        "tag": "跨境开店销售",
+        "description": "阿里旗下跨境零售平台速卖通，面向海外买家开店卖货，适合中小卖家B2C出海，需处理物流时效与纠纷。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "Temu 卖家",
+        "url": "https://seller.temu.com/",
+        "tag": "跨境低价开店",
+        "description": "拼多多旗下跨境平台，以超低价供货模式出海，卖家全托管供货赚差价，平台掌握定价，利润薄但走量快。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "Shopify",
+        "url": "https://www.shopify.com/",
+        "tag": "自建独立站卖货",
+        "description": "全球主流独立站建站平台，可自建品牌网店直接卖货赚取利润，月付订阅费，需要自行引流和搭建供应链。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "WooCommerce",
+        "url": "https://woocommerce.com/",
+        "tag": "WordPress 独立站",
+        "description": "WordPress开源电商插件，免费搭建独立站卖货，成本低、可高度定制，需自行配置主机、支付与物流插件。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "Redbubble",
+        "url": "https://www.redbubble.com/",
+        "tag": "上传设计按件分成",
+        "description": "海外按需印制设计平台，上传图案由平台印在服饰和周边按件分成，零库存零成本，靠设计数量与流量收益。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "Society6",
+        "url": "https://society6.com/",
+        "tag": "艺术设计按件分成",
+        "description": "艺术设计按需印制平台，上传作品制成装饰画、家居周边销售分成，无需备货，收益取决于作品曝光与销量。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "Printful",
+        "url": "https://www.printful.com/",
+        "tag": "按需印制定制商品",
+        "description": "按需印刷与代发服务，对接独立站自动印制服饰和定制商品，无库存风险，赚取售价与印制成本的差价。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "Printify",
+        "url": "https://printify.com/",
+        "tag": "按需印刷代发",
+        "description": "按需印刷代发平台，连接多家印刷商为独立站供货，可自定售价赚差价，适合轻资产做定制商品生意。"
+      },
+      {
+        "cat": "ecommerce",
+        "name": "微店",
+        "url": "https://www.weidian.com/",
+        "tag": "手机一键开店",
+        "description": "手机端一键开店工具，支持个人在微信生态卖货收款，注册门槛低，适合私域流量变现和小本微商经营。"
+      },
+      {
+        "cat": "gig",
+        "name": "Uber 司机",
+        "url": "https://www.uber.com/drive/",
+        "tag": "网约车司机收入",
+        "description": "全球网约车平台，司机注册接单按里程和时段获得收入，需符合当地车龄与驾照要求，收入受地区和高峰影响。"
+      },
+      {
+        "cat": "gig",
+        "name": "Lyft 司机",
+        "url": "https://www.lyft.com/drive",
+        "tag": "网约车司机收入",
+        "description": "北美网约车平台，司机灵活接单赚取车费与奖励，注册需通过背景审查和车辆审核，可与Uber同时上线接单。"
+      },
+      {
+        "cat": "gig",
+        "name": "DoorDash",
+        "url": "https://dasher.doordash.com/",
+        "tag": "外卖配送收入",
+        "description": "北美外卖配送平台，骑手或司机按单配送赚取配送费和小费，注册通过后自由上线，收入与城市和时段相关。"
+      },
+      {
+        "cat": "gig",
+        "name": "Instacart",
+        "url": "https://shoppers.instacart.com/",
+        "tag": "代购配送收入",
+        "description": "北美生鲜代购配送平台，接单替顾客采购并送货上门收取服务费与小费，时间灵活，需自备交通工具和手机。"
+      },
+      {
+        "cat": "gig",
+        "name": "TaskRabbit",
+        "url": "https://www.taskrabbit.com/",
+        "tag": "跑腿 / 家政 / 杂活",
+        "description": "北美零工服务平台，承接跑腿、搬家、家政和杂活等任务按小时或按单收费，需身份验证并积累好评接单。"
+      },
+      {
+        "cat": "gig",
+        "name": "Rover",
+        "url": "https://www.rover.com/",
+        "tag": "宠物寄养 / 遛狗",
+        "description": "北美宠物服务平台，提供寄养、遛狗和上门喂养赚取服务费，需通过资料审核，口碑和评价直接影响接单量。"
+      },
+      {
+        "cat": "gig",
+        "name": "Grab 司机",
+        "url": "https://www.grab.com/driver/",
+        "tag": "东南亚司机 / 配送",
+        "description": "东南亚出行与配送平台，司机注册后接载乘客或送餐赚取收入，需符合当地车辆与证件要求，收入随区域波动。"
+      },
+      {
+        "cat": "gig",
+        "name": "美团众包",
+        "url": "https://peisong.meituan.com/",
+        "tag": "外卖骑手兼职接单",
+        "description": "美团外卖的兼职骑手平台，注册后自由抢单送餐按单结算，时间灵活、门槛低，收入受时段与商圈影响较大。"
+      },
+      {
+        "cat": "gig",
+        "name": "蜂鸟众包",
+        "url": "https://fengniao.ele.me/",
+        "tag": "饿了么外卖众包",
+        "description": "饿了么旗下众包配送平台，骑手实名注册后抢单送餐按单计酬，可兼职随时上线，恶劣天气与高峰单价更高。"
+      },
+      {
+        "cat": "gig",
+        "name": "闪送",
+        "url": "https://www.ishansong.com/",
+        "tag": "一对一急送跑单",
+        "description": "同城一对一急送平台，骑手接单送达赚取配送费，主打专人直送不收中转，注册需培训认证，适合兼职跑单。"
+      },
+      {
+        "cat": "gig",
+        "name": "达达",
+        "url": "https://www.imdada.cn/",
+        "tag": "即时配送跑单",
+        "description": "即时配送众包平台，骑手承接商超、餐饮和快递订单按单结算，注册门槛低、时间自由，多劳多得收入稳定。"
+      },
+      {
+        "cat": "gig",
+        "name": "顺丰同城",
+        "url": "https://www.sf-cityrush.com/",
+        "tag": "同城急送跑单",
+        "description": "顺丰旗下同城急送平台，骑士接单完成文件、餐食和物品配送赚取费用，需实名认证和装备，时效要求较高。"
+      },
+      {
+        "cat": "gig",
+        "name": "UU跑腿",
+        "url": "https://www.uupt.com/",
+        "tag": "同城跑腿接单",
+        "description": "同城即时配送与代办服务平台，注册成为跑腿骑手后抢单赚取跑腿费，覆盖取送、代买、排队等场景，需自备交通工具并按单结算，高峰与恶劣天气时段单价更高。"
+      },
+      {
+        "cat": "gig",
+        "name": "滴滴司机",
+        "url": "https://www.didiglobal.com/",
+        "tag": "网约车司机收入",
+        "description": "国内规模最大的网约车平台，司机合规取得双证后接单赚取流水收入，按订单金额扣除平台抽成结算，可通过冲单奖励与高峰补贴提高收入，需满足车龄与驾龄门槛。"
+      },
+      {
+        "cat": "gig",
+        "name": "曹操出行",
+        "url": "https://www.caocao.com.cn/",
+        "tag": "网约车司机收入",
+        "description": "吉利集团旗下的新能源网约车平台，司机可选择自营或加盟模式接单赚取流水，平台统一车型并配套充电与运维服务，收入相对稳定但需承担租车或购车成本。"
+      },
+      {
+        "cat": "gig",
+        "name": "T3 出行",
+        "url": "https://www.t3go.cn/",
+        "tag": "网约车司机收入",
+        "description": "由一汽、东风、长安等车企联合打造的网约车平台，司机多以租车加盟方式接单赚取流水，主打合规运力与车联网管理，需缴纳车辆租金并满足当地网约车合规要求。"
+      },
+      {
+        "cat": "gig",
+        "name": "哈啰顺风车",
+        "url": "https://www.hellobike.com/",
+        "tag": "顺风车车主收入",
+        "description": "哈啰出行旗下的顺风车平台，车主发布行程顺路搭载乘客分摊油费与过路费，无需营运资质但需实名与人车认证，适合通勤路线固定的私家车主补贴用车成本。"
+      },
+      {
+        "cat": "gig",
+        "name": "Airbnb 房东",
+        "url": "https://www.airbnb.cn/",
+        "tag": "房源短租收益",
+        "description": "全球短租民宿预订平台，房东将闲置房源挂牌按日出租获取收益，可按房间或整租定价并收取清洁费，需留意当地短租合规政策与平台服务费抽成比例。"
+      },
+      {
+        "cat": "gig",
+        "name": "小猪民宿",
+        "url": "https://www.xiaozhu.com/",
+        "tag": "民宿出租收益",
+        "description": "国内民宿短租预订平台，房东上传房源信息后按天出租获取收益，支持整租与合租模式，平台按订单抽佣，需办理入住登记并注意旺季定价与差评管理。"
+      },
+      {
+        "cat": "lab",
+        "name": "OWASP WebGoat",
+        "url": "https://owasp.org/www-project-webgoat/",
+        "tag": "漏洞靶场练习（进阶 SRC）",
+        "description": "OWASP 官方推出的故意留有漏洞的 Web 教学应用，涵盖 SQL 注入、XSS、越权等课程，可本地部署反复练习以备战 SRC 挖洞，完全免费开源且无需注册。"
+      },
+      {
+        "cat": "lab",
+        "name": "OWASP Juice Shop",
+        "url": "https://owasp.org/www-project-juice-shop/",
+        "tag": "Web 漏洞靶场练习",
+        "description": "OWASP 维护的现代 JavaScript 漏洞靶场，模拟电商网站并内置覆盖 OWASP Top 10 的各类挑战，可本地 Docker 部署练习，是入门 Web 渗透与 SRC 练手的经典项目。"
+      },
+      {
+        "cat": "lab",
+        "name": "VulnHub",
+        "url": "https://www.vulnhub.com/",
+        "tag": "下载靶机本地练习",
+        "description": "提供可下载虚拟机镜像的漏洞靶场合集，下载后本地运行并完成夺旗挑战，覆盖渗透测试全流程，完全免费且无需联网，适合练习提权与内网渗透等实战技能。"
+      },
+      {
+        "cat": "lab",
+        "name": "Hack The Box",
+        "url": "https://www.hackthebox.com/",
+        "tag": "渗透靶场 / CTF",
+        "description": "知名在线渗透测试靶场平台，提供可远程攻击的靶机与夺旗挑战，通关可积累积分并参与赛季排名，免费档能做入门机器，进阶靶机与赛事需订阅 VIP。"
+      },
+      {
+        "cat": "lab",
+        "name": "TryHackMe",
+        "url": "https://tryhackme.com/",
+        "tag": "引导式攻防靶场",
+        "description": "引导式网络安全学习平台，以房间形式提供从基础到渗透的攻防实验与图文教程，适合零基础按路径循序渐进学习，免费房间数量有限，多数进阶内容需付费订阅。"
+      },
+      {
+        "cat": "lab",
+        "name": "PortSwigger Academy",
+        "url": "https://portswigger.net/web-security",
+        "tag": "Web 安全免费实验室",
+        "description": "Burp Suite 官方推出的免费 Web 安全实验室，配套详尽教程与可实战的漏洞实验环境，全面覆盖 OWASP Top 10，是自学 Web 渗透与备考认证的首选免费资源。"
+      },
+      {
+        "cat": "lab",
+        "name": "Root-Me",
+        "url": "https://www.root-me.org/",
+        "tag": "攻防挑战练习",
+        "description": "法国老牌攻防挑战平台，按 Web、逆向、密码学、取证等分类提供大量可提交 flag 的题目，以积分和排名衡量水平，多数挑战免费开放，适合系统化训练实战能力。"
+      },
+      {
+        "cat": "lab",
+        "name": "PentesterLab",
+        "url": "https://pentesterlab.com/",
+        "tag": "Web 渗透练习",
+        "description": "专注 Web 渗透的在线练习平台，提供从入门到高级的漏洞利用练习与配套讲义，讲解细致适合自学，部分课程免费，完整进阶内容需付费订阅。"
+      },
+      {
+        "cat": "lab",
+        "name": "OverTheWire",
+        "url": "https://overthewire.org/",
+        "tag": "Linux / 命令闯关",
+        "description": "免费的命令行闯关学习网站，通过 Bandit、Natas 等系列关卡循序渐进教授 Linux 命令与基础安全知识，无需注册即可上手，适合新手打牢命令行基础。"
+      },
+      {
+        "cat": "lab",
+        "name": "Hacker101",
+        "url": "https://www.hacker101.com/",
+        "tag": "HackerOne 免费课程 + CTF",
+        "description": "HackerOne 官方推出的免费安全学习平台，提供 Web 安全视频课程与配套 CTF 挑战，完成挑战有机会获得私有漏洞赏金项目邀请，是进入 SRC 挖洞的低门槛入口。"
+      },
+      {
+        "cat": "lab",
+        "name": "picoCTF",
+        "url": "https://picoctf.org/",
+        "tag": "入门 CTF 竞赛",
+        "description": "卡内基梅隆大学面向全球举办的入门级 CTF 竞赛，题目涵盖逆向、密码、取证等方向且难度平缓，往届题库常年免费开放，适合学生与安全新人练习竞赛入门。"
+      },
+      {
+        "cat": "lab",
+        "name": "CTFtime",
+        "url": "https://ctftime.org/",
+        "tag": "全球 CTF 赛事日历 / 奖金",
+        "description": "全球 CTF 赛事的集中日历与排名平台，汇总各大赛事时间、赛制与奖金信息，可按时间报名参赛并查看战队积分排名，是了解国内外 CTF 赛事动态的关键入口。"
+      },
+      {
+        "cat": "lab",
+        "name": "CyberDefenders",
+        "url": "https://cyberdefenders.org/",
+        "tag": "蓝队防御靶场",
+        "description": "面向蓝队与数字取证的实战靶场平台，提供基于真实攻击场景的取证分析挑战，练习日志分析、内存取证与威胁狩猎，免费题目有限，多数高级挑战需订阅解锁。"
+      },
+      {
+        "cat": "lab",
+        "name": "Blue Team Labs Online",
+        "url": "https://blueteamlabs.online/",
+        "tag": "蓝队靶场练习",
+        "description": "蓝队防御技能训练平台，通过模拟真实攻击案例的取证与检测挑战练习 SOC 分析与应急响应，题目贴近实战，免费挑战较少，完整内容需付费订阅。"
+      },
+      {
+        "cat": "lab",
+        "name": "攻防世界",
+        "url": "https://adworld.xctf.org.cn/",
+        "tag": "国内 CTF 练习平台",
+        "description": "国内主流的 CTF 练习与竞赛平台，提供新手区到高阶的题库、在线赛事与战队排名，题目覆盖 Web、逆向、密码等方向，免费开放，是国内容易上手的安全入门平台。"
+      },
+      {
+        "cat": "lab",
+        "name": "i春秋",
+        "url": "https://www.ichunqiu.com/",
+        "tag": "网安在线学习 / 竞赛",
+        "description": "国内网络安全在线学习社区，提供体系化课程、在线实验靶场与 CTF 竞赛，内容覆盖渗透测试、逆向与安全运维，部分课程免费，认证及进阶课程需付费。"
+      },
+      {
+        "cat": "lab",
+        "name": "合天网安实验室",
+        "url": "https://www.hetianlab.com/",
+        "tag": "网安实验 / 靶场",
+        "description": "国内老牌网络安全实验平台，提供在线实验环境、靶场与竞赛系统，覆盖渗透测试、逆向、取证等方向，与高校教学合作紧密，个人练习部分免费部分收费。"
+      }
+    ]
+  }
+}

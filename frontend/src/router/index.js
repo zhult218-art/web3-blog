@@ -82,6 +82,8 @@ const web3Routes = [
   { path: 'knowledge/:id', name: 'KnowledgeDetail', component: () => import('@/views/knowledge/detail.vue'), meta: { requiresAuth: false, perm: 'home' } },
   // 冒险者招募亭 · 招聘投递（央国企/大厂/外企/银行券商/事业编等企业招聘链接导航）
   { path: 'jobs', name: 'JobBoard', component: () => import('@/views/jobs/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
+  // 赏金猎人 · 全球赚钱平台导航（按赚钱方式分类：众测漏洞赏金/Web3/自由职业/微任务/AI标注/创作者变现等）
+  { path: 'earn', name: 'EarnMoney', component: () => import('@/views/earn/index.vue'), meta: { requiresAuth: false, perm: 'home' } },
   // 404 catch-all: 未匹配路由重定向到首页
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
@@ -116,6 +118,7 @@ const routes = [
     { path: 'blog-links', name: 'AdminBlogLinks', component: () => import('@/views/admin/blog-links.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'blog-notice', name: 'AdminBlogNotice', component: () => import('@/views/admin/blog-notice.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'blog-settings', name: 'AdminBlogSettings', component: () => import('@/views/admin/blog-settings.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: 'nav-links', name: 'AdminNavLinks', component: () => import('@/views/admin/nav-links.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'ai-proxy', name: 'AdminAiProxy', component: () => import('@/views/admin/ai-proxy.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'site-share', name: 'AdminSiteShare', component: () => import('@/views/admin/site-share.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: 'services', name: 'AdminServices', component: () => import('@/views/admin/services.vue'), meta: { requiresAuth: true, requiresAdmin: true } },

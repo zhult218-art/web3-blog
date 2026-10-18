@@ -70,6 +70,7 @@ const menus = [
   { path: '/admin/blog-links', label: '友链管理', icon: '🤝' },
   { path: '/admin/blog-notice', label: '公告管理', icon: '📢' },
   { path: '/admin/blog-settings', label: '博客配置', icon: '🧩' },
+  { path: '/admin/nav-links', label: '导航维护', icon: '🧭' },
   { path: '/admin/ai-proxy', label: 'API中转站', icon: '🛰️' },
   { path: '/admin/site-share', label: '分享网站管理', icon: '🔖' },
   { path: '/admin/settings', label: '系统设置', icon: '⚙️' },
@@ -83,6 +84,7 @@ const crumbMap = {
   '/admin/orders': '订单管理', '/admin/products': '商品管理', '/admin/media': '媒体管理', '/admin/quant': '量化管理',
   '/admin/traffic': '访问统计', '/admin/chat': '群聊审批', '/admin/community': '社区审核', '/admin/settings': '系统设置',
   '/admin/blog-links': '友链管理', '/admin/blog-notice': '公告管理', '/admin/blog-settings': '博客配置',
+  '/admin/nav-links': '导航维护',
   '/admin/site-share': '分享网站管理', '/admin/services': '服务管理', '/admin/monitor': '系统监控'
 }
 

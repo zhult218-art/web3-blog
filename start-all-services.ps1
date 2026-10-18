@@ -340,6 +340,29 @@ if ($node -and (Test-Path $chatGwEntry)) {
     Write-Host "  跳过 chat-gateway：未找到 node 或 server.js（聊天将不可用）" -ForegroundColor Yellow
 }
 
+# ── 2.6 免费模型服务 Our Free Model（Node，端口 18900） ──
+# 开源项目 dsh-our-free-model 的独立本地服务：免注册、免 Key 即可用匿名与 Kilo
+# 免费模型池，对外提供 OpenAI 兼容接口。py-service 的免费 AI 通道与 ai-proxy 的
+# Agent 直连通道都以本地回环地址调用它；服务未在跑时两侧均自动跳过，不影响其它上游。
+# 仓库位于博客工程之外，可用环境变量 OFM_REPO 覆盖路径；未安装时整块跳过。
+Write-Host "启动免费模型服务（18900）..." -ForegroundColor Cyan
+$ofmRepo = @(
+    $env:OFM_REPO,
+    'Z:\project\dsh-our-free-model-main'
+) | Where-Object { $_ -and (Test-Path (Join-Path $_ 'packages\standalone\cli.mjs')) } | Select-Object -First 1
+if ($node -and $ofmRepo) {
+    if (Test-PortFast -Port 18900) {
+        Write-Host "  our-free-model 已在运行（:18900），跳过" -ForegroundColor DarkGray
+    } else {
+        # 不传 --data-dir：沿用其默认 ~/.our-free-model（py-service 按同一路径读密钥）
+        Start-HiddenProcess -Name "our-free-model" -File $node `
+            -Arguments "`"$(Join-Path $ofmRepo 'packages\standalone\cli.mjs')`" --port 18900" `
+            -WorkDir $ofmRepo -LogDir (Join-Path $root 'logs') | Out-Null
+    }
+} else {
+    Write-Host "  跳过 our-free-model：未找到 node 或工程目录（可设 OFM_REPO 指定路径）" -ForegroundColor Yellow
+}
+
 # ── 3. 统一 Python 服务 py-service（FastAPI，单进程单端口 9006） ──
 # 一个进程聚合 quant / qzone / video / whisper / wifi 五个模块，作为「一个服务」
 # 注册到 Nacos；新增功能只需在 py-service\modules 下新建模块目录，无需改动启动脚本。

@@ -34,7 +34,7 @@ export const DEFAULT_VOICE = 'zh-CN-XiaoxiaoNeural'
 
 let currentAudio = null
 let currentAbortController = null
-// 流式播报的取消入口：speakEdgeStream 注册，stopEdgeSpeech 统一触发
+// 流式播报的取消入口：createEdgeSpeaker / speakEdgeStream 注册，stopEdgeSpeech 统一触发
 let streamStopFn = null
 
 export function isEdgeTtsSupported() {
@@ -50,26 +50,22 @@ export function stopEdgeSpeech() {
   }
 }
 
-// 按句末标点（。！？!?…）拆分，保留标点。空句跳过。
-function splitSentences(text) {
-  const parts = String(text || '').split(/(?<=[。！？!?…])\s*/)
-  return parts.map(s => s.trim()).filter(Boolean)
-}
+// 流式播报切分参数
+const PREFETCH = 3      // 合成预取深度（段）：合成始终跑在播放之前，片段之间无「等合成」空档
+const SOFT_MIN = 14     // 逗号/分号累积到该长度后才作为切分点，避免切得过碎
+const HARD_MAX = 60     // 单段硬上限（字）：长时间无标点时强制切分，避免一段过大首音变慢
 
-// 长文本按句聚合到 ~MAX_SEG 字一段：整段合成比逐句合成语气更连贯，
-// 同时避免单次请求过大导致首音延迟过高。
-const MAX_SEG = 120
-function chunkText(text) {
-  const sentences = splitSentences(text)
-  if (!sentences.length) return []
-  const segs = []
-  let buf = ''
-  for (const s of sentences) {
-    if (buf && (buf.length + s.length) > MAX_SEG) { segs.push(buf); buf = '' }
-    buf += s
+// 从流式文本缓冲中切出一个「可合成」片段；返回 [chunk, rest]，暂无可切时返回 null。
+// 句末标点立即切；逗号/分号在累积够长后才切；超长无标点则硬切。
+function takeChunk(buf, finish) {
+  if (!buf) return null
+  if (finish) return [buf, '']
+  for (let i = 0; i < buf.length; i++) {
+    if ('。！？!?…\n'.includes(buf[i])) return [buf.slice(0, i + 1), buf.slice(i + 1)]
+    if ('，,；;'.includes(buf[i]) && i + 1 >= SOFT_MIN) return [buf.slice(0, i + 1), buf.slice(i + 1)]
   }
-  if (buf) segs.push(buf)
-  return segs
+  if (buf.length >= HARD_MAX) return [buf.slice(0, HARD_MAX), buf.slice(HARD_MAX)]
+  return null
 }
 
 // 请求后端合成一段文本，返回 mp3 Blob；失败抛错由调用方兜底
@@ -91,8 +87,106 @@ async function synthesize(text, voiceURI, signal) {
 }
 
 /**
- * Edge TTS 流式播报：分段合成、合成完一段立刻播放，不等整段合成完。
- * 首音延迟 ≈ 单段合成耗时；播放期间可被 stopEdgeSpeech() 立即打断。
+ * 流式播报会话：持续 push(text) 投喂增量文本，边切分边合成边播放。
+ * 关键点：合成始终预取 PREFETCH 段排在播放之前，片段之间没有「等合成」的空档，
+ * 因此不会出现「文字已出、音频迟迟不响」或一句一停的断续感；播放期间可被
+ * stopEdgeSpeech() 立即打断。同一时刻只应存在一个会话（注册在 streamStopFn 上）。
+ *
+ * @param {string} voiceURI 音色 URI
+ * @param {{onSentenceStart?:Function,onSentenceEnd?:Function,onError?:Function}} [handlers]
+ * @returns {{push:(t:string)=>void, finish:()=>Promise<boolean>, stop:()=>void, playing:boolean}}
+ */
+export function createEdgeSpeaker(voiceURI = DEFAULT_VOICE, handlers = {}) {
+  const ac = new AbortController()
+  currentAbortController = ac
+  const chunks = []       // 待合成文本（按序）
+  const tasks = []        // 每段合成 Promise<Blob|null>（按序，保证播放顺序不错乱）
+  let textBuf = ''
+  let started = 0         // 已发起合成的段数
+  let consumed = 0        // 已取走播放的段数
+  let finished = false
+  let stopped = false
+  let playing = false
+  let anyEnqueued = 0
+  let doneResolved = false
+  let resolveDone = null
+  const doneP = new Promise(r => { resolveDone = r })
+  const settle = ok => { if (!doneResolved) { doneResolved = true; resolveDone(ok) } }
+
+  const playBlob = (blob, onEnd) => {
+    const url = URL.createObjectURL(blob)
+    const audio = new Audio(url)
+    currentAudio = audio
+    const clean = () => { try { URL.revokeObjectURL(url) } catch { /* ignore */ } if (currentAudio === audio) currentAudio = null }
+    audio.onended = () => { clean(); try { handlers.onSentenceEnd?.() } catch { /* ignore */ }; onEnd() }
+    audio.onerror = () => { clean(); onEnd() }
+    try { handlers.onSentenceStart?.() } catch { /* ignore */ }
+    audio.play().catch(() => { clean(); onEnd() })
+  }
+
+  // 推进流水线：补足在途合成 → 按序取出已合成段播放 → 判定完成
+  const pump = () => {
+    while (!stopped && started < chunks.length && (started - consumed) < PREFETCH) {
+      const idx = started
+      tasks[idx] = synthesize(chunks[idx], voiceURI, ac.signal)
+        .catch(e => { try { handlers.onError?.(e) } catch { /* ignore */ } return null })
+      started += 1
+    }
+    if (!stopped && !playing && consumed < started) {
+      const idx = consumed
+      const p = tasks[idx]
+      if (p) {
+        playing = true
+        p.then(blob => {
+          consumed = idx + 1
+          if (stopped) { playing = false; return }
+          if (blob) { anyEnqueued += 1; playBlob(blob, () => { playing = false; pump() }) }
+          else { playing = false; pump() }        // 该段合成失败：跳过，继续后面的
+        })
+      }
+    }
+    if (finished && !stopped && consumed >= chunks.length && !playing) settle(anyEnqueued > 0)
+  }
+
+  // 把缓冲文本切成可合成片段；finish 时把剩余文本一次性切出
+  const flushBuf = finish => {
+    let item = takeChunk(textBuf, finish)
+    while (item) {
+      textBuf = item[1]
+      if (item[0]) chunks.push(item[0])
+      if (finish) break
+      item = takeChunk(textBuf, false)
+    }
+  }
+
+  const stopAll = () => {
+    if (stopped) return
+    stopped = true
+    textBuf = ''; chunks.length = 0; tasks.length = 0
+    if (currentAbortController === ac) currentAbortController = null
+    try { ac.abort() } catch { /* ignore */ }
+    if (currentAudio) { try { currentAudio.pause(); currentAudio.src = '' } catch { /* ignore */ } currentAudio = null }
+    settle(false)
+  }
+  streamStopFn = stopAll
+  doneP.then(() => { if (streamStopFn === stopAll) streamStopFn = null })
+
+  return {
+    push(t) {
+      if (stopped || finished) return
+      textBuf += String(t || '')
+      flushBuf(false)
+      pump()
+    },
+    finish() { finished = true; flushBuf(true); pump(); return doneP },
+    stop() { stopAll() },
+    get playing() { return playing },
+  }
+}
+
+/**
+ * Edge TTS 流式播报（一次性）：内部走 createEdgeSpeaker 的流水线，
+ * 分段合成、合成完一段立刻播放，不等整段合成完。
  *
  * @param {string} text 待播报文本
  * @param {string} voiceURI 音色 URI
@@ -101,78 +195,9 @@ async function synthesize(text, voiceURI, signal) {
  */
 export async function speakEdgeStream(text, voiceURI = DEFAULT_VOICE, handlers = {}) {
   if (!text) { try { handlers.onDone?.(false) } catch { /* ignore */ } return false }
-  const segs = chunkText(text)
-  if (!segs.length) { try { handlers.onDone?.(false) } catch { /* ignore */ } return false }
-
-  const ac = new AbortController()
-  currentAbortController = ac
-
-  let stopped = false
-  let doneResolved = false
-  let synthDone = false
-  let anyEnqueued = 0
-  const queue = []
-  let playing = false
-  let resolveDone = null
-  const doneP = new Promise(r => { resolveDone = r })
-  const settle = ok => { if (!doneResolved) { doneResolved = true; resolveDone(ok) } }
-
-  // 播放队列：按序播放，段间自然衔接
-  const playNext = () => {
-    if (stopped) { playing = false; settle(false); return }
-    const blob = queue.shift()
-    if (!blob) { playing = false; if (synthDone && !stopped) settle(true); return }
-    playing = true
-    const url = URL.createObjectURL(blob)
-    const audio = new Audio(url)
-    currentAudio = audio
-    const clean = () => { try { URL.revokeObjectURL(url) } catch { /* ignore */ } if (currentAudio === audio) currentAudio = null }
-    audio.onended = () => { clean(); try { handlers.onSentenceEnd?.() } catch { /* ignore */ } playNext() }
-    audio.onerror = () => { clean(); playNext() }
-    try { handlers.onSentenceStart?.() } catch { /* ignore */ }
-    audio.play().catch(() => { clean(); playNext() })
-  }
-  const enqueue = blob => { if (stopped) return; anyEnqueued += 1; queue.push(blob); if (!playing) playNext() }
-
-  streamStopFn = () => {
-    stopped = true
-    queue.length = 0
-    try { ac.abort() } catch { /* ignore */ }
-    if (currentAudio) { try { currentAudio.pause(); currentAudio.src = '' } catch { /* ignore */ } currentAudio = null }
-    settle(false)
-  }
-
-  try {
-    // 先并发预取第 1、2 段降低首音延迟，其余按序边合成边播
-    const pending = new Map()
-    const prefetch = i => {
-      if (i >= segs.length || pending.has(i)) return
-      pending.set(i, synthesize(segs[i], voiceURI, ac.signal).catch(() => null))
-    }
-    prefetch(0)
-    prefetch(1)
-
-    for (let i = 0; i < segs.length; i++) {
-      if (stopped || ac.signal.aborted) break
-      const blob = await pending.get(i)
-      pending.delete(i)
-      prefetch(i + 2)
-      if (stopped) break
-      if (blob) enqueue(blob)
-    }
-    synthDone = true
-
-    if (stopped) { settle(false); return doneP }
-    if (!anyEnqueued) { settle(false); return doneP }
-    if (!playing) { settle(true); return doneP }   // 已全部播完
-    return doneP                                   // 最后一段仍在播放，播完自动 settle
-  } catch (e) {
-    try { handlers.onError?.(e) } catch { /* ignore */ }
-    settle(false)
-    return doneP
-  } finally {
-    streamStopFn = null
-  }
+  const sp = createEdgeSpeaker(voiceURI, handlers)
+  sp.push(text)
+  return sp.finish()
 }
 
 /**

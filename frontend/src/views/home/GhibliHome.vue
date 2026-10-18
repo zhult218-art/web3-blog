@@ -86,16 +86,16 @@
           <a v-if="githubUrl" :href="githubUrl" target="_blank" rel="noopener" class="social-btn" data-glow data-magnetic aria-label="GitHub">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2c-3.2.7-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18.92-.26 1.9-.38 2.88-.39.98 0 1.96.13 2.88.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.78 1.05.78 2.12v3.14c0 .31.21.67.8.56A10.5 10.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
           </a>
-          <a v-if="contactEmail" :href="'mailto:' + contactEmail" class="social-btn" data-glow data-magnetic aria-label="邮箱">
+          <button v-if="contactEmail" type="button" class="social-btn" data-glow data-magnetic aria-label="邮箱" @click="emailOpen = true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 7 10-7"/></svg>
-          </a>
+          </button>
         </div>
       </div>
       <div class="footer-bottom">
         <span>{{ copyrightText }}</span>
         <template v-if="contactEmail">
           <span class="fb-divider">│</span>
-          <span class="footer-mails">{{ contactEmail }}</span>
+          <button type="button" class="footer-mails footer-mail-btn" @click="emailOpen = true">{{ contactEmail }}</button>
         </template>
       </div>
     </footer>
@@ -121,6 +121,37 @@
       <div class="cloud cloud-b"></div>
       <div class="cloud cloud-c"></div>
     </div>
+
+    <!-- 联系邮箱弹窗：点击页脚邮箱图标 / 地址弹出（替代 mailto 直接跳转） -->
+    <Teleport to="body">
+      <transition name="mail-pop">
+        <div v-if="emailOpen" class="mail-mask" @click.self="emailOpen = false">
+          <div class="mail-card" role="dialog" aria-modal="true" aria-label="联系邮箱">
+            <button class="mail-close" type="button" aria-label="关闭" @click="emailOpen = false">×</button>
+            <div class="mail-head">
+              <div class="mail-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m2 7 10 7 10-7"/></svg>
+              </div>
+              <div class="mail-head-text">
+                <h3 class="mail-title">联系我</h3>
+                <p class="mail-sub">欢迎邮件交流 · 合作 / 反馈 / 交个朋友</p>
+              </div>
+            </div>
+            <div class="mail-addr">
+              <span class="mail-addr-label">邮箱地址</span>
+              <span class="mail-addr-text">{{ contactEmail }}</span>
+            </div>
+            <div class="mail-actions">
+              <button class="mail-btn is-primary" type="button" @click="copyEmail">
+                {{ copyState === 'ok' ? '已复制 ✓' : copyState === 'fail' ? '请手动复制' : '复制邮箱' }}
+              </button>
+              <a class="mail-btn is-ghost" :href="'mailto:' + contactEmail">打开邮件客户端</a>
+            </div>
+            <p class="mail-tip">若浏览器未安装邮件客户端，请直接复制地址发送。</p>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
@@ -151,6 +182,48 @@ const contactEmail = computed(() => site.footer.contactEmail || (
 ))
 const copyrightText = computed(() =>
   site.footer.copyright || `© ${new Date().getFullYear()} ${site.brandName} · 无限可能`)
+
+// ── 联系邮箱弹窗：点击页脚邮箱图标 / 邮箱地址弹出，替代 mailto 直接跳转 ──
+const emailOpen = ref(false)
+// copyState: '' 待复制 → 'ok' 已复制 → 'fail' 需手动复制
+const copyState = ref('')
+const copied = computed(() => copyState.value === 'ok')
+let copyTimer = null
+
+// 复制邮箱：Clipboard API 失败时回退 execCommand；全部失败则提示手动复制
+async function copyEmail() {
+  const text = contactEmail.value || ''
+  if (!text) return
+  let ok = false
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text)
+      ok = true
+    }
+  } catch {}
+  if (!ok) {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.top = '-1000px'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      ta.setSelectionRange(0, text.length)
+      ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+    } catch {}
+  }
+  copyState.value = ok ? 'ok' : 'fail'
+  clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => { copyState.value = '' }, 2000)
+}
+
+function onMailKeydown(e) {
+  if (e.key === 'Escape') emailOpen.value = false
+}
 
 const heroSection = ref(null)
 const heroCanvas = ref(null)
@@ -418,6 +491,7 @@ onMounted(() => {
   initThreeScene()
   window.addEventListener('resize', onResize)
   window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('keydown', onMailKeydown)
 })
 
 // 卸载时清理定时器、动画帧、渲染器与场景资源
@@ -426,6 +500,8 @@ onBeforeUnmount(() => {
   if (raf) cancelAnimationFrame(raf)
   window.removeEventListener('resize', onResize)
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('keydown', onMailKeydown)
+  clearTimeout(copyTimer)
   if (renderer) {
     renderer.dispose()
     renderer.forceContextLoss()
@@ -943,18 +1019,147 @@ onBeforeRouteLeave(() => {
   font-family: 'Courier New', monospace;
 }
 
+/* 邮箱地址文字按钮：保持原有观感，仅增加可点击反馈 */
+.footer-mail-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+.footer-mail-btn:hover { color: #b89cff; text-decoration: underline; text-underline-offset: 3px; }
+
 .social-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 42px;
   height: 42px;
+  padding: 0;
   border-radius: 12px;
   color: rgba(255,255,255,0.55);
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.09);
   transition: all 0.3s;
   transform: translate(var(--mx, 0), var(--my, 0));
+  cursor: pointer;
+}
+
+/* ── 联系邮箱弹窗（与站点星光/极光主题一致） ── */
+.mail-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(3, 3, 12, 0.66);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.mail-card {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  padding: 1.6rem 1.5rem 1.3rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(20, 18, 48, 0.96), rgba(8, 8, 22, 0.98));
+  box-shadow: 0 30px 64px -20px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.mail-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(130px 130px at 10% 0%, rgba(184, 156, 255, 0.28), transparent 70%),
+              radial-gradient(150px 150px at 100% 100%, rgba(255, 111, 165, 0.18), transparent 70%),
+              radial-gradient(140px 140px at 80% 10%, rgba(103, 232, 249, 0.14), transparent 70%);
+}
+.mail-close {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.7rem;
+  z-index: 2;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.mail-close:hover { color: #fff; border-color: rgba(255, 255, 255, 0.3); transform: rotate(90deg); }
+.mail-head { position: relative; display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.15rem; }
+.mail-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, #66b0ff, #b89cff 50%, #ff6fa5);
+  box-shadow: 0 0 22px rgba(184, 156, 255, 0.5);
+}
+.mail-title { margin: 0; font-size: 1.08rem; font-weight: 700; color: #fff; letter-spacing: 0.02em; }
+.mail-sub { margin: 0.2rem 0 0; font-size: 0.72rem; color: rgba(255, 255, 255, 0.42); letter-spacing: 0.03em; }
+.mail-addr {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 0.75rem;
+  border: 1px dashed rgba(184, 156, 255, 0.35);
+  background: rgba(184, 156, 255, 0.06);
+}
+.mail-addr-label { font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(184, 156, 255, 0.8); }
+.mail-addr-text { font-size: 0.92rem; font-weight: 600; color: #eaeaff; word-break: break-all; font-family: 'Courier New', monospace; }
+.mail-actions { position: relative; display: flex; gap: 0.6rem; margin-top: 1.15rem; }
+.mail-btn {
+  flex: 1;
+  text-align: center;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.25s ease;
+}
+.mail-btn.is-primary {
+  color: #0d0a1f;
+  background: linear-gradient(135deg, #b89cff, #66b0ff);
+  box-shadow: 0 10px 24px -10px rgba(184, 156, 255, 0.7);
+}
+.mail-btn.is-primary:hover { transform: translateY(-1px); filter: brightness(1.08); }
+.mail-btn.is-ghost {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+}
+.mail-btn.is-ghost:hover { color: #fff; border-color: rgba(255, 255, 255, 0.32); background: rgba(255, 255, 255, 0.07); }
+.mail-tip { position: relative; margin: 0.9rem 0 0; font-size: 0.66rem; color: rgba(255, 255, 255, 0.32); text-align: center; }
+
+.mail-pop-enter-active { transition: opacity 0.22s ease; }
+.mail-pop-leave-active { transition: opacity 0.18s ease; }
+.mail-pop-enter-from, .mail-pop-leave-to { opacity: 0; }
+.mail-pop-enter-active .mail-card { animation: mailCardIn 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+.mail-pop-leave-active .mail-card { transition: transform 0.18s ease; transform: scale(0.96); }
+@keyframes mailCardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .social-btn:hover {

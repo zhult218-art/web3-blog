@@ -35,6 +35,8 @@ from ..services.research import ResearchReportService
 
 
 LLM_PROVIDERS = [
+    {"key": "ourfreemodel", "name": "Our Free Model(免费池)", "base_url": "http://127.0.0.1:18900/v1",
+     "models": ["deepseek-v4.1-flash-free", "glm-5.3-flash-free", "mimo-v2.6-flash-free"]},
     {"key": "deepseek", "name": "DeepSeek", "base_url": "https://api.deepseek.com/v1",
      "models": ["deepseek-chat", "deepseek-reasoner"]},
     {"key": "openai", "name": "OpenAI", "base_url": "https://api.openai.com/v1",
@@ -61,6 +63,23 @@ LLM_DEFAULTS: Dict[str, str] = {
     "api_key":  os.environ.get("LLM_API_KEY", "").strip(),
     "model":    os.environ.get("LLM_MODEL", "").strip(),
 }
+
+# 三个 LLM_* env 均空白时，回退到本机免费模型池（Our Free Model）默认连接，
+# 让 quant AI 深研零配置即可用真实 LLM。import 失败（如 AI 模块不可用）时
+# 保持与原来完全一致的行为，绝不因缺依赖在模块加载期抛 ImportError。
+try:
+    from ...ai.providers import ofm_defaults as _ofm_defaults
+except Exception:  # noqa: BLE001
+    _ofm_defaults = None
+
+if _ofm_defaults is not None and not any(LLM_DEFAULTS.values()):
+    _ofm = _ofm_defaults() or {}
+    if _ofm.get("base_url") and _ofm.get("model"):
+        LLM_DEFAULTS = {
+            "base_url": _ofm.get("base_url", ""),
+            "api_key":  _ofm.get("api_key", ""),
+            "model":    _ofm.get("model", ""),
+        }
 
 
 def _as_llm_endpoint(base_url: str) -> str:

@@ -8,12 +8,17 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
 
 import httpx
+
+from ..ai import providers as ai_providers
+
+logger = logging.getLogger("voice")
 
 _GATEWAY_AGENT_URL = os.environ.get("VOICE_AGENT_URL", "http://127.0.0.1:8080/agent/chat")
 _AGENT_TIMEOUT = float(os.environ.get("VOICE_LLM_TIMEOUT", "120"))
@@ -102,17 +107,84 @@ async def _stream_agent(messages: list[dict]) -> AsyncIterator[str]:
                     yield delta
 
 
+async def _stream_rotating(messages: list[dict]) -> AsyncIterator[str]:
+    """多 provider 轮询流式：某个免费模型被限流/宕机时自动切换下一个。
+
+    快渠道（带 Key 的官方/国内 API）优先且带较短首字截止；慢的公共网关排在最后，
+    避免慢渠道拖住整体首字延迟。失败即切下一个，不做同渠道重试（更快出首字）。
+    仅在「尚未下发任何内容」时才允许切换（用户无感）；已下发内容后失败则静默收尾。
+    """
+    for p in ai_providers.ordered_candidates():
+        payload = ai_providers.build_payload(p, messages, None, 0.6, 800, None)
+        payload["stream"] = True
+        got_any = False
+        try:
+            timeout = httpx.Timeout(ai_providers.read_timeout(p), connect=5.0)
+            client_kw: dict = {"timeout": timeout}
+            px = ai_providers.proxy_for(p)
+            if px:
+                client_kw["proxies"] = {"http://": px, "https://": px}  # 直连被 WAF 拦的渠道走代理
+            async with httpx.AsyncClient(**client_kw) as client:
+                async with client.stream("POST", ai_providers.endpoint(p), json=payload,
+                                         headers=ai_providers.headers(p)) as resp:
+                    if resp.status_code >= 400:
+                        err = RuntimeError(f"上游 {resp.status_code}")
+                        err.status = resp.status_code  # type: ignore[attr-defined]
+                        raise err
+                    async for line in resp.aiter_lines():
+                        if not line:
+                            continue
+                        line = line.strip()
+                        if not line.startswith("data:"):
+                            continue
+                        data = line[5:].strip()
+                        if data == "[DONE]":
+                            break
+                        try:
+                            obj = json.loads(data)
+                        except Exception:  # noqa: BLE001
+                            continue
+                        delta = (((obj.get("choices") or [{}])[0].get("delta") or {}).get("content"))
+                        if delta:
+                            got_any = True
+                            yield delta
+            if got_any:
+                ai_providers.mark_ok(p)
+                return
+            raise RuntimeError("上游返回空内容")
+        except Exception as e:  # noqa: BLE001
+            ai_providers.mark_failed(p, getattr(e, "status", None))
+            if got_any:
+                return   # 已下发内容：不切换、静默收尾
+            logger.info("voice provider %s 失败，切换下一个：%s", p.name, e)
+
+
 async def stream_reply(messages: list[dict]) -> AsyncIterator[str]:
     """流式生成回复文本增量；后端失败时抛出异常由路由层转为 error 事件。"""
+    full_messages = [{"role": "system", "content": SYSTEM_PROMPT}, *messages]
+    # 1) 多 provider 轮询（免费模型互相兜底）——优先，避免单一网关限流即断线
+    emitted = False
+    try:
+        async for chunk in _stream_rotating(full_messages):
+            emitted = True
+            yield chunk
+        if emitted:
+            return
+    except Exception as e:  # noqa: BLE001
+        if emitted:
+            return   # 已出内容：静默收尾
+        logger.warning("多 provider 轮询通道失败，回退原有后端：%s", e)
+
+    # 2) 原有后端兜底：cockpit → agent
     backend = current_backend()
     if backend == "cockpit":
         got = False
-        async for chunk in _stream_cockpit([{"role": "system", "content": SYSTEM_PROMPT}, *messages]):
+        async for chunk in _stream_cockpit(full_messages):
             got = True
             yield chunk
         if got:
             return
-    async for chunk in _stream_agent([{"role": "system", "content": SYSTEM_PROMPT}, *messages]):
+    async for chunk in _stream_agent(full_messages):
         yield chunk
 
 

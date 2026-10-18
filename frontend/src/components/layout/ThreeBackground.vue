@@ -13,10 +13,15 @@
 // ============================================================
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
+import { useDeviceCapability } from '@/composables/useDeviceCapability'
+
+// 设备能力：移动端 / 低配 / 减少动效 → 静态帧渲染，不跑动画循环
+const { isMobile, staticBackground } = useDeviceCapability()
 
 const canvas = ref(null)
 let scene, camera, renderer, particles, raf, clock
 let ringMeshes = []
+let running = false
 let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0
 
 // 生成雪花精灵贴图：离屏 canvas 绘制六臂雪花，作为粒子贴图
@@ -124,15 +129,21 @@ function init() {
   clock = (() => { const s = performance.now(); let l = s; return { getDelta() { const n = performance.now(); const d = (n - l) / 1000; l = n; return d; }, getElapsedTime() { return (performance.now() - s) / 1000; } } })()
   scene = new THREE.Scene()
   camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000)
-  // preserveDrawingBuffer: true —— 修复布局级路由切换（如首页→博客）过渡瞬间全屏白闪
-  renderer = new THREE.WebGLRenderer({ canvas: c, alpha: true, antialias: true, preserveDrawingBuffer: true })
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+  // 桌面端保留 preserveDrawingBuffer 以修复布局级路由切换（如首页→博客）的全屏白闪；
+  // 移动端关抗锯齿、DPR 上限降至 1、不保留绘制缓冲——全屏逐像素渲染下这三点最耗电发热
+  renderer = new THREE.WebGLRenderer({
+    canvas: c,
+    alpha: true,
+    antialias: !isMobile,
+    preserveDrawingBuffer: !isMobile
+  })
+  renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1 : 2))
   renderer.setSize(innerWidth, innerHeight)
   renderer.setClearColor(0x000000, 0)
 
   // Particle cloud
   const geo = new THREE.BufferGeometry()
-  const count = 760
+  const count = isMobile ? 280 : 760
   const positions = new Float32Array(count * 3)
   const colors = new Float32Array(count * 3)
   for (let i = 0; i < count; i++) {
@@ -218,6 +229,7 @@ function init() {
 
 // 动画循环：相机缓动跟随鼠标 + 粒子/圆环自转
 function animate() {
+  if (!running) return
   raf = requestAnimationFrame(animate)
   const dt = clock.getDelta()
   const t = performance.now() * 0.001
@@ -245,12 +257,41 @@ function animate() {
   renderer.render(scene, camera)
 }
 
+// ── 循环控制：静态降级 / 切后台暂停 ──
+// 静态帧：只渲染一帧（移动端/低配/减少动效），保留视觉但不再持续占用 GPU
+function renderOnce() {
+  if (!renderer || !scene || !camera) return
+  const t = performance.now() * 0.001
+  ringMeshes.forEach((r) => { r.coreMat.uniforms.uTime.value = t })
+  camera.lookAt(0, 0, 0)
+  renderer.render(scene, camera)
+}
+
+function startLoop() {
+  if (running || staticBackground) return
+  running = true
+  animate()
+}
+
+function stopLoop() {
+  running = false
+  cancelAnimationFrame(raf)
+}
+
+// 切到后台 / 息屏 → 立即停止渲染；恢复可见 → 重启。避免后台空转耗电发热
+function onVisibility() {
+  if (document.hidden) stopLoop()
+  else startLoop()
+}
+
 // 窗口尺寸变化时同步相机与渲染器
 const onResize = () => {
   if (!camera || !renderer) return
   camera.aspect = innerWidth / innerHeight
   camera.updateProjectionMatrix()
   renderer.setSize(innerWidth, innerHeight)
+  // 静态模式下 setSize 会清空画布，需补渲染一帧
+  if (staticBackground) renderOnce()
 }
 
 // 记录鼠标位置（归一化到 -1 ~ 1）
@@ -261,9 +302,12 @@ const onMouse = (e) => {
 
 onMounted(() => {
   init()
-  animate()
+  // 静态降级：只渲染一帧；否则启动动画循环
+  if (staticBackground) renderOnce()
+  else startLoop()
   window.addEventListener('resize', onResize)
   window.addEventListener('mousemove', onMouse)
+  document.addEventListener('visibilitychange', onVisibility)
   // WebGL 上下文丢失时 Chrome 会把 canvas 渲染成白屏，需拦截并等恢复后重绘
   canvas.value?.addEventListener('webglcontextlost', (e) => {
     e.preventDefault()
@@ -274,9 +318,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(raf)
+  stopLoop()
   window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onMouse)
+  document.removeEventListener('visibilitychange', onVisibility)
   // 显式销毁三层光环的几何体与着色器材质，避免 WebGL 资源泄漏
   ringMeshes.forEach((r) => {
     r.group.traverse((o) => {

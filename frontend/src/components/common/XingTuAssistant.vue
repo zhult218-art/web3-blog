@@ -39,6 +39,20 @@
           </div>
         </div>
 
+        <!-- 语音授权：进入后只询问一次，选择持久化保存；拒绝后不再自动索权 -->
+        <div v-if="micConsent === ''" class="voice-consent">
+          <div class="vc-title">🎧 是否启用星途语音？</div>
+          <p class="vc-desc">启用后可用麦克风对话、并让星途用语音播报回复。此选择只会询问一次，之后随时可在「语音」按钮处更改。</p>
+          <div class="vc-actions">
+            <button class="vc-btn vc-allow" @click="grantVoiceConsent">允许使用麦克风</button>
+            <button class="vc-btn vc-deny" @click="denyVoiceConsent">仅用文字输入</button>
+          </div>
+        </div>
+        <div v-else-if="micConsent === 'off'" class="voice-off-hint">
+          <span>🔇 语音已关闭（不会再弹权限申请）</span>
+          <button class="vc-btn vc-allow" @click="askVoiceConsent">重新开启</button>
+        </div>
+
         <!-- Messages -->
         <div class="messages" ref="msgBox">
           <div v-if="messages.length === 0" class="empty-hint">
@@ -105,6 +119,19 @@
             <span class="ctrl-icon">🗑</span>
             <span class="ctrl-label">清空</span>
           </button>
+        </div>
+
+        <!-- 手动文字输入：与语音识别共用同一消息处理管道 -->
+        <div class="text-input-row">
+          <input
+            ref="inputRef"
+            v-model="inputText"
+            class="text-input"
+            type="text"
+            placeholder="也可以直接输入文字与星途对话…"
+            @keydown.enter.prevent="sendText"
+          />
+          <button class="send-btn" :disabled="!inputText.trim()" @click="sendText">发送</button>
         </div>
 
         <!-- Voice Selector -->
@@ -192,12 +219,12 @@ import { usePlayerStore } from '@/stores/modules/player'
 import {
   startVoskRecognition, stopVoskRecognition, isVoskRunning, loadVoskModel, callbacks as voskCb,
 } from '@/composables/useVoskStt'
-import { speakEdgeStream, stopEdgeSpeech, EDGE_VOICES, isEdgeTtsSupported } from '@/api/edgeTts'
+import { speakEdgeStream, createEdgeSpeaker, stopEdgeSpeech, EDGE_VOICES, isEdgeTtsSupported } from '@/api/edgeTts'
 import { startWhisperRecord, whisperTranscribe } from '@/composables/useWhisperStt'
 import { agentChatStream, consumeAgentStream } from '@/api/agent'
 import { fetchArticleList, fetchArticleDetail } from '@/api/article'
 import {
-  startVoiceStream, sendVoice, disposeVoiceStream, isVoiceStreamRunning,
+  startVoiceStream, sendVoice, stopVoiceStream, disposeVoiceStream, isVoiceStreamRunning,
 } from '@/composables/useVoiceStream'
 import { guideTo, clearVoiceHighlight } from '@/composables/useVoiceGuide'
 import { createEntry, getOwnerUser } from '@/api/knowledge'
@@ -228,6 +255,20 @@ let backendOk = false
 let edgeOk = false
 let voskOk = false
 let micHintShown = false   // 麦克风授权类提示只播报一次，避免反复骚扰
+
+// ---- 星途语音授权：进入时只询问一次并持久化，拒绝后不再自动索权 ----
+// '' = 未选择（在面板内展示一次询问） / 'on' = 已启用 / 'off' = 已拒绝（此后绝不再弹系统权限框）
+const MIC_CONSENT_KEY = 'xingtu_voice_consent'
+const micConsent = ref('')
+function readConsent() {
+  try { return localStorage.getItem(MIC_CONSENT_KEY) || '' } catch { return '' }
+}
+function writeConsent(v) {
+  try {
+    if (v) localStorage.setItem(MIC_CONSENT_KEY, v)
+    else localStorage.removeItem(MIC_CONSENT_KEY)
+  } catch { /* ignore */ }
+}
 const voices = EDGE_VOICES
 // 音色下拉按语种/性别分组，10 个音色才不至于糊成一列
 const voiceGroups = computed(() => {
@@ -254,8 +295,8 @@ const liveText = ref('')       // 服务端实时字幕（边说边出）
 let pendingTranscript = ''     // Web Speech 累积的最终文本（等待端点检测）
 let endpointTimer = 0          // 静音端点计时器
 let streamIdx = -1             // 流式助手消息在 messages 中的下标（-1 表示无）
-let ttsQueue = []              // 待播报句子（服务端 sentence 事件）
-let ttsDraining = false        // 句子播报串行化标志
+let speaker = null             // 流式播报会话（服务端 sentence 事件边来边合成边播，避免片段间隔）
+let ttsSeq = 0                 // 播报代际号：打断/新一轮时自增，用于丢弃过期的收尾回调
 const VOICE_ENDPOINT_MS = 700  // 静音多久视为「说完了」
 
 // 全屏固定页（群聊）内隐藏悬浮球：避免遮挡页面自身的发送等操作按钮
@@ -335,6 +376,7 @@ const wBusy = ref(false)
 let wHandle = null
 let wPtt = false
 async function wStart() {
+  if (micConsent.value !== 'on') { askVoiceConsent(); return }
   if (wBusy.value) return
   if (isListening.value) { toggleListening() }
   if (serverAsr && isVoiceStreamRunning()) {
@@ -402,6 +444,8 @@ function enableLocalFallback(msg) {
   statusText.value = msg || '已切换本地识别 · 点击麦克风开始'
 }
 function onMicToggle() {
+  // 尚未授权 / 已拒绝语音：先展示一次授权询问，绝不直接申请麦克风
+  if (micConsent.value !== 'on') { askVoiceConsent(); return }
   if (localStt.value) {
     if (wBusy.value) void wStop()
     else void wStart()
@@ -512,11 +556,10 @@ function togglePanel() {
     // 用户主动打开 → 清除"手动停止"标记，允许重新拉起麦克风
     manualStop = false
     stopByError = false
-    // 用户手势窗口内建立全双工语音流（AudioContext/麦克风需要手势）
-    void ensureVoiceStream()
-    // 打开面板时自动开始监听
-    if (!isListening.value) {
-      startListening()
+    // 仅在用户已授权语音时建立语音流 / 开始监听（未授权则绝不申请麦克风）
+    if (micConsent.value === 'on') {
+      void ensureVoiceStream()
+      if (!isListening.value) startListening()
     }
   }
 }
@@ -535,6 +578,17 @@ function scrollMsgs() {
   nextTick(() => { if (msgBox.value) msgBox.value.scrollTop = msgBox.value.scrollHeight })
 }
 function clearMsgs() { messages.value = [] }
+
+// ---- 手动文字输入：与语音识别共用同一消息处理管道（respond）----
+const inputText = ref('')
+const inputRef = ref(null)
+function sendText() {
+  const t = inputText.value.trim()
+  if (!t) return
+  inputText.value = ''
+  isOpen.value = true
+  respond(t)
+}
 
 // ---- 把 AI 回复一键存入知识库 ----
 const showKbModal = ref(false)
@@ -619,7 +673,9 @@ function notifyEdgeFallback() {
 // 「语音不可用（请检查 9006）」，即使后续播报正常也不恢复，误导用户以为语音坏了。
 let speakSeq = 0
 
-async function speak(text) {
+async function speak(text, force = false) {
+  // 用户选择「仅用文字」时默认不发声；试听按钮等显式调用传 force=true
+  if (micConsent.value === 'off' && !force) return
   const t = String(text || '').trim()
   if (!t || disposed) return
   const seq = ++speakSeq
@@ -639,35 +695,33 @@ async function speak(text) {
   if (seq === speakSeq) isSpeaking.value = false
 }
 
-// 服务端流式播报：sentence 事件按序入队，串行播报（保证语序）
+// 服务端流式播报：sentence 事件持续投喂同一会话，合成与播放自动流水，片段之间无间隔
 function enqueueSentence(text) {
   const t = String(text || '').trim()
   if (!t || disposed) return
-  ttsQueue.push(t)
-  void drainTts()
+  if (!edgeOk) { notifyEdgeFallback(); return }
+  if (!speaker) speaker = createEdgeSpeaker(selectedVoiceURI)
+  isSpeaking.value = true
+  speaker.push(t)
 }
 
-async function drainTts() {
-  if (ttsDraining || disposed) return
-  ttsDraining = true
-  try {
-    while (ttsQueue.length && !disposed) {
-      const s = ttsQueue.shift()
-      isSpeaking.value = true
-      let ok = false
-      if (edgeOk) { try { ok = await speakEdgeStream(s, selectedVoiceURI) } catch { ok = false } }
-      if (!ok && !disposed) notifyEdgeFallback()
-    }
-  } finally {
-    ttsDraining = false
-    if (!disposed) isSpeaking.value = false
-  }
+// 本轮回复结束：把残留文本收尾并等待播完（被 clearTts 打断则丢弃回调）
+function finishSpeech() {
+  const sp = speaker
+  speaker = null
+  if (!sp) { isSpeaking.value = false; return }
+  const seq = ttsSeq
+  sp.finish().then(ok => {
+    if (disposed || seq !== ttsSeq) return
+    isSpeaking.value = false
+    if (!ok) notifyEdgeFallback()
+  })
 }
 
 // 立即静音在途播报（打断/取消）
 function clearTts() {
-  ttsQueue = []
-  ttsDraining = false
+  ttsSeq += 1
+  speaker = null
   try { stopEdgeSpeech() } catch { /* ignore */ }
   isSpeaking.value = false
 }
@@ -752,7 +806,8 @@ function handleVoiceEvent(msg) {
       enqueueSentence(msg.text)
       break
     case 'guide':
-      // 纯导航意图（服务端未走 LLM）时没有 text 增量，补一条助手消息
+      // 纯导航意图（服务端未走 LLM）时没有 text 增量，补一条助手消息；
+      // 音频由紧随其后的 sentence 事件统一播报，此处不再 speak（否则会重复朗读两遍）
       if (streamIdx < 0 && msg.tip) addMsg('assistant', msg.tip)
       void applyGuide(msg)
       break
@@ -762,13 +817,17 @@ function handleVoiceEvent(msg) {
       break
     case 'done':
       endStreamMsg('（没有获取到内容）')
+      finishSpeech()
       statusText.value = isListening.value ? '监听中...' : '就绪'
       break
-    case 'error':
-      addMsg('assistant', '抱歉，' + friendlyServiceError(msg.message, '语音服务暂时不可用'))
+    case 'error': {
+      const errText = '抱歉，' + friendlyServiceError(msg.message, '语音服务暂时不可用')
+      addMsg('assistant', errText)
+      speak(errText)
       streamIdx = -1
       statusText.value = '就绪'
       break
+    }
     default:
       break
   }
@@ -777,6 +836,7 @@ function handleVoiceEvent(msg) {
 // 启动全双工语音流（麦克风 PCM → py-service VAD/LLM 编排）
 async function ensureVoiceStream() {
   if (disposed || isVoiceStreamRunning()) return
+  if (micConsent.value !== 'on') return
   try {
     const ok = await startVoiceStream({
       onEvent: handleVoiceEvent,
@@ -789,7 +849,8 @@ async function ensureVoiceStream() {
 }
 
 function testSpeak() {
-  speak('你好，我是星途智能助手，很高兴为你服务。')
+  isOpen.value = true
+  speak('你好，我是星途智能助手，很高兴为你服务。', true)
 }
 
 // ---- 本地降级：命令路由（未登录/后端不可用时） ----
@@ -1404,6 +1465,37 @@ function clearMicFixHint() {
   micFixAction.value = ''
 }
 
+// ---- 语音授权交互：面板内只询问一次，彻底替代反复弹系统权限框 ----
+// 展示询问：只切换 UI，不触碰任何系统权限 API（绝不触发权限弹窗）
+function askVoiceConsent() {
+  isOpen.value = true
+  micConsent.value = ''
+  statusText.value = '请选择是否启用星途语音'
+  scrollMsgs()
+}
+// 允许：持久化选择，并在本次真实用户手势内启动麦克风与全双工语音流
+function grantVoiceConsent() {
+  writeConsent('on')
+  micConsent.value = 'on'
+  autoListenTried = false
+  manualStop = false
+  stopByError = false
+  statusText.value = '已启用语音 · 正在连接麦克风...'
+  void ensureVoiceStream()
+  tryAutoListen()
+}
+// 拒绝：持久化选择并彻底停止索权/监听，引导改用文字输入
+function denyVoiceConsent() {
+  writeConsent('off')
+  micConsent.value = 'off'
+  manualStop = true
+  stopByError = false
+  stopListening()
+  stopVoiceStream()
+  statusText.value = '语音已关闭 · 可直接输入文字对话'
+  nextTick(() => { try { inputRef.value?.focus?.() } catch { /* ignore */ } })
+}
+
 function startWebListening() {
   if (!recognition) {
     statusText.value = '浏览器不支持语音识别'
@@ -1638,6 +1730,7 @@ function silentRestart() {
 
 // 打开网页即静默申请麦克风权限，稍后自动开启监听
 function requestMicPermission() {
+  if (micConsent.value !== 'on') return
   try {
     if (navigator.mediaDevices?.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ audio: true })
@@ -1653,6 +1746,7 @@ function requestMicPermission() {
 let autoListenTried = false
 function tryAutoListen() {
   if (autoListenTried || disposed || isListening.value || wBusy.value) return
+  if (micConsent.value !== 'on') return   // 未授权语音时不申请麦克风
   autoListenTried = true
   requestMicPermission()
   // 同步建立全双工语音流（VAD 打断 / 服务端 LLM 编排）
@@ -1671,6 +1765,8 @@ function detachGestureArming() {
 let lastArmAt = 0
 function onFirstGesture() {
   if (disposed) return
+  // 未授权语音：不因页面点击/按键自动索权（避免反复弹权限框）
+  if (micConsent.value !== 'on') return
   if (isListening.value) { detachGestureArming(); return }
   // 用户主动按过"停止"且非错误中断 → 尊重用户意愿，不再自动拉起
   if (manualStop && !stopByError) return
@@ -1725,17 +1821,26 @@ onMounted(() => {
 
   window.addEventListener('pointerup', onOrbPointerUp)
 
-  // 自动监听唤醒词：先尝试静默启动；失败则在首次点击/按键时启动
-  tryAutoListen()
+  // 语音授权状态：读取持久化选择（'' 未选择 / 'on' 已启用 / 'off' 已拒绝）
+  micConsent.value = readConsent()
+  statusText.value = micConsent.value === 'on'
+    ? '就绪'
+    : (micConsent.value === 'off' ? '语音已关闭 · 可输入文字' : '请选择是否启用语音')
+
+  // 仅在已授权语音时才自动申请麦克风并监听唤醒词（避免反复弹系统权限框）
+  if (micConsent.value === 'on') tryAutoListen()
   window.addEventListener('pointerdown', onFirstGesture)
   window.addEventListener('keydown', onFirstGesture)
 
   // First visit welcome
   if (!hasVisited()) {
     setTimeout(() => {
-      addMsg('assistant', '你好！我是星途智能助手，欢迎来到我的网站！点击我说话，或者直接说"星图星图"唤醒我。')
+      const welcome = '你好！我是星途智能助手，欢迎来到我的网站！点击我说话，或者直接说"星图星图"唤醒我。'
+      addMsg('assistant', welcome)
       isOpen.value = true
       markVisited()
+      // 已授权语音时才朗读欢迎语；未选择 / 已拒绝则静默，由面板内的授权提示引导
+      if (micConsent.value === 'on') speak(welcome)
     }, 1500)
   }
 
@@ -2200,6 +2305,55 @@ onBeforeUnmount(() => {
 }
 .voice-selector select option { background: #0a0a1a; color: white; }
 .voice-selector select optgroup { background: #0a0a1a; color: rgba(255,255,255,0.5); font-style: normal; }
+
+/* 语音授权询问：进入后只问一次，替代反复弹系统权限框 */
+.voice-consent {
+  margin: 10px 16px 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(168, 85, 247, 0.08));
+  border-radius: 12px;
+}
+.vc-title { font-size: 0.78rem; font-weight: 700; color: #67e8f9; margin-bottom: 6px; }
+.vc-desc { font-size: 0.7rem; line-height: 1.55; color: rgba(255, 255, 255, 0.72); margin: 0 0 10px; }
+.vc-actions { display: flex; gap: 8px; }
+.vc-btn { padding: 7px 8px; border-radius: 9px; cursor: pointer; font-size: 0.68rem; transition: all 0.2s; }
+.vc-actions .vc-btn { flex: 1; }
+.vc-allow { border: 1px solid rgba(34, 211, 238, 0.45); background: rgba(34, 211, 238, 0.14); color: #a5f3fc; }
+.vc-allow:hover { background: rgba(34, 211, 238, 0.26); }
+.vc-deny { border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.7); }
+.vc-deny:hover { background: rgba(255, 255, 255, 0.09); }
+
+/* 已关闭语音提示条 */
+.voice-off-hint {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 16px 0; padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  font-size: 0.68rem; color: rgba(255, 255, 255, 0.6);
+}
+.voice-off-hint span { flex: 1; min-width: 0; }
+.voice-off-hint .vc-btn { flex: 0 0 auto; padding: 5px 10px; }
+
+/* 手动文字输入 */
+.text-input-row { display: flex; gap: 8px; padding: 10px 16px 0; }
+.text-input {
+  flex: 1; min-width: 0; padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px; color: #fff; font-size: 0.75rem; outline: none;
+}
+.text-input:focus { border-color: rgba(34, 211, 238, 0.5); background: rgba(255, 255, 255, 0.08); }
+.text-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+.send-btn {
+  padding: 0 16px; border-radius: 10px; cursor: pointer; font-size: 0.72rem; transition: all 0.2s;
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(168, 85, 247, 0.22));
+  color: #a5f3fc;
+}
+.send-btn:hover:not(:disabled) { background: linear-gradient(135deg, rgba(34, 211, 238, 0.34), rgba(168, 85, 247, 0.34)); }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Mobile */
 @media (max-width: 768px) {

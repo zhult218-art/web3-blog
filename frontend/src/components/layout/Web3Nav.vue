@@ -1,6 +1,6 @@
 <template>
   <header class="xhdr sticky top-0 z-40">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+    <div class="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
       <!-- Logo：后台可配置图片 Logo；未配置时使用极光渐变 "A" + 朱红点 -->
       <router-link to="/" class="group flex items-center gap-2.5" :title="brandName">
         <img v-if="logoUrl" :src="logoUrl" :alt="brandName"
@@ -42,63 +42,36 @@
           <span class="nav-bar relative z-10"></span>
         </router-link>
 
-        <!-- Services dropdown (量化/工具/软件 + 管理服务) -->
-        <div v-if="visibleServiceGroups.length || isAdmin" class="relative group">
+        <!-- 功能总览下拉（全部入口按用途分组，单一下拉更清爽） -->
+        <div v-if="visibleMenuGroups.length || isAdmin" class="group">
           <button class="nav-link relative px-3.5 py-1.5 text-sm rounded-lg group-btn"
-            :class="{ 'nav-active': isAnyActive(serviceGroupPaths) }">
+            :class="{ 'nav-active': isAnyActive(menuPaths) }">
             <span class="nav-label relative z-10">
-              <span class="nl-main">公会服务</span>
-              <span class="nl-sub">功能入口</span>
+              <span class="nl-main">功能总览</span>
+              <span class="nl-sub">全部入口</span>
             </span>
             <svg class="nav-caret w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </button>
-          <div class="nav-drop absolute top-full left-0 mt-1 w-60 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-            <template v-for="g in visibleServiceGroups" :key="g.name">
-              <p class="drop-head">{{ g.name }}</p>
-              <router-link v-for="item in g.items" :key="item.path" :to="item.path"
-                class="drop-item flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg transition"
-              >
-                <span class="flex items-center gap-2"><span class="drop-ico">{{ item.icon }}</span>{{ item.label }}</span>
-                <small class="di-sub">{{ item.sub }}</small>
+          <div class="nav-mega opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+            <div class="mega-grid">
+              <div v-for="g in visibleMenuGroups" :key="g.name" class="mega-group">
+                <p class="drop-head">{{ g.name }}</p>
+                <router-link v-for="item in g.items" :key="item.path" :to="item.path"
+                  class="drop-item flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg transition"
+                >
+                  <span class="flex items-center gap-2"><span class="drop-ico">{{ item.icon }}</span>{{ item.label }}</span>
+                  <small class="di-sub">{{ item.sub }}</small>
+                </router-link>
+              </div>
+            </div>
+            <div class="mega-foot">
+              <router-link v-if="isAdmin" to="/admin" class="mega-foot-item text-[color:var(--color-primary)]">
+                <span>⚙️ 贤者圣所</span><small>管理服务</small>
               </router-link>
-            </template>
-            <template v-if="isAdmin">
-              <div class="my-1.5 border-t border-white/[0.08]"></div>
-              <p class="drop-head">站务管理</p>
-              <router-link to="/admin"
-                class="drop-item flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg transition text-[color:var(--color-primary)]"
-              >
-                <span class="flex items-center gap-2"><span class="drop-ico">⚙️</span>贤者圣所</span><small class="di-sub">管理服务</small>
-              </router-link>
-            </template>
-          </div>
-        </div>
-
-        <div v-if="visibleMoreGroups.length" class="relative group">
-          <button class="nav-link relative px-3.5 py-1.5 text-sm rounded-lg group-btn"
-            :class="{ 'nav-active': isAnyActive(moreGroupPaths) }">
-            <span class="nav-label relative z-10">
-              <span class="nl-main">秘藏更多</span>
-              <span class="nl-sub">探索发现</span>
-            </span>
-            <svg class="nav-caret w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-          </button>
-          <div class="nav-drop absolute top-full right-0 mt-1 w-60 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-            <template v-for="g in visibleMoreGroups" :key="g.name">
-              <p class="drop-head">{{ g.name }}</p>
-              <router-link v-for="item in g.items" :key="item.path" :to="item.path"
-                class="drop-item flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg transition"
-                :class="item.path === '/nails' ? 'text-pink-300 hover:text-white hover:bg-pink-400/[0.08]' : 'text-gray-400 hover:text-white hover:bg-[#16163a]'"
-              >
-                <span class="flex items-center gap-2"><span class="drop-ico">{{ item.icon }}</span>{{ item.label }}</span>
-                <small class="di-sub">{{ item.sub }}</small>
-              </router-link>
-            </template>
-            <div class="my-1.5 border-t border-white/[0.08]"></div>
-            <p class="drop-head">视觉体验</p>
-            <a href="/experience/index.html" target="_blank" rel="noopener"
-              class="drop-item flex items-center justify-between gap-2 px-3 py-2 text-sm text-emerald-300/90 hover:text-white hover:bg-[#16163a] rounded-lg transition"
-            ><span class="flex items-center gap-2"><span class="drop-ico">🌿</span>异界之门</span><small class="di-sub">3D 体验</small></a>
+              <a href="/experience/index.html" target="_blank" rel="noopener" class="mega-foot-item text-emerald-300/90">
+                <span>🌿 异界之门</span><small>3D 体验</small>
+              </a>
+            </div>
           </div>
         </div>
       </nav>
@@ -210,18 +183,7 @@
             <span class="m-sub">{{ item.sub }}</span>
           </router-link>
 
-          <template v-for="g in visibleServiceGroups" :key="'s-' + g.name">
-            <p class="drop-head px-1 pt-2 pb-0.5">{{ g.name }}</p>
-            <router-link v-for="item in g.items" :key="item.path" :to="item.path"
-              class="flex items-center justify-between px-4 py-2.5 text-sm rounded-xl transition-colors"
-              :class="item.path === '/nails' ? 'text-pink-300 hover:text-pink-200 hover:bg-pink-400/[0.06]' : 'text-gray-400 hover:text-white hover:bg-[#121230]'"
-              @click="mobileOpen = false"
-            >
-              <span class="m-main"><span>{{ item.icon }}</span> {{ item.label }}<span class="m-sub">{{ item.sub }}</span></span>
-            </router-link>
-          </template>
-
-          <template v-for="g in visibleMoreGroups" :key="'m-' + g.name">
+          <template v-for="g in visibleMenuGroups" :key="'m-' + g.name">
             <p class="drop-head px-1 pt-2 pb-0.5">{{ g.name }}</p>
             <router-link v-for="item in g.items" :key="item.path" :to="item.path"
               class="flex items-center justify-between px-4 py-2.5 text-sm rounded-xl transition-colors"
@@ -249,7 +211,7 @@
 <script setup>
 // ============================================================
 // 顶部导航栏（Web3Nav）
-// 桌面端导航 + "服务/更多"下拉 + 移动端抽屉展开
+// 桌面端主航道 + "功能总览"单一宽下拉（按用途分组）+ 移动端抽屉展开
 // 按用户权限过滤菜单项；含主题配色切换、购物车角标、用户菜单
 // ============================================================
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
@@ -321,7 +283,6 @@ const nav = [
   { path: '/community', label: '冒险者酒馆', sub: '社区', perm: 'community', svc: 'forum-service', feature: 'forum' },
   { path: '/shop', label: '魔法杂货铺', sub: '商城', perm: 'shop', svc: 'shop-service', feature: 'shop' },
   { path: '/media', label: '幻镜水晶', sub: '书影音', perm: 'media', svc: 'media-service', feature: 'media' },
-  { path: '/qzone', label: '时光回溯', sub: 'QQ空间备份', perm: 'qzone' }
 ]
 
 // 菜单项可见：有权限 + 服务在线 + 功能开关开启（管理员豁免开关）
@@ -333,42 +294,38 @@ const itemVisible = i =>
 // 主航道过滤
 const visibleNav = computed(() => nav.filter(itemVisible))
 
-// "服务"下拉菜单 —— 分组展示，同类功能聚簇，层次清晰。
+// "功能总览"下拉 —— 全部次级入口按用途归拢为 5 组，替代原先分散的两个下拉。
 // svc: 关联微服务按健康状态显隐；icon: 视觉快速定位；perm: 权限过滤
-const serviceGroups = [
+const menuGroups = [
   { name: '智能分析', items: [
     { path: '/quant', label: '占星推演', sub: '量化分析', perm: 'quant', svc: 'quant-service', feature: 'quant', icon: '📊' },
     { path: '/agent', label: 'Agent 会话台', sub: 'Workflow 智能体', perm: 'home', svc: 'ai-proxy-service', icon: '🧠' },
     { path: '/ai-station', label: 'AI 中转站', sub: '令牌·模型', perm: 'home', svc: 'ai-proxy-service', icon: '🤖' },
   ]},
   { name: '工具资源', items: [
-    { path: '/knowledge', label: '星图知识库', sub: '持续成长·学习地图', perm: 'home', icon: '🧭' },
     { path: '/tools', label: '炼金道具', sub: '实用工具', perm: 'tools', svc: 'tool-service', icon: '🛠️' },
     { path: '/software', label: '魔导工坊', sub: '软件中心', perm: 'software', svc: 'software-service', icon: '💾' },
     { path: '/resources', label: '宝物仓库', sub: '资源库', perm: 'resources', svc: 'resource-service', icon: '📦' },
+    { path: '/knowledge', label: '星图知识库', sub: '学习地图', perm: 'home', icon: '🧭' },
     { path: '/upload', label: '星空仓库', sub: '资源上传', perm: 'home', icon: '☁️' },
-    { path: '/wifi', label: '信号侦测', sub: 'WiFi安全审计', perm: 'wifi', icon: '📶' },
+    { path: '/wifi', label: '信号侦测', sub: 'WiFi 安全审计', perm: 'wifi', icon: '📶' },
   ]},
-  { name: '冒险公会', items: [
+  { name: '职业赚钱', items: [
     { path: '/jobs', label: '冒险者招募亭', sub: '招聘投递·央国企/大厂/外企', perm: 'home', icon: '🛡️' },
-  ]},
-]
-
-// "更多"下拉菜单 —— 分组展示
-const moreGroups = [
-  { name: '影音相册', items: [
-    { path: '/album', label: '回忆水晶', sub: '相册集', perm: 'album', icon: '📸' },
+    { path: '/earn', label: '赏金猎人', sub: '全球赚钱平台导航', perm: 'home', icon: '💰' },
   ]},
   { name: '创作展示', items: [
-    { path: '/nails', label: '美甲小铺', sub: '预约·作品集', perm: 'home', svc: 'media-service', feature: 'media', icon: '💅' },
     { path: '/three', label: '星空漫游', sub: '3D 粒子空间', perm: 'home', feature: 'metaverse', icon: '🌀' },
     { path: '/architecture', label: '架构图鉴', sub: '微服务拓扑', perm: 'home', icon: '🏛️' },
     { path: '/twin', label: '世界之眼', sub: '服务数字孪生', perm: 'home', icon: '🌐' },
+    { path: '/album', label: '回忆水晶', sub: '相册集', perm: 'album', icon: '📸' },
+    { path: '/nails', label: '美甲小铺', sub: '预约·作品集', perm: 'home', svc: 'media-service', feature: 'media', icon: '💅' },
   ]},
   { name: '交流关于', items: [
     { path: '/link', label: '同伴名册', sub: '友人帐', perm: 'link', icon: '🤝' },
     { path: '/comments', label: '传音魔石', sub: '留言板', perm: 'comments', icon: '💬' },
     { path: '/about', label: '世界设定集', sub: '关于我们', perm: 'about', icon: '📖' },
+    { path: '/qzone', label: '时光回溯', sub: 'QQ空间备份', perm: 'qzone', icon: '🕰️' },
   ]},
 ]
 
@@ -377,12 +334,10 @@ const groupVisible = (g) => ({
   ...g,
   items: g.items.filter(itemVisible)
 })
-const visibleServiceGroups = computed(() => serviceGroups.map(groupVisible).filter(g => g.items.length))
-const visibleMoreGroups = computed(() => moreGroups.map(groupVisible).filter(g => g.items.length))
+const visibleMenuGroups = computed(() => menuGroups.map(groupVisible).filter(g => g.items.length))
 
 // 下拉按钮高亮：当前路由命中组内任何路径（含子路径）
-const serviceGroupPaths = computed(() => visibleServiceGroups.value.flatMap(g => g.items.map(i => i.path)))
-const moreGroupPaths = computed(() => visibleMoreGroups.value.flatMap(g => g.items.map(i => i.path)))
+const menuPaths = computed(() => visibleMenuGroups.value.flatMap(g => g.items.map(i => i.path)))
 function isAnyActive(paths) {
   return paths.some(p => isActive(p))
 }
@@ -580,6 +535,63 @@ function handleLogout() {
   color: var(--color-primary);
   opacity: 0.88;
 }
+
+/* 功能总览：单一宽浮层，2 列分组网格（替代原先两个窄下拉）
+   定位锚点 = 顶部内层容器（已加 relative，最大宽 1152px）：
+   水平居中于容器 → 620px < 容器宽度，任何视口都不越界；
+   top 与导航按钮底边对齐 → 按钮到面板之间零间隙，悬停不闪烁 */
+.nav-mega {
+  position: absolute;
+  top: calc(100% - 0.75rem); /* 0.75rem = 容器 py-3，与导航按钮底边对齐 */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 620px;
+  max-height: 76vh;
+  overflow-y: auto;
+  padding: 12px 14px 10px;
+  background: linear-gradient(180deg, var(--nav-a), var(--nav-b));
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid var(--nav-line);
+  border-radius: 16px;
+  box-shadow: 0 24px 52px var(--nav-shadow), inset 0 1px 0 var(--nav-hi);
+  z-index: 60;
+}
+.nav-mega::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 14%; right: 14%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  opacity: 0.45;
+}
+.mega-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 18px;
+}
+.mega-group { min-width: 0; padding-bottom: 4px; }
+.mega-foot {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--nav-line);
+}
+.mega-foot-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  text-decoration: none;
+  transition: background 0.18s, color 0.18s;
+}
+.mega-foot-item:hover { background: var(--nav-hi); color: var(--nav-fg-hi); }
+.mega-foot-item small { font-size: 10px; opacity: 0.6; letter-spacing: 0.05em; }
 
 /* 移动端全屏固定抽屉：z-10000 压过公告按钮(80)/弹窗(3000)/星途悬浮球(9999)，
    抽屉开启时这些元素均不可交互 */

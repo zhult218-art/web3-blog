@@ -54,6 +54,19 @@ $targets = @(
 Log "=== roll-restart v2 begin, commit $(Commit-GB) ==="
 $failed = @()
 
+# our-free-model (:18900) is a Node process, not a JVM, so it is not in $targets.
+# Ensure the free-model pool is up before the Java loop: -Only keeps it to the
+# ungated non-JVM blocks (never wakes other missing JVMs concurrently).
+if (Test-PortFast 18900) {
+  Log "SKIP our-free-model :18900 (already running)"
+} else {
+  Log "NOTE our-free-model :18900 not running, starting"
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'start-all-services.ps1') -NoWait -Only 'our-free-model' *> $null
+  for ($i = 0; $i -lt 20; $i++) { Start-Sleep -Seconds 2; if (Test-PortFast 18900) { break } }
+  if (Test-PortFast 18900) { Log "OK   our-free-model :18900 up" }
+  else { Log "WARN our-free-model :18900 did not come up (AI free pool disabled, other upstreams unaffected)" }
+}
+
 foreach ($t in $targets) {
   $p = $t.port
   $proc = Get-JavaAtPort $p
