@@ -31,6 +31,8 @@
   <Toast />
   <ConfirmDialog />
   <ExternalLinkGuard />
+  <!-- 全局加载界面：由真实加载（在途请求 / 路由切换）驱动，无加载不显示 -->
+  <LoadingScreen />
   <XingTuAssistant v-if="jarvisOn" />
   <GlobalPlayer />
   <!-- 极光广场聊天 Dock：登录后全局常驻左侧栏（可展开/缩窄/关闭），路由切换不断线；管理员关闭群聊时隐藏 -->
@@ -51,6 +53,7 @@ import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
 import Toast from '@/components/common/Toast.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import ExternalLinkGuard from '@/components/common/ExternalLinkGuard.vue'
+import LoadingScreen from '@/components/common/LoadingScreen.vue'
 import XingTuAssistant from '@/components/common/XingTuAssistant.vue'
 import GlobalPlayer from '@/components/common/GlobalPlayer.vue'
 import ChatDock from '@/components/chat/ChatDock.vue'
@@ -62,11 +65,23 @@ import CustomContextMenu from '@/components/blog/CustomContextMenu.vue'
 import ConsolePanel from '@/components/blog/ConsolePanel.vue'
 import QzoneJobBadge from '@/components/qzone/QzoneJobBadge.vue'
 import { useShortcuts } from '@/composables/useShortcuts'
+import { FEED_URL } from '@/api/blog'
 import { initApplied, currentWallpaper } from '@/composables/useTheme'
 import { WALLPAPERS } from '@/config/wallpapers'
 
 useShortcuts()
 initApplied()
+
+// RSS 自动发现：静态 index.html 读不到 VITE_API_BASE，故运行时注入
+// <link rel="alternate" type="application/rss+xml">，让阅读器/浏览器扩展能直接识别订阅源
+{
+  const link = document.createElement('link')
+  link.rel = 'alternate'
+  link.type = 'application/rss+xml'
+  link.title = 'Aurora-朱 · 极光数字空间'
+  link.href = FEED_URL
+  document.head.appendChild(link)
+}
 
 // ── 屏蔽 Vue Suspense/transition 挂载·切页竞态的已知良性报错 ──
 // `<Suspense :timeout="0"><transition mode="out-in"><component :is>` 组合下，
@@ -355,12 +370,50 @@ canvas.bg-gl-canvas {
   opacity: 0;
 }
 
-/* 路由过渡压暗罩：覆盖在 #bg-layer（含视频壁纸）之上，过渡在暗底上进行 */
-body.route-transitioning #bg-layer::before {
+/* 路由过渡压暗罩：覆盖在 #bg-layer（含视频壁纸）之上，过渡在暗底上进行。
+   route-transitioning：顶层路由（App.vue 的 page 过渡）期间；
+   vt-active：布局内切页（View Transitions API）期间 —— 两者观感保持一致。 */
+body.route-transitioning #bg-layer::before,
+body.vt-active #bg-layer::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 2;
   background: rgba(4, 4, 14, 0.72);
 }
+
+/* ══ View Transitions API：布局内切页过渡（见 router/viewTransitions.js）══
+   浏览器级快照过渡，不参与 Vue 组件树，与 Suspense / keep-alive / <transition>
+   互不干扰；仅浏览器支持且未开启「减少动效」时生效。
+   参与动画的只有内容区（main → vt-content）与常驻播放器（vt-player）；
+   导航 / 壁纸 / 页脚在两份快照中一致，交叉淡入淡出后视觉上完全静止，
+   整体观感即「内容滑动淡入、其余常驻不动」。 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  animation: 200ms ease-out both vt-root-out;
+}
+::view-transition-new(root) {
+  animation: 240ms cubic-bezier(0.22, 0.61, 0.36, 1) both vt-root-in;
+}
+@keyframes vt-root-out { to { opacity: 0; } }
+@keyframes vt-root-in { from { opacity: 0; } }
+
+/* 内容区：离开时轻微下沉淡出，进入时上移淡入，形成"换页"层次感 */
+::view-transition-old(vt-content) {
+  animation: 180ms ease-out both vt-content-out;
+}
+::view-transition-new(vt-content) {
+  animation: 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both vt-content-in;
+}
+@keyframes vt-content-out { to { opacity: 0; transform: translateY(-8px); } }
+@keyframes vt-content-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* 常驻播放器：两份快照位置完全一致，禁用动画避免多余重绘 */
+::view-transition-group(vt-player) { animation: none; }
+::view-transition-old(vt-player) { display: none; }
+::view-transition-new(vt-player) { animation: none; }
+
 </style>

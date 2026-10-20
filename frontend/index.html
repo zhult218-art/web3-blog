@@ -4,9 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aurora-朱 · 极光数字空间</title>
+    <!-- 首帧护屏：在 JS/CSS 资源加载完成前先铺一层宣纸底，避免白屏闪烁。
+         只画「纸」不画「墨」——笔触圆相与朱红印章由 LoadingScreen.vue 挂载后
+         一笔一笔落下去，两帧之间因此完全无缝，不会出现图案跳变 -->
+    <style>
+      #boot-shield {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        background: linear-gradient(100deg, #e9e6dc 0%, #ddd8ca 26%, #c9c3b4 58%, #aeaa9c 84%, #9d9a8d 100%);
+      }
+      /* 四角包浆压暗：与 .ink-scene::after 保持一致，避免接管瞬间亮度跳变 */
+      #boot-shield::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(118% 104% at 50% 46%, transparent 50%, rgba(32, 30, 24, 0.2) 100%);
+      }
+    </style>
+
+    <!-- 开场「朱」字用的行书字体（龙藏行楷，只子集了这一个字形，不到 1KB）：
+         开场层只存在 1.45s，必须提前预载，否则首访时会先闪一下兜底字体 -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/longcang-zhu.woff2" crossorigin />
   </head>
   <body class="bg-web3-bg text-gray-100 antialiased">
     <div id="app"></div>
+    <div id="boot-shield" aria-hidden="true"></div>
     <!-- model-viewer 不再走 Google CDN（国内被墙必报 ERR_CONNECTION_RESET），
          改为 npm 依赖 @google/model-viewer，在商品详情页（shop/detail.vue）按需 import 注册 -->
     <script type="module" src="/src/main.js"></script>

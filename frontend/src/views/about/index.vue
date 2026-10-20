@@ -8,43 +8,62 @@
     </div>
 
     <div class="about-container">
-      <!-- ============================================================
-           1. HERO 区
-           ============================================================ -->
-      <section class="hero motions-reveal">
-        <div class="hero-bg-ring"></div>
-        <div class="avatar">
-          <div class="avatar-ring a"></div>
-          <div class="avatar-ring b"></div>
-          <img src="/images/avatar.jpg" alt="AURORA-朱" class="avatar-core" />
-        </div>
-        <span class="hero-badge">◈ IDENTITY · v2.0</span>
-        <h1 class="hero-name">AURORA-朱</h1>
-        <p class="hero-tagline">
-          以代码构建无限可能 · 让每一个想法都拥有沉浸式表达
-        </p>
-        <div class="hero-socials">
-          <a href="https://github.com/zhult218-art" target="_blank" rel="noopener" class="sc-btn" data-glow>
-            <span>🐙</span> GitHub
-          </a>
-          <a href="mailto:zhult218@gmail.com" class="sc-btn" data-glow>
-            <span>✉️</span> Gmail
-          </a>
-          <a href="mailto:m17357515408@163.com" class="sc-btn" data-glow>
-            <span>📮</span> 163 邮箱
-          </a>
-          <router-link to="/comments" class="sc-btn" data-glow>
-            <span>💬</span> 留言板
-          </router-link>
-        </div>
-        <div class="hero-coords">
-          <span>SYS.LAT 39.9042°N</span>
-          <span class="divider">│</span>
-          <span>LNG 116.4074°E</span>
-          <span class="divider">│</span>
-          <span class="hero-status">● ONLINE</span>
-        </div>
-      </section>
+      <div class="about-grid">
+        <!-- ============================================================
+             左侧 · 个人档案卡（吸顶）
+             ============================================================ -->
+        <aside class="profile-card motions-reveal">
+          <div class="avatar">
+            <div class="avatar-ring a"></div>
+            <div class="avatar-ring b"></div>
+            <img src="/images/avatar.jpg" alt="AURORA-朱" class="avatar-core" />
+          </div>
+          <span class="hero-badge">◈ IDENTITY · v2.0</span>
+          <h1 class="profile-name">AURORA-朱</h1>
+          <p class="profile-tagline">以代码构建无限可能 · 让每一个想法都拥有沉浸式表达</p>
+          <div class="hero-coords">
+            <span>SYS.LAT 39.9042°N</span>
+            <span class="divider">│</span>
+            <span>LNG 116.4074°E</span>
+            <span class="divider">│</span>
+            <span class="hero-status">● ONLINE</span>
+          </div>
+          <div class="profile-links">
+            <a href="https://github.com/zhult218-art" target="_blank" rel="noopener" class="sc-btn" data-glow>
+              <span>🐙</span> GitHub
+            </a>
+            <a href="mailto:zhult218@gmail.com" class="sc-btn" data-glow>
+              <span>✉️</span> Gmail
+            </a>
+            <router-link to="/link" class="sc-btn" data-glow>
+              <span>🤝</span> 友链
+            </router-link>
+            <a :href="feedUrl" target="_blank" rel="noopener" class="sc-btn" data-glow>
+              <span>📡</span> RSS 订阅
+            </a>
+          </div>
+
+          <!-- 社群入口（预留）：配置 url 后自动变为可点击，未配置时展示「敬请期待」 -->
+          <div class="profile-communities">
+            <p class="pc-block-title">加入社群</p>
+            <div class="community-list">
+              <a v-for="c in communities" :key="c.name" class="community-btn"
+                :class="{ disabled: !c.url }"
+                :href="c.url || undefined"
+                :target="c.url ? '_blank' : undefined"
+                :rel="c.url ? 'noopener' : undefined">
+                <span class="community-icon">{{ c.icon }}</span>
+                <span class="community-name">{{ c.name }}</span>
+                <span class="community-state">{{ c.url ? '加入 →' : '敬请期待' }}</span>
+              </a>
+            </div>
+          </div>
+        </aside>
+
+        <!-- ============================================================
+             右侧 · 内容主体
+             ============================================================ -->
+        <div class="about-main">
 
       <!-- ============================================================
            2. 关于我
@@ -77,26 +96,25 @@
             <span class="sp-spot" aria-hidden="true"></span>
             <div class="sp-head">
               <span class="sp-icon">{{ g.icon }}</span>
-              <div>
+              <div class="sp-title">
                 <h3 class="sp-name">{{ g.name }}</h3>
                 <span class="sp-en">{{ g.en }}</span>
               </div>
-              <span class="sp-count">{{ g.items.length }} 项</span>
+              <span class="sp-role">{{ g.role }}</span>
             </div>
             <div class="sp-items">
               <div v-for="s in g.items" :key="s.name" class="sp-item">
                 <div class="sp-item-top">
                   <span class="sp-item-name">{{ s.name }}</span>
-                  <div class="sp-item-meta">
-                    <span class="sp-lv" :data-lv="s.level">{{ levelLabel(s.level) }}</span>
-                    <span class="sp-stars">
-                      <i v-for="n in 5" :key="n" class="star" :class="{ on: n <= s.stars }">★</i>
-                    </span>
-                  </div>
+                  <span class="sp-item-meta">
+                    <span class="sp-years">{{ yearsOf(s.since) }} 年</span>
+                    <span class="sp-lv" :class="'lv-' + levelBand(s.level)">{{ levelLabel(s.level) }}</span>
+                  </span>
                 </div>
                 <div class="sp-bar">
-                  <span class="sp-bar-fill" :style="{ '--lvl': s.level + '%', width: s.level + '%' }"></span>
+                  <span class="sp-bar-fill" :style="{ width: s.level + '%' }"></span>
                 </div>
+                <p class="sp-note">{{ s.note }}</p>
               </div>
             </div>
           </article>
@@ -241,11 +259,23 @@
       </section>
 
       <!-- ============================================================
-           9. 站点导览
+           8. 足迹地图
            ============================================================ -->
       <section class="block motions-reveal" v-reveal>
         <div class="block-head">
           <span class="block-num">[ 08 ]</span>
+          <h2 class="block-title">足迹地图</h2>
+          <span class="block-en">FOOTPRINTS</span>
+        </div>
+        <FootprintMap />
+      </section>
+
+      <!-- ============================================================
+           9. 站点导览
+           ============================================================ -->
+      <section class="block motions-reveal" v-reveal>
+        <div class="block-head">
+          <span class="block-num">[ 09 ]</span>
           <h2 class="block-title">站点导览</h2>
           <span class="block-en">SITE NAVIGATION</span>
         </div>
@@ -260,19 +290,33 @@
           </router-link>
         </div>
       </section>
+        </div><!-- /about-main -->
+      </div><!-- /about-grid -->
     </div>
   </div>
 </template>
 
 <script setup>
 // ============================================================
-// 关于页：沉浸式个人展示页
-// 九大板块：Hero / 关于我 / 技能矩阵 / 时间线 / 项目展示 /
-// 数据仪表盘 / 兴趣爱好 / 联系方式 / 站点导览
+// 关于页：沉浸式个人展示页（左右分栏）
+// 左：个人档案卡（吸顶）· 右：内容主体
+// 板块：关于我 / 技能矩阵 / 时间线 / 项目展示 / 数据仪表盘 /
+// 兴趣爱好 / 联系方式 / 足迹地图 / 站点导览
 // 所有板块使用 v-reveal + motions-reveal 触发滚动入场动画
 // ============================================================
 
 import ScrollTypewriter from '@/components/ScrollTypewriter.vue'
+import FootprintMap from '@/components/about/FootprintMap.vue'
+import { FEED_URL } from '@/api/blog'
+
+// RSS 订阅地址（后端动态生成，/blog/feed.xml 经网关转发）
+const feedUrl = FEED_URL
+
+// 社群入口（预留）：url 留空即展示「敬请期待」，后续填入 QQ 群 / TG 群链接即可
+const communities = [
+  { name: 'QQ 交流群', icon: '🐧', url: '' },
+  { name: 'Telegram 群', icon: '✈️', url: '' }
+]
 
 // 技能矩阵交互：鼠标移动 3D 倾斜 + 聚光跟随
 function onTilt(e) {
@@ -295,8 +339,17 @@ function levelLabel(lv) {
   if (lv >= 90) return 'EXPERT'
   if (lv >= 80) return 'ADVANCED'
   if (lv >= 70) return 'PROFICIENT'
-  if (lv >= 60) return 'FAMILIAR'
   return 'LEARNING'
+}
+// 等级色带：用于 .sp-lv 的配色类名
+function levelBand(lv) {
+  if (lv >= 90) return 'expert'
+  if (lv >= 80) return 'advanced'
+  return 'steady'
+}
+// 投入年限：从开始接触的年份算起
+function yearsOf(since) {
+  return Math.max(1, new Date().getFullYear() - since)
 }
 
 // 「关于我」滚动打字机文本（随下滑逐字写出，倒滚回收）
@@ -312,60 +365,62 @@ const aboutText = `我是一名沉迷于「沉浸式 Web 体验」的前端工�
 探索如何让 Web 不只是「展示信息的容器」，而是「承载智能与感知的现场」。
 如果你也在做类似的事情，欢迎在留言板或邮箱聊聊。`
 
+// 技能矩阵：每项含「投入年限 + 熟练度 + 具体做过什么」，
+// 用真实经历替代星级打分，避免千篇一律的刻板数值
 const skillGroups = [
   {
-    name: '前端工程', en: 'FRONTEND', icon: '🎨',
+    name: '前端工程', en: 'FRONTEND', icon: '🎨', role: '主力方向',
     items: [
-      { name: 'Vue 3 / Composition API', level: 92, stars: 5 },
-      { name: 'TypeScript / JavaScript', level: 88, stars: 5 },
-      { name: 'TailwindCSS / SCSS', level: 86, stars: 4 },
-      { name: 'Three.js / WebGL', level: 78, stars: 4 },
-      { name: 'Vite / Webpack', level: 82, stars: 4 },
+      { name: 'Vue 3 / Composition API', level: 92, since: 2020, note: '自研 40+ 业务组件 · Pinia 状态架构与路由守卫体系' },
+      { name: 'TypeScript / JavaScript', level: 88, since: 2019, note: '全量类型化 API 层 · 泛型与类型收窄实战' },
+      { name: 'TailwindCSS / SCSS', level: 86, since: 2021, note: '设计令牌驱动的暗色主题体系 · 响应式栅格' },
+      { name: 'Three.js / WebGL', level: 78, since: 2021, note: 'GLSL 着色器粒子系统 · 星系体渲染与后处理' },
+      { name: 'Vite / 构建优化', level: 82, since: 2020, note: '首屏分包 · 资源体积治理与按需加载' },
     ],
   },
   {
-    name: '后端服务', en: 'BACKEND', icon: '🛰️',
+    name: '后端服务', en: 'BACKEND', icon: '🛰️', role: '主力方向',
     items: [
-      { name: 'Spring Boot / Cloud', level: 90, stars: 5 },
-      { name: 'FastAPI / Python', level: 80, stars: 4 },
-      { name: 'Node.js / Express', level: 75, stars: 4 },
-      { name: 'WebSocket / gRPC', level: 72, stars: 4 },
+      { name: 'Spring Boot / Cloud', level: 90, since: 2020, note: '网关·注册·配置三件套 · 多服务串行编排与内存治理' },
+      { name: 'FastAPI / Python', level: 80, since: 2023, note: 'AI 能力网关 · 多 provider 轮询与超时淘汰策略' },
+      { name: 'Node.js / Express', level: 76, since: 2021, note: 'BFF 聚合层 · 中间件与静态资源代理' },
+      { name: 'Socket.IO / 实时通信', level: 74, since: 2022, note: '群聊私聊同源架构 · 心跳重连与长轮询降级' },
     ],
   },
   {
-    name: '数据存储', en: 'DATABASE', icon: '🗄️',
+    name: '数据存储', en: 'DATABASE', icon: '🗄️', role: '熟练运用',
     items: [
-      { name: 'MySQL / 索引调优', level: 85, stars: 5 },
-      { name: 'Redis / 缓存策略', level: 82, stars: 4 },
-      { name: 'PostgreSQL', level: 70, stars: 4 },
-      { name: 'MongoDB / 向量库', level: 75, stars: 4 },
+      { name: 'MySQL / 索引调优', level: 86, since: 2020, note: '慢查询定位与联合索引重排 · 读写分离' },
+      { name: 'Redis / 缓存策略', level: 82, since: 2021, note: '热点缓存与击穿防护 · PubSub 集群广播预留' },
+      { name: 'PostgreSQL', level: 70, since: 2022, note: 'JSONB 半结构化存储 · 全文检索' },
+      { name: '向量检索 / 文档库', level: 76, since: 2023, note: 'RAG 文档切片入库 · 相似度召回与重排' },
     ],
   },
   {
-    name: 'DevOps', en: 'DEVOPS', icon: '🚀',
+    name: 'DevOps', en: 'DEVOPS', icon: '🚀', role: '熟练运用',
     items: [
-      { name: 'Docker / Compose', level: 88, stars: 5 },
-      { name: 'Kubernetes / K8s', level: 72, stars: 4 },
-      { name: 'Jenkins / Actions', level: 80, stars: 4 },
-      { name: 'Nacos / Grafana', level: 78, stars: 4 },
+      { name: 'Docker / Compose', level: 88, since: 2021, note: '多服务容器编排 · 镜像分层瘦身与健康探针' },
+      { name: 'Kubernetes / K8s', level: 72, since: 2023, note: 'Deployment / Service / Ingress · 资源限额与滚动发布' },
+      { name: 'CI 流水线', level: 80, since: 2022, note: '构建即代码 · 自动检测与产物归档' },
+      { name: 'Nacos / Grafana', level: 78, since: 2023, note: '配置中心动态刷新 · 指标看板与告警阈值' },
     ],
   },
   {
-    name: 'AI 与算法', en: 'AI · ML', icon: '🧠',
+    name: 'AI 与算法', en: 'AI · ML', icon: '🧠', role: '持续钻研',
     items: [
-      { name: 'LLM Prompt / Function Call', level: 86, stars: 5 },
-      { name: 'RAG 检索增强生成', level: 82, stars: 4 },
-      { name: 'LangChain / Agent 编排', level: 78, stars: 4 },
-      { name: 'Python 数据科学栈', level: 80, stars: 4 },
+      { name: 'LLM Prompt / Function Call', level: 86, since: 2023, note: '多模型路由与工具调用编排 · 结构化输出约束' },
+      { name: 'RAG 检索增强生成', level: 82, since: 2023, note: '混合检索 + 重排 · 引用溯源与幻觉抑制' },
+      { name: 'Agent 工作流编排', level: 78, since: 2024, note: '多步任务拆解 · 记忆持久化与失败回退' },
+      { name: 'Python 数据科学栈', level: 80, since: 2021, note: 'Pandas 因子计算 · 回测统计与可视化' },
     ],
   },
   {
-    name: '工具与协作', en: 'TOOLING', icon: '🛠️',
+    name: '工具与协作', en: 'TOOLING', icon: '🛠️', role: '日常必备',
     items: [
-      { name: 'Git / 协作流程', level: 90, stars: 5 },
-      { name: 'Figma / 设计还原', level: 76, stars: 4 },
-      { name: 'Linux / Shell', level: 82, stars: 4 },
-      { name: 'Postman / 性能压测', level: 80, stars: 4 },
+      { name: 'Git / 协作流程', level: 90, since: 2019, note: '分支策略与冲突治理 · 提交规范与变更追溯' },
+      { name: 'Figma / 设计还原', level: 76, since: 2022, note: '设计令牌对齐 · 交互稿到像素级组件落地' },
+      { name: 'Linux / Shell', level: 84, since: 2019, note: '服务巡检脚本 · 端口探测与进程内存看护' },
+      { name: '性能压测 / 可观测', level: 80, since: 2022, note: '压测基线 · 首屏指标与接口 P95 跟踪' },
     ],
   },
 ]
@@ -525,8 +580,154 @@ const modules = [
 .about-container {
   position: relative;
   z-index: 1;
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
+}
+
+/* ============================================================
+   左右分栏 · 左个人档案卡（吸顶）/ 右内容主体
+   ============================================================ */
+.about-grid {
+  display: grid;
+  grid-template-columns: 292px 1fr;
+  gap: 2.4rem;
+  align-items: start;
+}
+
+.profile-card {
+  position: sticky;
+  top: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem 1.35rem 1.5rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, rgba(26, 22, 52, 0.78), rgba(10, 10, 26, 0.62));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* 卡片顶部流光分隔线 */
+.profile-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.7), rgba(6, 182, 212, 0.7), transparent);
+}
+
+.profile-card .avatar { width: 118px; height: 118px; margin-bottom: 1.1rem; }
+.profile-card .avatar-core { width: 92px; height: 92px; }
+.profile-card .hero-badge { margin-bottom: 0.85rem; }
+
+.profile-name {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  background: linear-gradient(135deg, #06b6d4 0%, #a855f7 50%, #ec4899 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.55rem;
+}
+
+.profile-tagline {
+  font-size: 0.76rem;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 1.1rem;
+}
+
+.profile-card .hero-coords {
+  font-size: 0.56rem;
+  gap: 0.4rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 1.4rem;
+}
+
+.profile-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  width: 100%;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.profile-links .sc-btn {
+  justify-content: center;
+  padding: 0.5rem 0.5rem;
+  font-size: 0.7rem;
+}
+
+/* 社群入口（预留） */
+.profile-communities {
+  width: 100%;
+  margin-top: 1.2rem;
+  text-align: left;
+}
+
+.pc-block-title {
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Courier New', monospace;
+  margin-bottom: 0.65rem;
+}
+
+.community-list { display: flex; flex-direction: column; gap: 0.45rem; }
+
+.community-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.03);
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.community-btn:hover:not(.disabled) {
+  color: #fff;
+  border-color: rgba(168, 85, 247, 0.55);
+  background: rgba(168, 85, 247, 0.12);
+  transform: translateX(3px);
+}
+
+.community-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+.community-icon { font-size: 0.95rem; }
+.community-state {
+  margin-left: auto;
+  font-size: 0.58rem;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Courier New', monospace;
+}
+
+.about-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 窄屏：取消吸顶，改为单列堆叠 */
+@media (max-width: 980px) {
+  .about-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .profile-card { position: static; }
+  .profile-links { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .profile-links { grid-template-columns: 1fr 1fr; }
 }
 
 /* ============================================================
@@ -787,6 +988,8 @@ const modules = [
 
 .sp-icon { font-size: 1.4rem; }
 
+.sp-title { min-width: 0; }
+
 .sp-name {
   font-size: 0.95rem;
   font-weight: 700;
@@ -802,12 +1005,17 @@ const modules = [
   margin-top: 2px;
 }
 
-.sp-count {
+/* 分组定位标签：主力方向 / 熟练运用 / … */
+.sp-role {
   margin-left: auto;
-  font-size: 0.58rem;
-  letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.3);
-  font-family: 'Courier New', monospace;
+  flex-shrink: 0;
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+  color: #9db2ff;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(120, 140, 255, 0.1);
+  border: 1px solid rgba(120, 140, 255, 0.22);
   white-space: nowrap;
 }
 
@@ -833,6 +1041,15 @@ const modules = [
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+/* 投入年限 */
+.sp-years {
+  font-size: 0.54rem;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.42);
+  font-family: 'Courier New', monospace;
 }
 
 /* 等级标签：按熟练度分色 */
@@ -846,38 +1063,25 @@ const modules = [
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.5);
 }
-.sp-lv[data-lv="90"],
-.sp-lv[data-lv="91"],
-.sp-lv[data-lv="92"],
-.sp-lv[data-lv="93"],
-.sp-lv[data-lv="94"],
-.sp-lv[data-lv="95"] {
+.sp-lv.lv-expert {
   background: rgba(236, 72, 153, 0.18);
   color: #f9a8d4;
 }
-.sp-lv[data-lv="80"],
-.sp-lv[data-lv="81"],
-.sp-lv[data-lv="82"],
-.sp-lv[data-lv="83"],
-.sp-lv[data-lv="84"],
-.sp-lv[data-lv="85"],
-.sp-lv[data-lv="86"],
-.sp-lv[data-lv="87"],
-.sp-lv[data-lv="88"] {
+.sp-lv.lv-advanced {
   background: rgba(168, 85, 247, 0.18);
   color: #c4b5fd;
 }
-
-.sp-stars {
-  display: inline-flex;
-  gap: 1px;
-  font-size: 0.62rem;
+.sp-lv.lv-steady {
+  background: rgba(6, 182, 212, 0.16);
+  color: #7fd9ff;
 }
 
-.sp-stars .star { color: rgba(255, 255, 255, 0.16); }
-.sp-stars .star.on {
-  color: #ffd166;
-  text-shadow: 0 0 5px rgba(255, 209, 102, 0.6);
+/* 具体做过什么：一句话经历，替代抽象星级 */
+.sp-note {
+  margin-top: 0.4rem;
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .sp-bar {

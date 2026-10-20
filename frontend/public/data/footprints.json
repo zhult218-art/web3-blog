@@ -1,0 +1,18 @@
+{
+  "_comment": "足迹数据（种子示例，请替换为你自己的真实足迹）。字段说明见项目 docs；categories 用于地图上方的分类筛选按钮，markerColor 可选 sunset/ocean/forest/amber/violet/citrus",
+  "locations": [
+    { "name": "北京", "coordinates": "116.4074,39.9042", "description": "工作与生活的城市，也是这个站点的诞生地。", "date": "2024-05-01", "categories": ["工作"], "markerColor": "sunset" },
+    { "name": "上海", "coordinates": "121.4737,31.2304", "description": "出差常去的城市，外滩夜色与陆家嘴天际线。", "date": "2024-06-15", "categories": ["工作"], "markerColor": "ocean" },
+    { "name": "杭州", "coordinates": "120.1551,30.2741", "description": "西湖边走一走，人间天堂名不虚传。", "date": "2024-07-20", "categories": ["旅行"], "markerColor": "forest" },
+    { "name": "成都", "coordinates": "104.0668,30.5728", "description": "天府之国，火锅与慢生活。", "date": "2024-08-10", "categories": ["旅行"], "markerColor": "amber" },
+    { "name": "西安", "coordinates": "108.9398,34.3416", "description": "十三朝古都，兵马俑与城墙。", "date": "2024-09-05", "categories": ["旅行"], "markerColor": "violet" },
+    { "name": "深圳", "coordinates": "114.0579,22.5431", "description": "年轻活力的科技之城。", "date": "2024-10-12", "categories": ["工作"], "markerColor": "citrus" },
+    { "name": "南京", "coordinates": "118.7969,32.0603", "description": "六朝古都，秦淮河畔。", "date": "2023-09-01", "categories": ["上学"], "markerColor": "violet" },
+    { "name": "武汉", "coordinates": "114.3055,30.5928", "description": "江城，樱花与长江大桥。", "date": "2023-03-20", "categories": ["上学"], "markerColor": "forest" },
+    { "name": "青岛", "coordinates": "120.3826,36.0671", "description": "海滨城市，啤酒与欧陆风情。", "date": "2024-10-05", "categories": ["旅行"], "markerColor": "ocean" },
+    { "name": "哈尔滨", "coordinates": "126.6424,45.7560", "description": "冰雪世界，中央大街的面包石路。", "date": "2024-12-28", "categories": ["旅行"], "markerColor": "amber" },
+    { "name": "重庆", "coordinates": "106.5516,29.5626", "description": "山城立体地貌与火锅文化。", "date": "2024-06-22", "categories": ["旅行"], "markerColor": "sunset" },
+    { "name": "拉萨", "coordinates": "91.1322,29.6604", "description": "高原圣城，布达拉宫。", "date": "2024-09-01", "categories": ["旅行"], "markerColor": "violet" },
+    { "name": "广州", "coordinates": "113.2644,23.1291", "description": "岭南文化的代表城市。", "date": "2024-11-02", "categories": ["工作"], "markerColor": "forest" }
+  ]
+}
