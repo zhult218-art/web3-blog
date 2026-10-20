@@ -81,12 +81,15 @@ frontend/logs-*.txt
 *.log.*
 
 # Dev handoff/temp notes
-HANDOFF.md
+# 注：HANDOFF.md 是跨会话唯一的上下文载体（见其 §11 要求持续维护），必须纳入版本控制，
+# 否则换机/回滚/误删即永久丢失。此前的忽略规则已移除。
 check-encoding.json
 frontend/PROJECT_HANDOFF.md
 frontend/REFACTOR-MEGA-COMPONENTS.md
-backend/DECOMPILED-SOURCES.md
 # Runtime data / build output (2026-10-15)
 backend/uploads/
 backend/**/bin/
 py-service/data/
+
+# AI 工具本地状态（会话记忆/缓存，不入库）
+.workbuddy-ai/

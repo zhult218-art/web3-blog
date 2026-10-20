@@ -2,15 +2,18 @@
 
 ## 系统要求
 
-| 组件 | 版本要求 | 安装路径 |
+> ⚠️ 下表「安装路径」为历史示例，2026-10-20 核查确认这些路径在本机已不存在。
+> 请按自己的实际安装位置替换下文的 `<工具目录>`、`<项目根>`、`<Node安装目录>` 占位符。
+
+| 组件 | 版本要求 | 安装路径（示例） |
 |------|---------|---------|
-| JDK | 17+ | `F:\tools\jdk17` |
-| Maven | 3.8+ | `F:\tools\apache-maven-3.9.6` |
-| Node.js | 16+ | `F:\soft\nodejs\nodejs` |
+| JDK | 17+ | `<工具目录>\jdk17` |
+| Maven | 3.8+ | `<工具目录>\apache-maven-3.9.6` |
+| Node.js | 16+ | `<Node安装目录>` |
 | MySQL | 8.0+ | `C:\Program Files\MySQL\MySQL Server 8.0` |
-| Redis | 6+ | `F:\tools\redis` |
-| RabbitMQ | 3.12+ | `F:\tools\rabbitmq` |
-| Nacos | 2.x | `F:\tools\nacos` |
+| Redis | 6+ | `<工具目录>\redis` |
+| RabbitMQ | 3.12+ | `<工具目录>\rabbitmq` |
+| Nacos | 2.x | `<工具目录>\nacos` |
 
 ## 快速启动
 
@@ -20,7 +23,7 @@
 - MySQL（需提前启动）
 - Redis
 - Nacos
-- 所有 12 个后端微服务
+- 所有 13 个后端微服务
 - 前端开发服务器
 
 ### 手动启动
@@ -29,19 +32,19 @@
 
 ```powershell
 # Redis
-F:\tools\redis\redis-server.exe F:\tools\redis\redis.windows.conf
+<工具目录>\redis\redis-server.exe <工具目录>\redis\redis.windows.conf
 
 # Nacos (standalone模式)
-cd F:\tools\nacos\bin
+cd <工具目录>\nacos\bin
 .\startup.cmd -m standalone
 ```
 
 #### 2. 启动后端微服务
 
 ```powershell
-$env:JAVA_HOME = "F:\tools\jdk17"
+$env:JAVA_HOME = "<工具目录>\jdk17"
 
-cd F:\project\my-blog\web3-blog\backend
+cd <项目根>\backend
 
 # 使用 PowerShell 脚本启动所有服务
 powershell -ExecutionPolicy Bypass -File ..\start-all-services.ps1
@@ -51,11 +54,11 @@ powershell -ExecutionPolicy Bypass -File ..\start-all-services.ps1
 
 ```powershell
 # 打包（只需一次，含 24 个单元测试）
-$env:JAVA_HOME = "F:\tools\jdk17"
-F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean package
+$env:JAVA_HOME = "<工具目录>\jdk17"
+<工具目录>\apache-maven-3.9.6\bin\mvn.cmd clean package
 
 # 启动各个服务（每个开一个终端窗口）
-cd F:\project\my-blog\web3-blog\backend
+cd <项目根>\backend
 
 java -jar gateway/target/gateway-1.0.0.jar --spring.profiles.active=prod      # 端口 8080
 java -jar user-service/target/user-service-1.0.0.jar --spring.profiles.active=prod    # 8081
@@ -69,6 +72,7 @@ java -jar software-service/target/software-service-1.0.0.jar --spring.profiles.a
 java -jar resource-service/target/resource-service-1.0.0.jar --spring.profiles.active=prod # 8089
 java -jar jarvis-service/target/jarvis-service-1.0.0.jar --spring.profiles.active=prod   # 9001
 java -jar admin-service/target/admin-service-1.0.0.jar --spring.profiles.active=prod    # 9002
+java -jar ai-proxy-service/target/ai-proxy-service-1.0.0.jar --spring.profiles.active=prod # 8093
 ```
 
 #### 3. 初始化数据库
@@ -82,7 +86,7 @@ mysql -u root -proot --database=web3_jarvis < backend\deploy\mysql\init\09-web3_
 #### 4. 启动前端
 
 ```powershell
-cd F:\project\my-blog\web3-blog\frontend
+cd <项目根>\frontend
 npm install
 npm run dev
 ```
@@ -108,7 +112,7 @@ npm run dev
 | Nacos | 8848 | - | 服务发现/配置中心 |
 | Redis | 6379 | - | 缓存 |
 | RabbitMQ | 5672 | - | 消息队列 |
-| MySQL | 3306 | 13 个 web3_* 库 | 数据存储 |
+| MySQL | 3306 | 11 个 web3_* 库 | 数据存储 |
 
 ## 前端访问
 
@@ -156,7 +160,7 @@ curl http://localhost:8080/jarvis/commands
 ### 1. Maven 构建失败：JAVA_HOME 未设置
 
 ```powershell
-$env:JAVA_HOME = "F:\tools\jdk17"
+$env:JAVA_HOME = "<工具目录>\jdk17"
 ```
 
 确保 JAVA_HOME 指向 JDK 根目录（不是 bin 子目录）。

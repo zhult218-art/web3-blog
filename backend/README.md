@@ -50,9 +50,9 @@ Spring Cloud Alibaba 微服务集群：Spring Boot 3 + Spring Cloud Gateway + Na
 每个业务服务 `pom.xml` 均依赖 `common-core` 与 `common-security`，需以 `mvn install` 方式先安装到本地仓库：
 
 ```powershell
-$env:JAVA_HOME = "F:\tools\jdk17"
+$env:JAVA_HOME = "<工具目录>\jdk17"
 cd backend
-F:\tools\apache-maven-3.9.6\bin\mvn.cmd install -pl common/common-core,common/common-security,common/common-util
+<工具目录>\apache-maven-3.9.6\bin\mvn.cmd install -pl common/common-core,common/common-security,common/common-util
 ```
 
 ## 网关路由表（gateway/src/main/resources/application.yml）
@@ -76,7 +76,7 @@ F:\tools\apache-maven-3.9.6\bin\mvn.cmd install -pl common/common-core,common/co
 
 ### 1. 环境要求
 
-JDK 17+、Maven 3.8+（本机路径 `F:\tools\jdk17`、`F:\tools\apache-maven-3.9.6`）、MySQL 8、Redis、RabbitMQ、Nacos 2.x。
+JDK 17+、Maven 3.8+（本机路径 `<工具目录>\jdk17`、`<工具目录>\apache-maven-3.9.6`）、MySQL 8、Redis、RabbitMQ、Nacos 2.x。
 
 ### 2. 一键启动（Windows）
 
@@ -91,11 +91,11 @@ powershell -ExecutionPolicy Bypass -File ..\start-all-services.ps1   # 在 backe
 ### 3. 手动打包 + 启动
 
 ```powershell
-$env:JAVA_HOME = "F:\tools\jdk17"
+$env:JAVA_HOME = "<工具目录>\jdk17"
 cd backend
 
 # 首次：安装公共模块 + 全量打包（含 24 个单元测试）
-F:\tools\apache-maven-3.9.6\bin\mvn.cmd clean install
+<工具目录>\apache-maven-3.9.6\bin\mvn.cmd clean install
 
 # 逐个启动（prod 模式不依赖 Nacos 即可运行；dev 模式需 Nacos 可用）
 java -jar gateway/target/gateway-1.0.0.jar --spring.profiles.active=prod
@@ -228,8 +228,8 @@ blog-service/src/main/java/.../
 - 运行：
 
 ```powershell
-$env:JAVA_HOME = "F:\tools\jdk17"
-F:\tools\apache-maven-3.9.6\bin\mvn.cmd -pl media-service,blog-service,forum-service,shop-service test -f backend/pom.xml
+$env:JAVA_HOME = "<工具目录>\jdk17"
+<工具目录>\apache-maven-3.9.6\bin\mvn.cmd -pl media-service,blog-service,forum-service,shop-service test -f backend/pom.xml
 ```
 
 > CI（`.github/workflows/ci.yml`）已改为执行 `mvn test`（24 个单元测试全绿）；本地验证可按上述命令执行。

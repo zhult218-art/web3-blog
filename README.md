@@ -9,7 +9,8 @@ Web3 极简未来科技风个人综合技术门户：博客 / 论坛 / 商城 / 
 | 前端 | Vue 3 + Vite 5 + Pinia + Vue Router + TailwindCSS + GSAP + Three.js + ECharts |
 | 后端 | Java 17 + Spring Boot 3.3 + Spring Cloud Alibaba（Nacos 注册/配置）+ Spring Cloud Gateway + MyBatis-Plus |
 | 基础设施 | MySQL 8、Redis、RabbitMQ、Nacos |
-| 附加服务 | `py-service`（统一 Python FastAPI 服务，端口 9006：量化 / QZone / 视频 / Whisper / WiFi / OSINT / 语音 / 驾驶舱） |
+| 附加服务 | `py-service`（统一 Python FastAPI 服务，端口 9006，12 个模块：量化 / QZone / 视频 / Whisper / WiFi / OSINT / 语音 / 驾驶舱 / AI 多模型 / 网页采集 / GhostTrack / 系统监控） |
+| Node 附加服务 | `node-service`（`netease-music-api` :3000 网易云音乐接口、`chat-gateway` :3010 聊天网关） |
 
 ## 目录结构
 
@@ -29,19 +30,21 @@ web3-blog/
 │   ├── resource-service/        # 资源上传 / 下载（8089）
 │   ├── jarvis-service/          # JARVIS AI 语音助手（9001）
 │   ├── admin-service/           # 管理后台（9002）
+│   ├── ai-proxy-service/        # AI 中转站 / OpenAI 兼容代理 / Agent 编排（8093）
 │   ├── common/                  # 公共模块（core / security / util）
 │   ├── deploy/                  # MySQL 初始化 SQL 等部署文件
 │   └── nacos/                   # Nacos 配置目录
-├── py-service/                  # 统一 Python FastAPI 服务（9006：量化/工具/语音等模块）
+├── py-service/                  # 统一 Python FastAPI 服务（9006：量化/工具/语音等 12 个模块）
+├── node-service/                # Node 附加服务（netease-music-api :3000 / chat-gateway :3010）
 ├── docs/                        # 需求文档 / 概述说明文档
-├── start-all-services.bat       # Windows 一键启动脚本
-├── start-all-services.ps1       # PowerShell 一键启动脚本
+├── start-all-services.bat       # Windows 一键启动脚本（壳）
+├── start-all-services.ps1       # PowerShell 一键启动脚本（真实逻辑）
 ├── docker-compose.yml           # 基础设施与后端容器编排
-├── deploy.sh                    # Linux 部署脚本
-├── HANDOFF.md                   # 开发会话记录（按会话追加）
+├── HANDOFF.md                   # 开发会话记录（按会话追加，跨会话上下文唯一载体）
 ├── INSTALL.md                   # 环境安装指南
 ├── DEPLOY.md                    # 部署指南
 ├── MODULES.md                   # 模块说明
+├── STARTUP.md                   # 服务启动顺序与依赖说明
 └── RUN.md                       # 运行指南（环境要求、手动启动）
 ```
 
@@ -69,9 +72,11 @@ web3-blog/
 ### 方式一：Docker Compose（推荐，基础设施 + 后端）
 
 ```bash
-# 1. 启动基础设施与后端服务
+# 1. 启动基础设施与后端服务（21 个服务定义见 docker-compose.yml）
 docker compose up -d mysql redis rabbitmq
-docker compose up -d gateway user-service blog-service forum-service shop-service media-service quant-service tool-service software-service resource-service jarvis-service admin-service
+docker compose up -d gateway user-service blog-service forum-service shop-service \
+  media-service quant-service tool-service software-service resource-service \
+  ai-proxy-service jarvis-service admin-service py-service netease-music-api chat-gateway
 
 # 2. 启动前端（开发模式）
 cd frontend
@@ -121,7 +126,10 @@ npm run dev        # 访问 http://localhost:5173
 | Resource Service | 8089 | web3_resource | 资源上传/下载 |
 | Jarvis Service | 9001 | web3_jarvis | AI 语音助手 |
 | Admin Service | 9002 | web3_admin | 管理后台 |
+| AI Proxy Service | 8093 | web3_admin（与 admin-service 共库） | AI 中转站 / OpenAI 兼容代理 / Agent 编排 |
 | Py Service | 9006 | - | 统一 Python 服务（量化/工具/语音等） |
+| Netease Music API | 3000 | - | node-service 网易云音乐接口 |
+| Chat Gateway | 3010 | - | node-service 聊天网关 |
 | Nacos | 8848 | - | 服务注册/配置中心 |
 | Redis | 6379 | - | 缓存 |
 | RabbitMQ | 5672 | - | 消息队列 |
@@ -138,7 +146,7 @@ npm run dev        # 访问 http://localhost:5173
 ## 数据库初始化
 
 ```powershell
-# 容器方式：backend/deploy/mysql/init/ 下 18 个 SQL 由 MySQL 容器自动执行
+# 容器方式：backend/deploy/mysql/init/ 下 19 个 SQL 由 MySQL 容器按文件名顺序自动执行
 # 本地方式：
 mysql -u root -p < backend/deploy/mysql/init/01-databases.sql
 mysql -u root -p --database=web3_user < backend/deploy/mysql/init/02-web3_user.sql
@@ -148,6 +156,7 @@ mysql -u root -p --database=web3_user < backend/deploy/mysql/init/02-web3_user.s
 ## 相关文档
 
 - `RUN.md` — 详细运行指南（环境要求、手动逐个启动、健康检查、常见问题）
+- `STARTUP.md` — 服务启动顺序、依赖关系与端口占用
 - `INSTALL.md` — 环境安装步骤
 - `DEPLOY.md` — 生产部署
 - `MODULES.md` — 模块设计说明
