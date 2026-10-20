@@ -199,6 +199,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Modal from '@/components/common/Modal.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
+import { formatDayCN as formatDate } from '@/utils/date.js'
 
 // 分页列表状态（页码 / 分类 / 加载 / 空状态）统一由 usePagedList 管理
 const { list, page, size, total, loaded, selectedCat, load, setCategory, removeWhere } = usePagedList(getResourceList, { pageSize: 15 })
@@ -269,7 +270,6 @@ function formatSize(bytes) {
 }
 
 // 本地化格式化资源日期
-function formatDate(d) { return formatDayCN(d, '') }
 
 // 根据文件类型返回对应图标
 function fileIcon(type) {

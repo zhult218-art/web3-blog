@@ -6,6 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getNeteaseSongUrl, getNeteaseLyric, recordPlay } from '@/api/music'
+import { formatDuration as formatTime } from '@/utils/date.js'
 
 // localStorage 兜底历史 key（未登录/弱网仍可访问最近播放）
 const LOCAL_HISTORY_KEY = 'music_history'
@@ -458,13 +459,6 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   // 秒数格式化为 mm:ss
-  function formatTime(secs) {
-    if (!secs || !isFinite(secs) || secs < 0) return '00:00'
-    secs = Math.floor(secs)
-    const m = Math.floor(secs / 60)
-    const s = secs % 60
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  }
 
   // 注册锁屏/通知栏控制按钮（store 实例方法已就绪时调用一次）
   // 调用时机：音乐页面 onMounted 时（避免空 store 时注册无意义 handler）

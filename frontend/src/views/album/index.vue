@@ -229,7 +229,7 @@ import { useAuthStore } from '@/stores/modules/auth'
 import { hasPerm } from '@/utils/permissions'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
-import { formatDayCN } from '@/utils/date'
+import { formatDayCN, formatDayCN as formatDate } from '@/utils/date'
 import Modal from '@/components/common/Modal.vue'
 import Loading from '@/components/common/Loading.vue'
 import PhotoLightbox from '@/components/album/PhotoLightbox.vue'
@@ -597,8 +597,6 @@ async function removePhoto(photo) {
 }
 
 // 日期本地化
-function formatDate(d) { return formatDayCN(d, '') }
-
 onMounted(() => {
   fetchPhotos()
   initParticles()

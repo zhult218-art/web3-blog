@@ -66,6 +66,7 @@ import { useToastStore } from '@/stores/modules/toast'
 import { confirm } from '@/composables/useDialog'
 import { formatDateTimeCN } from '@/utils/date'
 import Loading from '@/components/common/Loading.vue'
+import { formatDateTimeCN as formatDate } from '@/utils/date.js'
 
 const router = useRouter()
 const toast = useToastStore()
@@ -87,7 +88,6 @@ function badgeClass(s) {
 }
 
 // 本地化格式化订单时间
-function formatDate(d) { return formatDateTimeCN(d, '') }
 
 function goPay(order) { router.push(`/pay?orderId=${order.id}`) }
 

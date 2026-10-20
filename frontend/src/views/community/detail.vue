@@ -199,6 +199,7 @@ import { useAuthStore } from '@/stores/modules/auth'
 import { hasPerm } from '@/utils/permissions'
 import Loading from '@/components/common/Loading.vue'
 import { aiChat } from '@/api/freeAi'
+import { formatShortDateTime as formatDate } from '@/utils/date.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -233,10 +234,6 @@ const readingTime = computed(() => {
   return Math.max(1, Math.ceil(words / 500))
 })
 
-function formatDate(d) {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
 
 function handleScroll() {
   const scrollTop = document.documentElement.scrollTop || document.body.scrollTop

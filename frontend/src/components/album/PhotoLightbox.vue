@@ -81,6 +81,7 @@ import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { formatDayCN } from '@/utils/date'
 import PhotoEditor from './PhotoEditor.vue'
+import { formatDayCN as formatDate } from '@/utils/date.js'
 
 const props = defineProps({
   photos: { type: Array, default: () => [] },
@@ -228,7 +229,6 @@ function scrollThumb() {
 }
 
 // ---------- 其他 ----------
-function formatDate(d) { return formatDayCN(d, '') }
 function close() { emit('close') }
 const gradientCls = 'from-purple-500/40 to-pink-500/40'
 

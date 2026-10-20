@@ -66,6 +66,7 @@ import { ref, computed, onMounted } from 'vue'
 import { getVisitList, getVisitSummary } from '@/api/admin'
 import Pagination from '@/components/common/Pagination.vue'
 import Loading from '@/components/common/Loading.vue'
+import { formatTime24 as formatTime } from '@/utils/date.js'
 
 const list = ref([])
 const page = ref(1)
@@ -83,10 +84,6 @@ const summaryCards = computed(() => [
 ])
 
 // 格式化访问时间
-function formatTime(t) {
-  if (!t) return '-'
-  return new Date(t).toLocaleString('zh-CN', { hour12: false })
-}
 
 // 解析 User-Agent 提取浏览器与操作系统信息
 function parseUA(ua) {

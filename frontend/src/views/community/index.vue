@@ -267,6 +267,7 @@ import { boards, seedPosts } from '@/data/communityBoards'
 import PublishModal from '@/components/community/PublishModal.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { formatRelative as formatDate } from '@/utils/date.js'
 
 // 显式命名以供外层 <keep-alive :include="..."> 缓存本组件：
 // 进入社区页时复用已加载的列表/stats，不再每次重挂重发请求，显著加快"每次进去慢"。
@@ -348,16 +349,6 @@ const currentBoard = computed(() =>
 )
 
 // 格式化时间：1 分钟内显示「刚刚」，1 小时内显示「x 分钟前」，今天显示「HH:mm」，其余显示短日期
-function formatDate(d) {
-  if (!d) return ''
-  const date = new Date(d)
-  const now = new Date()
-  const diff = (now - date) / 1000
-  if (diff < 60) return '刚刚'
-  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-}
 
 // 拉取服务端真实帖子（web3_forum），社区与博客分库，互不混用。
 // 结果统一放入 backendList，与预置话题在 allFeed 中合并后再客户端分页

@@ -37,6 +37,7 @@
 import { ref, onMounted } from 'vue'
 import { getPendingApplications, approveApplication, rejectApplication } from '@/api/chat'
 import { alert as dlgAlert } from '@/composables/useDialog'
+import { formatTime24 as formatTime } from '@/utils/date.js'
 
 const applications = ref([])
 
@@ -65,10 +66,6 @@ async function reject(id) {
   }
 }
 
-function formatTime(t) {
-  if (!t) return ''
-  return new Date(t).toLocaleString('zh-CN', { hour12: false })
-}
 
 onMounted(() => { loadApplications() })
 </script>

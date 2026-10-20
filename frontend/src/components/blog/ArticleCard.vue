@@ -57,6 +57,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReadMark } from '@/composables/useReadMark'
 import { formatDay } from '@/utils/date'
+import { formatDay as formatDate } from '@/utils/date.js'
 
 const props = defineProps({
   article: { type: Object, required: true },
@@ -79,7 +80,6 @@ const readingMin = computed(() => {
 })
 
 // 日期格式化（统一走 utils/date）
-function formatDate(d) { return formatDay(d, '') }
 
 function goTag(tag) {
   router.push({ path: '/blog', query: { tag } })

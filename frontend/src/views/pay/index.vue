@@ -123,6 +123,7 @@ import { useRoute } from 'vue-router'
 import { getOrderDetail, createAlipay, getProductList, createOrder, getPayStatus } from '@/api/shop'
 import { useToastStore } from '@/stores/modules/toast'
 import PageBack from '@/components/PageBack.vue'
+import { formatDateTimeCN as formatTime } from '@/utils/date.js'
 
 const route = useRoute()
 const toast = useToastStore()
@@ -161,7 +162,6 @@ function statusClass(s) {
   return 'text-gray-400'
 }
 
-function formatTime(d) { return d ? new Date(d).toLocaleString('zh-CN') : '' }
 
 // 拉取订单详情
 async function loadStatus(id = orderId.value) {

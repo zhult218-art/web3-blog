@@ -133,6 +133,7 @@ import { formatMinute } from '@/utils/date'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useToastStore } from '@/stores/modules/toast'
 import { hasPerm } from '@/utils/permissions'
+import { formatMinute as formatDate } from '@/utils/date.js'
 
 const props = defineProps({
   targetId: { type: [String, Number], required: true },
@@ -161,7 +162,6 @@ const submittingReply = ref(false)
 const hasMore = computed(() => comments.value.length < (total.value || 0))
 
 // 日期格式化（统一走 utils/date）
-function formatDate(d) { return formatMinute(d, '') }
 
 function canDelete(c) {
   if (auth.user?.role === 'ADMIN') return true

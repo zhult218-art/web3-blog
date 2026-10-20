@@ -1,3 +1,4 @@
+import { formatDuration as formatTime } from '@/utils/date.js'
 /**
  * 模拟播放核心逻辑（纯 JS，不依赖 Vue / DOM）
  * 后续对接后端音乐接口时：将 tick 推进替换为真实 Audio 播放并保持同一状态结构即可。
@@ -21,13 +22,7 @@ export function findLyricIndex(lyrics, time) {
 }
 
 // 秒数格式化为 mm:ss
-export function formatTime(secs) {
-  if (!secs || !isFinite(secs) || secs < 0) secs = 0
-  secs = Math.floor(secs)
-  const m = Math.floor(secs / 60)
-  const s = secs % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
+export
 
 // 创建模拟播放器实例：返回 state 与播放控制方法集合
 export function createMusicPlayer({ playlist = [], onTick } = {}) {

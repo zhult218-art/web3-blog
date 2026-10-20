@@ -274,6 +274,7 @@ import {
 import { getCommentList, createComment } from '@/api/forum'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useToastStore } from '@/stores/modules/toast'
+import { formatRelative as formatTime } from '@/utils/date.js'
 
 const props = defineProps({
   tracks: { type: Array, default: () => [] },
@@ -689,17 +690,6 @@ const modeLabel = computed(() => MODE_LABELS[ui.modeIndex] || '顺序播放')
 
 function format(s) { return player.formatTime(s) }
 
-function formatTime(ts) {
-  if (!ts) return ''
-  const d = new Date(ts)
-  const now = Date.now()
-  const diff = now - d.getTime()
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
-  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
-  if (diff < 86400000 * 7) return Math.floor(diff / 86400000) + '天前'
-  return d.toLocaleDateString()
-}
 
 function isCurrent(t) {
   const cur = ui.track

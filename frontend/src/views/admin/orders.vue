@@ -67,6 +67,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { formatDateTimeCN } from '@/utils/date'
+import { formatDateTimeCN as formatDate } from '@/utils/date.js'
 
 const toast = useToastStore()
 const list = ref([])
@@ -85,7 +86,6 @@ const filters = [
 ]
 
 // 格式化订单时间，空值显示为「-」
-function formatDate(d) { return formatDateTimeCN(d, '-') }
 // 订单状态对应的徽章样式类
 function statusClass(s) {
   const map = { PAID: 'web3-badge-green', PENDING: 'web3-badge-orange', COMPLETED: 'web3-badge-cyan', CANCELLED: 'web3-badge-red' }

@@ -131,6 +131,7 @@ import { useRoute } from 'vue-router'
 import { getBlogNotices } from '@/api/blog'
 import { getPyMarketAlerts } from '@/api/quant'
 import { formatMinute } from '@/utils/date'
+import { formatMinute as formatDate } from '@/utils/date.js'
 
 const notices = ref([])
 const alerts = ref([])
@@ -247,7 +248,6 @@ function toastIfNeeded() {
 }
 
 // 日期格式化（统一走 utils/date）
-function formatDate(v) { return formatMinute(v, '') }
 
 async function loadAlerts() {
   try {

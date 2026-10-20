@@ -63,6 +63,7 @@ import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 import { formatDateTimeCN } from '@/utils/date'
+import { formatDateTimeCN as formatDate } from '@/utils/date.js'
 
 const toast = useToastStore()
 const list = ref([])
@@ -73,7 +74,6 @@ const submitting = ref(false)
 const form = ref({ content: '', enabled: true })
 
 // 日期格式化（统一走 utils/date）
-function formatDate(d) { return formatDateTimeCN(d, '') }
 
 async function fetchNotices() {
   loading.value = true

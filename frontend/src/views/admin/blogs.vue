@@ -116,6 +116,7 @@ import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 import { formatDayCN } from '@/utils/date'
+import { formatDayCN as formatDate } from '@/utils/date.js'
 
 // 博客标准分类体系（硬件→嵌入式→软件→网络→攻防 全覆盖；仍可手动输入新分类）
 const BLOG_CATEGORIES = [
@@ -136,7 +137,6 @@ const submitting = ref(false)
 const form = ref({ title: '', summary: '', category: '', tags: '', cover: '', status: 'PUBLISHED', isTop: 0, content: '' })
 
 // 本地化格式化日期
-function formatDate(d) { return formatDayCN(d, '') }
 
 // 判断文章是否为已发布（status 为字符串）
 function isPublished(a) { return String(a.status || '').toUpperCase() === 'PUBLISHED' }

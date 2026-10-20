@@ -3,21 +3,11 @@
 // 前端无需携带 sk- 令牌；后端以应用级系统令牌代表 Agent 调用并计费。
 // 返回 OpenAI SSE 流：data: {choices:[{delta:{content:"..."}}]}
 // ============================================================
-import { useAuthStore } from '@/stores/modules/auth'
+import request from './request'
+import { fetchWithAuth } from './request'
 
 const AGENT_PATH = '/api/agent/chat'
 const FLOW_PATH = '/api/agent/workflow'
-
-// 计费接口（chat/execute）后端已要求登录：从 auth Store 注入 Authorization 头
-// （fetch 不走 axios 拦截器，需手动附加；SSE/流式场景读不到 Toast，401 由消费侧提示）
-function authHeaders(extra = {}) {
-  const headers = { ...extra }
-  try {
-    const token = useAuthStore().token
-    if (token) headers['Authorization'] = `Bearer ${token}`
-  } catch { /* Pinia 未就绪时忽略（未登录访问公开接口场景） */ }
-  return headers
-}
 
 /**
  * 发起 Agent 流式对话。
@@ -26,11 +16,10 @@ function authHeaders(extra = {}) {
  * @returns {ReadableStream<Uint8Array>} fetch 的 response body 流
  */
 export function agentChatStream(messages, model) {
-  return fetch(AGENT_PATH, {
+  return fetchWithAuth(AGENT_PATH, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(model ? { messages, model } : { messages }),
-    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: model ? { messages, model } : { messages },
   })
 }
 
@@ -39,9 +28,7 @@ export function agentChatStream(messages, model) {
  * @returns {Promise<{provider:string|null, models:Array<{id:string,ownedBy:string,contextWindow?:number}>}>}
  */
 export async function agentModels() {
-  const res = await fetch('/api/agent/models', { credentials: 'include' })
-  if (!res.ok) throw new Error(`模型列表请求失败 (${res.status})`)
-  return res.json()
+  return request.get('/agent/models')
 }
 
 /**
@@ -93,9 +80,7 @@ export async function consumeAgentStream(res, onDelta, onDone) {
  * @returns {Promise<Array>} [{slug,name,description,icon,color,sample,outputFormat,stepCount}]
  */
 export async function agentWorkflows() {
-  const res = await fetch('/api/agent/workflows', { credentials: 'include' })
-  if (!res.ok) throw new Error(`技能列表请求失败 (${res.status})`)
-  return res.json()
+  return request.get('/agent/workflows')
 }
 
 /**
@@ -104,14 +89,7 @@ export async function agentWorkflows() {
  * @returns {Promise<{matched:boolean, workflow?:object}>}
  */
 export async function agentMatchWorkflow(message) {
-  const res = await fetch(`${FLOW_PATH}/match`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
-    credentials: 'include',
-  })
-  if (!res.ok) throw new Error(`技能匹配失败 (${res.status})`)
-  return res.json()
+  return request.post('/agent/workflow/match', { message })
 }
 
 /**
@@ -121,11 +99,10 @@ export async function agentMatchWorkflow(message) {
  * @returns {Response}
  */
 export function agentExecuteFlow(slug, answers) {
-  return fetch(`${FLOW_PATH}/execute`, {
+  return fetchWithAuth(`${FLOW_PATH}/execute`, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ slug, answers }),
-    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: { slug, answers },
   })
 }
 

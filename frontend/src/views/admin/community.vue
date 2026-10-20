@@ -157,6 +157,7 @@ import {
   getAdminComments, approveComment, rejectComment, deleteAdminComment, batchComments
 } from '@/api/moderation'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
+import { formatTime24 as formatTime } from '@/utils/date.js'
 
 const STATUS = {
   pending: { label: '待审核', badge: 'pending' },
@@ -193,7 +194,6 @@ const allSelected = computed(() =>
 )
 
 function statusLabel(s) { return STATUS[s]?.label || s || '-' }
-function formatTime(t) { return t ? new Date(t).toLocaleString('zh-CN', { hour12: false }) : '-' }
 function stripMd(text) {
   if (!text) return ''
   return String(text).replace(/[#>*`!\[\]()]/g, '').replace(/\s+/g, ' ').slice(0, 80)

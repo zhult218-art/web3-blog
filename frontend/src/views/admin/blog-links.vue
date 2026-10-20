@@ -101,6 +101,7 @@ import Loading from '@/components/common/Loading.vue'
 import { useToastStore } from '@/stores/modules/toast'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 import { formatDateTimeCN } from '@/utils/date'
+import { formatDateTimeCN as formatDate } from '@/utils/date.js'
 
 const toast = useToastStore()
 const list = ref([])
@@ -111,7 +112,6 @@ const submitting = ref(false)
 const form = ref({ name: '', url: '', avatar: '', description: '', groupName: 'default', sort: 0, status: 'PUBLISHED' })
 
 // 日期格式化（统一走 utils/date）
-function formatDate(d) { return formatDateTimeCN(d, '') }
 function statusLabel(s) { return { PUBLISHED: '已发布', PENDING: '待审核', DISABLED: '已禁用' }[s] || s }
 function statusClass(s) {
   return s === 'PUBLISHED' ? 'web3-badge-green' : s === 'PENDING' ? 'web3-badge-orange' : 'web3-badge-purple'

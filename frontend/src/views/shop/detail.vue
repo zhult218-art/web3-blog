@@ -244,6 +244,7 @@ import { getProductDetail, createOrder } from '@/api/shop'
 import { useCartStore } from '@/stores/modules/cart'
 import { useToastStore } from '@/stores/modules/toast'
 import Loading from '@/components/common/Loading.vue'
+import { formatShortDate as formatDate } from '@/utils/date.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -294,10 +295,6 @@ const detailedDescription = computed(() => {
 
 const reviews = ref([])
 
-function formatDate(d) {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-}
 
 function startDrag(e) {
   isDragging.value = true

@@ -368,6 +368,7 @@ import {
   getQuantList, createStrategy, updateStrategy, deleteStrategy, runStrategy
 } from '@/api/quant'
 import { formatDateTimeMinute } from '@/utils/date'
+import { formatDateTimeMinute as formatDate } from '@/utils/date.js'
 
 const toast = useToastStore()
 
@@ -443,7 +444,6 @@ let refreshTimer = null
 
 // ---- 工具函数 ----
 // 日期格式化（统一走 utils/date）
-function formatDate(d) { return formatDateTimeMinute(d, '-') }
 function getChangeClass(val) {
   if (val > 0) return 'text-red-400'
   if (val < 0) return 'text-green-400'

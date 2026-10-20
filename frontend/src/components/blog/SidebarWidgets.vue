@@ -89,6 +89,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getBlogStats, getBlogArchives, getBlogTags, getBlogCategories, getBlogRecent, getBlogSettings } from '@/api/blog'
 import { formatDay } from '@/utils/date'
+import { formatDay as formatDate } from '@/utils/date.js'
 
 const router = useRouter()
 const stats = ref({})
@@ -103,7 +104,6 @@ const tagCount = computed(() => tags.value.length)
 const categoryCount = computed(() => categories.value.length)
 
 // 日期格式化（统一走 utils/date）
-function formatDate(d) { return formatDay(d, '--') }
 function formatWords(n) {
   const v = Number(n || 0)
   if (v >= 10000) return (v / 10000).toFixed(1) + 'w'

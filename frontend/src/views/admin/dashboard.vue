@@ -139,6 +139,7 @@ import { ref, onMounted } from 'vue'
 import { getDashboard, getAdminLogs, getVisitSummary, getServicesHealth, startService, stopService, getDefaultServices, mergeServices } from '@/api/admin'
 import { confirm as dlgConfirm, alert as dlgAlert } from '@/composables/useDialog'
 import { aiChatStream } from '@/api/freeAi'
+import { formatHMS as formatTime } from '@/utils/date.js'
 
 // 核心指标卡片（用户/文章/订单/营收/今日访问）— 全部来自接口
 const stats = ref([
@@ -204,10 +205,6 @@ async function genAiInsight() {
 }
 
 // 格式化为 HH:mm:ss 时间
-function formatTime(t) {
-  if (!t) return '-'
-  return new Date(t).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
 
 // 挂载时依次加载仪表盘统计、服务状态、操作日志与访问汇总
 onMounted(async () => {

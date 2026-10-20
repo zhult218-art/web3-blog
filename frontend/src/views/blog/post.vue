@@ -181,6 +181,7 @@ import ThreeBackground from '@/components/layout/ThreeBackground.vue'
 import Web3Nav from '@/components/layout/Web3Nav.vue'
 import ReadingProgress from '@/components/blog/ReadingProgress.vue'
 import 'highlight.js/styles/atom-one-dark.css'
+import { formatDay as formatDate } from '@/utils/date.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -220,7 +221,6 @@ const articleTags = computed(() => {
 })
 
 // 日期格式化（统一走 utils/date）
-function formatDate(d) { return formatDay(d, '') }
 function goTag(tag) { router.push({ path: '/blog', query: { tag } }) }
 
 // 导出 Markdown：补一段 front matter，便于迁移到其它静态博客

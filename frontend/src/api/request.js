@@ -110,4 +110,44 @@ request.interceptors.response.use(
   }
 )
 
+/**
+ * fetch 轻量封装：为仍需使用原生 fetch 的场景（SSE 流、trae-preview 环境 axios 挂起 workaround）
+ * 提供与 axios 拦截器对齐的基础能力：自动注入 Authorization、超时中止、JSON 解析、401 降级。
+ * @param {string} url  请求地址（可含查询串）
+ * @param {object} opts method/body/headers/signal/timeout（默认 15000）
+ * @returns {Promise<any>} 解析后的 JSON 数据
+ */
+export async function fetchWithAuth(url, opts = {}) {
+  const { method = 'GET', body, headers = {}, signal, timeout = 15000 } = opts
+  const auth = useAuthStore()
+  const h = { ...headers }
+  if (auth.token) h.Authorization = `Bearer ${auth.token}`
+
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeout)
+  // 如果外部传入 signal，外部取消时也触发内部 ctrl
+  if (signal) {
+    signal.addEventListener('abort', () => ctrl.abort(), { once: true })
+  }
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: h,
+      body: body !== undefined ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+      signal: ctrl.signal,
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.detail || `请求失败(${res.status})`)
+      err.status = res.status
+      err.response = { status: res.status, data }
+      throw err
+    }
+    return data
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export default request
