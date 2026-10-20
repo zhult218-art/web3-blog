@@ -1489,7 +1489,7 @@ defineOptions({ name: 'QuantIndex' })
 import Pagination from '@/components/common/Pagination.vue'
 import Loading from '@/components/common/Loading.vue'
 import Modal from '@/components/common/Modal.vue'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'

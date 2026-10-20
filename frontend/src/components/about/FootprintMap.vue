@@ -40,7 +40,7 @@
 // 底图：/geo/china.json（本地 GeoJSON，运行时按需加载，无外部依赖）
 // ============================================================
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 
 const chartEl = ref(null)
 const locations = ref([])

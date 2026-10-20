@@ -301,7 +301,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import FundFlowChart from './components/FundFlowChart.vue'
 import DragonTigerTable from './components/DragonTigerTable.vue'
 import ReportsTable from './components/ReportsTable.vue'

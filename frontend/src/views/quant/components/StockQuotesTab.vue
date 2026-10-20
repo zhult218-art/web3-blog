@@ -233,7 +233,7 @@
 // 样式依赖父页面根节点 .quant-terminal 命名空间（非 scoped 全局主题）。
 // ============================================================
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import Pagination from '@/components/common/Pagination.vue'
 import FundFlowChart from './FundFlowChart.vue'
 import DragonTigerTable from './DragonTigerTable.vue'

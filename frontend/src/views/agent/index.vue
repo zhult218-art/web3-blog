@@ -153,7 +153,7 @@
 
 <script setup>
 import { ref, nextTick, onMounted, onBeforeUnmount, watch, computed } from 'vue'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import { agentChatStream, consumeAgentStream, agentWorkflows, agentMatchWorkflow, agentExecuteFlow, consumeAgentFlowEvents, agentModels } from '@/api/agent'
 import { aiOptimizePrompt } from '@/api/freeAi'
 import { useToastStore } from '@/stores/modules/toast'

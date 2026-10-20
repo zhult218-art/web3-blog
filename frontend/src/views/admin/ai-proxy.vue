@@ -286,7 +286,7 @@
 // 智能看板（总览/趋势/分布/排行/洞察）+ 渠道/令牌/模型倍率/日志 四大管理 Tab
 // ============================================================
 import { ref, reactive, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import {
   getAiDashboard, getAiInsights,
   getChannels, createChannel, updateChannel, deleteChannel, testChannel,

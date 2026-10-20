@@ -186,7 +186,7 @@
 // ============================================================
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import { getPyLimitPoolBoards, getPySectors, getPyReportsLatest, getPyNews } from '@/api/quant'
 
 const router = useRouter()

@@ -348,7 +348,7 @@
 // ============================================================
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import axios from 'axios'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 
 // 本地独立实例：请求走同源 /monitapi，短超时；不复用全局 request，
 // 避免监控接口的失败提示污染全局 Toast

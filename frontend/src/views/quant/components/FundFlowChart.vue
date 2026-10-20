@@ -25,7 +25,7 @@
 // 资金流向组件：个股每日主力/超大/大/中/小单净流入（echarts 柱状图 + 汇总卡片）
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import * as echarts from 'echarts'
+import echarts from '@/utils/echarts'
 import { getPyStockFundFlow } from '@/api/quant'
 
 // 接收股票代码属性（sh600519 / sz000001 等带前缀格式）
