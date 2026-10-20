@@ -41,7 +41,9 @@ flowchart LR
   AS --> DB
 ```
 
-网关不做鉴权（`anyExchange().permitAll()`，见 `GatewaySecurityConfig`），**鉴权由各服务内的 `AuthUtils.requireUserId / requireAdmin` 自行完成**。新增接口必须自带鉴权调用，否则即为公开接口。
+网关当前策略为 `anyExchange().permitAll()`（见 `GatewaySecurityConfig`），**鉴权由各服务内的 `AuthUtils.requireUserId / requireAdmin` 自行完成**。
+> 这意味着新增接口必须自带鉴权调用，否则即为公开接口；同时存在 132 处手工调用 + 2 处历史漏检的隐患。
+> TODO：未来通过 `web3-auth-starter` 统一收口，把鉴权从服务层提升到网关层 + 方法级 `@PreAuthorize` 注解。`GatewaySecurityConfig` 顶部注释已列出 39 条路由的公开/需登录/管理员分级建议。
 
 ---
 
@@ -90,7 +92,7 @@ flowchart LR
 | `video` | 视频服务 | yt-dlp 下载、OSS 上传 |
 | `voice` | 语音助手 | TTS/ASR 编排 |
 | `whisper` | 语音识别 | 本地 Whisper 转写 |
-| `wifi` | WiFi 安全审计 | 周边网络扫描、网卡审计、wifiphisher/wifite 引擎封装（**仅 Linux 生效**，vendor 目录内置第三方源码） |
+| `wifi` | WiFi 安全审计 | 周边网络扫描、网卡审计、wifiphisher/wifite 引擎封装（**仅 Linux 生效**，vendor 目录内置第三方源码）。**安全提示：该模块包含第三方渗透测试工具，仅供本地授权环境使用，生产环境请勿启用。** |
 | `osint` | OSINT 信息收集 | Shodan 等外部情报源 |
 | `ghosttrack` | GhostTrack 网络追踪 | IP/手机号/用户名关联查询 |
 | `scrape` | 网页采集 | 选择器抓取 + 转 Markdown |

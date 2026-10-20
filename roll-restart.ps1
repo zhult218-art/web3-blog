@@ -2,7 +2,7 @@
 # Socket-based port probes only (Get-NetTCPConnection can hang under pagefile thrash).
 # Safe to re-run: services already running with UseSerialGC are skipped.
 $ErrorActionPreference = 'Continue'
-$root = 'z:\project\myblog\web3'
+$root = $PSScriptRoot
 $log  = Join-Path $env:TEMP 'web3-roll-restart.log'
 
 function Log($m) {

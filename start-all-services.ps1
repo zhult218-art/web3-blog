@@ -45,14 +45,13 @@ if ($env:JAVA_HOME) {
     if ($cmd) { $java = $cmd.Source }
 }
 if (-not $java -or -not (Test-Path $java)) {
-    # 自动探测常见 JDK 目录（本机 F:\tools\jdk17 优先），探测到即回填 JAVA_HOME
+    # 自动探测常见 JDK 目录，探测到即回填 JAVA_HOME
     $jdkCandidates = @(
-        "F:\tools\jdk17",
-        "F:\tools\java",
+        $env:JAVA_HOME,
         "C:\Program Files\Java\jdk-17",
         "C:\Program Files\Eclipse Adoptium\jdk-17",
         "C:\Program Files\Microsoft\jdk-17"
-    ) | Where-Object { Test-Path (Join-Path $_ "bin\java.exe") } | Select-Object -First 1
+    ) | Where-Object { $_ -and (Test-Path (Join-Path $_ "bin\java.exe")) } | Select-Object -First 1
     if ($jdkCandidates) {
         $java = Join-Path $jdkCandidates "bin\java.exe"
         $env:JAVA_HOME = $jdkCandidates
@@ -150,8 +149,7 @@ $mysqld = $null
 if ($env:MYSQL_HOME -and (Test-Path (Join-Path $env:MYSQL_HOME "bin\mysqld.exe"))) {
     $mysqld = Join-Path $env:MYSQL_HOME "bin\mysqld.exe"
 } else {
-    $mysqld = @("C:\tools\mysql\bin\mysqld.exe", "F:\tools\mysql\bin\mysqld.exe",
-        "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe") |
+    $mysqld = @("C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe") |
         Where-Object { Test-Path $_ } | Select-Object -First 1
 }
 if ($mysqld) {
@@ -185,8 +183,7 @@ $redisExe = $null
 if ($env:REDIS_HOME -and (Test-Path (Join-Path $env:REDIS_HOME "redis-server.exe"))) {
     $redisExe = Join-Path $env:REDIS_HOME "redis-server.exe"
 } else {
-    $redisExe = @("C:\tools\redis\redis-server.exe", "F:\tools\redis\redis-server.exe",
-        "C:\Program Files\Redis\redis-server.exe") |
+    $redisExe = @("C:\Program Files\Redis\redis-server.exe") |
         Where-Object { Test-Path $_ } | Select-Object -First 1
 }
 if ($redisExe) {
@@ -217,8 +214,7 @@ $nacosCmd = $null
 if ($env:NACOS_HOME -and (Test-Path (Join-Path $env:NACOS_HOME "bin\startup.cmd"))) {
     $nacosCmd = Join-Path $env:NACOS_HOME "bin\startup.cmd"
 } else {
-    $nacosCmd = @("F:\tools\nacos\bin\startup.cmd", "C:\tools\nacos\bin\startup.cmd") |
-        Where-Object { Test-Path $_ } | Select-Object -First 1
+    $nacosCmd = $null
 }
 if ($nacosCmd -and -not $Only) {
     $nacosBin = Split-Path $nacosCmd -Parent
@@ -347,8 +343,7 @@ if ($node -and (Test-Path $chatGwEntry)) {
 # 仓库位于博客工程之外，可用环境变量 OFM_REPO 覆盖路径；未安装时整块跳过。
 Write-Host "启动免费模型服务（18900）..." -ForegroundColor Cyan
 $ofmRepo = @(
-    $env:OFM_REPO,
-    'Z:\project\dsh-our-free-model-main'
+    $env:OFM_REPO
 ) | Where-Object { $_ -and (Test-Path (Join-Path $_ 'packages\standalone\cli.mjs')) } | Select-Object -First 1
 if ($node -and $ofmRepo) {
     if (Test-PortFast -Port 18900) {
@@ -425,9 +420,9 @@ if ($node -and (Test-Path (Join-Path $feDir "node_modules"))) {
 # 已导入 CurrentUser\Root 信任存储区，Chrome/Edge 不再弹 SSL 警告页。
 Write-Host "启动 SakuraFrp 内网穿透..." -ForegroundColor Cyan
 $sakuraSvc = @(
-    "C:\Program Files\SakuraFrpLauncher\SakuraFrpService.exe",
-    "F:\Program Files\SakuraFrpLauncher\SakuraFrpService.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    $env:SAKURAFRP_EXE,
+    "C:\Program Files\SakuraFrpLauncher\SakuraFrpService.exe"
+) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 $sakuraRunning = Get-Process -Name "SakuraFrpService" -ErrorAction SilentlyContinue
 if ($sakuraRunning) {
     Write-Host "  SakuraFrp 服务已在运行（PID $($sakuraRunning.Id)），跳过" -ForegroundColor DarkGray

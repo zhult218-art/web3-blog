@@ -17,7 +17,32 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
  * 所属模块：gateway（API 网关服务）
  * 职责：网关安全配置类，装配 JWT 认证过滤器链、未认证入口点，并定义各路径的放行规则。
  * 关键注解：@Configuration 配置类；@EnableWebFluxSecurity 启用响应式（WebFlux）安全框架。
- * 说明：当前策略为所有请求放行（permitAll），OPTIONS 预检请求直接放行；JWT 过滤器仍执行认证并将认证信息注入上下文，供下游服务校验。
+ *
+ * <p>当前策略：所有请求放行（permitAll），OPTIONS 预检请求直接放行；
+ * JWT 过滤器仍执行认证并将认证信息注入上下文，供下游服务各自校验。</p>
+ *
+ * <p>TODO（统一鉴权）：当前 39 条路由的鉴权分散在 13 个服务的 Controller 里（132 处手工
+ * AuthUtils 调用）。未来若要把鉴权收敛到网关层，建议按以下分级配置 authorizeExchange：
+ *
+ * <pre>
+ * 公开读（permitAll）：
+ *   /user/login, /user/register, /user/oauth/**, /user/phone/code, /user/bind/**,
+ *   /blog/**, /forum/**, /resource/**, /shop/**, /media/**, /photo/**, /uploads/**,
+ *   /quant/**, /tool/**, /software/**, /pyquant/**, /whisper/**, /socket.io/**,
+ *   /qzapi/**, /wifiapi/**, /osintapi/**, /voiceapi/**, /cockpit/**, /sixty/**,
+ *   /itunes-audio/**, /audius-api/**
+ *
+ * 需登录（authenticated）：
+ *   /user/**（除公开端点）, /jarvis/**, /ai-proxy/**, /chat/**, /vr/**,
+ *   /admin/** 下的非公开统计接口
+ *
+ * 管理员专属（hasRole ADMIN）：
+ *   /admin/** 下的管理操作（如服务启停、日志清理、配置下发）
+ * </pre>
+ *
+ * <p>注意：/blog/**、/forum/** 等前缀下可能混有管理员端点（如 POST /blog/admin/**），
+ * 网关层按前缀匹配会过于粗放；更彻底的方案是引入 `web3-auth-starter`，
+ * 用方法级 @PreAuthorize 注解 + 网关全局过滤器，逐步替代 132 处手工调用。</p>
  */
 @Configuration
 @EnableWebFluxSecurity

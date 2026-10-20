@@ -86,10 +86,12 @@ frontend/logs-*.txt
 check-encoding.json
 frontend/PROJECT_HANDOFF.md
 frontend/REFACTOR-MEGA-COMPONENTS.md
-# Runtime data / build output (2026-10-15)
+# 前端验证构建产物
+frontend/.verify*
 backend/uploads/
 backend/**/bin/
 py-service/data/
+py-service/modules/**/vendor/
 
 # AI 工具本地状态（会话记忆/缓存，不入库）
 .workbuddy-ai/
