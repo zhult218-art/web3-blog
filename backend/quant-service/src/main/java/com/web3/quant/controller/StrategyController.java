@@ -30,9 +30,9 @@ import org.springframework.web.bind.annotation.RestController;
  * 登录令牌,并通过 {@link com.web3.common.security.AuthUtils} 校验 JWT 有效性。</p>
  *
  * <p><b>归属校验（2026-09-17 修订）</b>：update/delete/run 接口在调用 Service 前
- * 通过 AuthUtils 拿到当前 userId，传给 Service 做归属校验，防止任意登录用户
- * 改/删/跑他人策略。公共策略（user_id 为 NULL）的写操作仅允许 ADMIN，
- * 通过 {@link AuthUtils#requireAdmin} 强制校验。</p>
+ * 通过 AuthUtils 拿到当前 userId 并判定是否 ADMIN，一并传给 Service 做归属校验，
+ * 防止任意登录用户改/删/跑他人策略。公共策略（user_id 为 NULL）的写操作仅允许
+ * ADMIN（由 {@link AuthUtils#isAdmin} 判定，非 ADMIN 时 Service 抛 403）。</p>
  */
 @RestController
 @RequestMapping(value={"/strategy"})
@@ -99,7 +99,8 @@ public class StrategyController {
     @PutMapping(value={"/{id}"})
     public ApiResponse<StrategyVO> update(@PathVariable Long id, @RequestBody Strategy strategy, @RequestHeader(value="Authorization") String authorization) {
         Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        StrategyVO vo = this.strategyService.updateStrategy(id, strategy, userId);
+        boolean admin = AuthUtils.isAdmin(authorization, this.jwtUtil, this.jwtProperties);
+        StrategyVO vo = this.strategyService.updateStrategy(id, strategy, userId, admin);
         if (vo == null) {
             return ApiResponse.fail(404, "Strategy not found");
         }
@@ -117,7 +118,8 @@ public class StrategyController {
     @DeleteMapping(value={"/{id}"})
     public ApiResponse<Object> delete(@PathVariable Long id, @RequestHeader(value="Authorization") String authorization) {
         Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        this.strategyService.deleteStrategy(id, userId);
+        boolean admin = AuthUtils.isAdmin(authorization, this.jwtUtil, this.jwtProperties);
+        this.strategyService.deleteStrategy(id, userId, admin);
         return ApiResponse.ok();
     }
 
@@ -132,7 +134,8 @@ public class StrategyController {
     @PostMapping(value={"/{id}/run"})
     public ApiResponse<Object> run(@PathVariable Long id, @RequestHeader(value="Authorization") String authorization) {
         Long userId = AuthUtils.requireUserId(authorization, this.jwtUtil, this.jwtProperties);
-        this.strategyService.runStrategy(id, userId);
+        boolean admin = AuthUtils.isAdmin(authorization, this.jwtUtil, this.jwtProperties);
+        this.strategyService.runStrategy(id, userId, admin);
         return ApiResponse.ok();
     }
 }

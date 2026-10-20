@@ -92,12 +92,61 @@ class NewsRadarService:
         return "medium"
 
     @staticmethod
+    def fetch_cls_telegraph(limit: int = 20) -> List[Dict]:
+        """财联社电报：全市场实时快讯（v1 接口 + 本地签名，零 key，毫秒级）。"""
+        params = {"appName": "CailianpressWeb", "os": "web", "sv": "7.7.5",
+                  "last_time": "", "refresh_type": "1", "rn": str(max(limit, 20))}
+        qs = "&".join(f"{k}={params[k]}" for k in sorted(params))
+        sign = hashlib.md5(hashlib.sha1(qs.encode()).hexdigest().encode()).hexdigest()
+        try:
+            r = requests.get(f"https://www.cls.cn/v1/roll/get_roll_list?{qs}&sign={sign}",
+                             headers={"User-Agent": "Mozilla/5.0", "Referer": "https://www.cls.cn/"},
+                             timeout=10)
+            r.raise_for_status()
+            rows = ((r.json() or {}).get("data") or {}).get("roll_data") or []
+        except Exception as e:  # noqa: BLE001
+            logger.warning("cls telegraph failed: %s", e)
+            return []
+        out = []
+        for x in rows[:limit]:
+            if not isinstance(x, dict):
+                continue
+            title = str(x.get("title") or x.get("brief") or "").strip()
+            content = str(x.get("content") or x.get("brief") or "").strip()
+            if not title and not content:
+                continue
+            try:
+                stamp = datetime.fromtimestamp(int(x.get("ctime"))).strftime("%Y-%m-%d %H:%M")
+            except (TypeError, ValueError, OSError):
+                stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+            combined = title + " " + content
+            out.append({
+                "id": f"cls_{abs(hash(title + stamp)) % (10 ** 12)}",
+                "title": title or content[:40],
+                "source": "财联社",
+                "category": "快讯",
+                "sentiment": NewsRadarService._sentiment_of(combined),
+                "impact": NewsRadarService._impact_of(combined),
+                "timestamp": stamp,
+                "summary": content[:120] + ("..." if len(content) > 120 else ""),
+                "url": f"https://www.cls.cn/detail/{x.get('id') or ''}",
+            })
+        return out
+
+    @staticmethod
     def get_latest_news(limit: int = 20) -> List[Dict]:
-        """获取最新财经新闻（akshare 东财全球财经直播，真实实时数据）。"""
+        """获取最新财经新闻。源顺序：财联社电报 → akshare 东财全球直播 → 东财 7x24 快讯。"""
         now = time.time()
         if NewsRadarService._news_cache and now - NewsRadarService._news_ts < NewsRadarService._NEWS_TTL:
             return NewsRadarService._news_cache[:limit]
-        # 一级源：akshare 东财全球财经直播（stock_info_global_em）
+        # 一级源：财联社电报（零 key、实时、不依赖 akshare）
+        cls_rows = NewsRadarService.fetch_cls_telegraph(max(limit, 20))
+        if cls_rows:
+            NewsRadarService._news_cache = cls_rows
+            NewsRadarService._news_ts = now
+            threading.Thread(target=lambda: SupabaseStore.save_news(cls_rows), daemon=True).start()
+            return cls_rows[:limit]
+        # 二级源：akshare 东财全球财经直播（stock_info_global_em）
         try:
             if ak is not None:
                 df = AStockDataService._with_retry(lambda: ak.stock_info_global_em(), 2, 1.0)

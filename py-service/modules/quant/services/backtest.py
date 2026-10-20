@@ -31,6 +31,7 @@ logger = logging.getLogger("quant")
 from ..datasources.astock import AStockDataService
 from ..models.entities import AnalysisTask, BacktestResult
 from ..models.enums import TaskStatus
+from ..state import _backtest_store, _task_store
 from ..services.ai import AIAnalysisService
 from ..services.strategy import StrategyService
 
@@ -59,6 +60,10 @@ BACKTEST_STRATEGY_META = [
 class BacktestEngine:
     STRATEGIES = {"moving_avg", "macd_signal", "bollinger", "rsi_meanrev", "bse_smallcap", "grid_okx",
                   "kdj_golden", "volume_breakout", "turtle", "momentum", "mean_reversion"}
+    # 上证指数日线缓存：每次回测都要用它做基准，不能每次都打一次外网（上游被风控时可达数秒）
+    BENCH_TTL = 1800.0
+    _bench_rows: Optional[List[Dict]] = None
+    _bench_ts = 0.0
 
     def __init__(self, config: Dict):
         self.config = config
@@ -287,9 +292,22 @@ class BacktestEngine:
         return self._calculate_metrics(equity, benchmark, self.dates, self.transactions)
 
     # ---------------- 基准 ----------------
-    def _benchmark_daily(self) -> List[Dict]:
-        """上证指数真实日K（东方财富直连，akshare 兜底）。"""
+    @staticmethod
+    def _benchmark_daily() -> List[Dict]:
+        """上证指数真实日K，30 分钟内复用缓存（上游偶发不可达时避免每次回测都空等超时）。"""
+        if BacktestEngine._bench_rows is not None and time.time() - BacktestEngine._bench_ts < BacktestEngine.BENCH_TTL:
+            return BacktestEngine._bench_rows
+        rows = BacktestEngine._benchmark_fetch()
+        BacktestEngine._bench_rows = rows
+        BacktestEngine._bench_ts = time.time()
+        return rows
+
+    @staticmethod
+    def _benchmark_fetch() -> List[Dict]:
+        """上证指数日K：东财直连 → 腾讯 → akshare，任一成功即返回。"""
         try:
+            if not AStockDataService._em_available():
+                raise RuntimeError("eastmoney circuit open")
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                        "Referer": "https://quote.eastmoney.com/"}
             beg = (datetime.now() - timedelta(days=400)).strftime("%Y%m%d")
@@ -300,9 +318,8 @@ class BacktestEngine:
             r = requests.get(url, headers=headers, timeout=10)
             r.raise_for_status()
             data = (r.json() or {}).get("data") or {}
-            klines = data.get("klines") or []
             out = []
-            for line in klines[-300:]:
+            for line in (data.get("klines") or [])[-300:]:
                 parts = str(line).split(",")
                 if len(parts) >= 3:
                     try:
@@ -312,7 +329,27 @@ class BacktestEngine:
             if out:
                 return out
         except Exception as e:  # noqa: BLE001
+            if AStockDataService._is_net_error(e):
+                AStockDataService._em_trip(e)
             logger.warning("benchmark EM fetch failed: %s", e)
+        # 腾讯指数日K（东财族域名不可达时的主要替代源）
+        try:
+            url = "https://ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh000001,day,,,300,qfq"
+            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+            r.raise_for_status()
+            node = (r.json() or {}).get("data", {}).get("sh000001", {})
+            rows = node.get("qfqday") or node.get("day") or []
+            out = []
+            for it in rows[-300:]:
+                if isinstance(it, (list, tuple)) and len(it) >= 3:
+                    try:
+                        out.append({"date": str(it[0])[:10], "close": float(it[2])})
+                    except (TypeError, ValueError):
+                        continue
+            if out:
+                return out
+        except Exception as e:  # noqa: BLE001
+            logger.warning("benchmark tencent fetch failed: %s", e)
         try:
             if ak is not None:
                 df = ak.stock_zh_index_daily(symbol="sh000001")
@@ -746,6 +783,24 @@ class BacktestEngine:
 # LLM 深度投研（OpenAI 兼容客户端）
 # ============================================================
 # 预置主流通用 OpenAI 兼容网关，前台可在基础上编辑 base_url / api_key / model
+def _fetch_backtest_klines(symbols: List[str], days: int) -> Dict[str, List[Dict]]:
+    """并行拉取回测所需日线：单只标的失败不影响其它标的，也不拖慢整体。"""
+    price_data: Dict[str, List[Dict]] = {}
+    syms = [s for s in (symbols or []) if s]
+    if not syms:
+        return price_data
+    with ThreadPoolExecutor(max_workers=min(len(syms), 8)) as ex:
+        futs = {ex.submit(AStockDataService.get_kline, sym, "1d", days): sym for sym in syms}
+        for fut in as_completed(futs):
+            sym = futs[fut]
+            try:
+                price_data[sym] = fut.result() or []
+            except Exception as e:  # noqa: BLE001
+                logger.warning("backtest kline %s failed: %s", sym, e)
+                price_data[sym] = []
+    return price_data
+
+
 async def run_backtest_task(task_id: str, strategy_id: str, symbols: List[str], config: Dict):
     """异步执行回测任务。"""
     task = AnalysisTask(
@@ -756,19 +811,18 @@ async def run_backtest_task(task_id: str, strategy_id: str, symbols: List[str], 
     _task_store[task_id] = task
 
     try:
-        # 阶段 1: 获取数据
+        # 阶段 1: 获取数据（并行；上游行情源慢时不至于逐个串行累加）
         task.current_stage = "获取行情数据"
         task.progress = 10
-        price_data = {}
-        for sym in symbols:
-            price_data[sym] = AStockDataService.get_kline(sym, days=config.get("days", 120))
-            await asyncio.sleep(0.1)
+        price_data = await asyncio.to_thread(_fetch_backtest_klines, symbols,
+                                             int(config.get("days", 120) or 120))
 
-        # 阶段 2: 运行回测
+        # 阶段 2: 运行回测引擎（CPU 密集，放线程里避免阻塞事件循环）
         task.current_stage = "运行回测引擎"
-        task.progress = 40
+        task.progress = 60
         engine = BacktestEngine(config)
-        metrics = engine.run(strategy_id, symbols, price_data, custom_code=config.get("code", ""))
+        metrics = await asyncio.to_thread(
+            engine.run, strategy_id, symbols, price_data, config.get("code", ""))
         strat = StrategyService.get_strategy(strategy_id)
         if config.get("name"):
             strat_name = config["name"]
@@ -790,15 +844,16 @@ async def run_backtest_task(task_id: str, strategy_id: str, symbols: List[str], 
             transactions=metrics.get("transactions", []),
         )
 
-        # 阶段 3: 生成报告
-        task.current_stage = "生成分析报告"
-        task.progress = 70
-        await asyncio.sleep(0.5)
-
-        # 阶段 4: AI分析
-        task.current_stage = "AI智能分析"
-        task.progress = 85
-        ai_result = await AIAnalysisService.analyze_stock(symbols[0] if symbols else "", task_id)
+        # 阶段 3: AI 深度投研——默认关闭。前端回测报告只消费 backtest 指标，
+        # 而完整流水线含约 15 次 LLM 调用，若不关闭会让任务在引擎跑完后仍等待很久。
+        ai_result: Dict = {}
+        if config.get("include_ai"):
+            task.current_stage = "AI智能分析"
+            task.progress = 85
+            try:
+                ai_result = await AIAnalysisService.analyze_stock(symbols[0] if symbols else "", task_id)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("backtest ai analyze failed: %s", e)
 
         task.progress = 100
         task.status = TaskStatus.COMPLETED

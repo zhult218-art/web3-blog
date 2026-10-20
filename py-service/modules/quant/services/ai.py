@@ -36,7 +36,8 @@ from ..services.research import ResearchReportService
 
 LLM_PROVIDERS = [
     {"key": "ourfreemodel", "name": "Our Free Model(免费池)", "base_url": "http://127.0.0.1:18900/v1",
-     "models": ["deepseek-v4.1-flash-free", "glm-5.3-flash-free", "mimo-v2.6-flash-free"]},
+     # 匿名池整组（deepseek-v4.1-flash-free 等）可能被上游 403/LANE_LOCKED，这里只列聚合入口
+     "models": ["openrouter/free", "kilo-auto/free", "reflection/beam-free"]},
     {"key": "deepseek", "name": "DeepSeek", "base_url": "https://api.deepseek.com/v1",
      "models": ["deepseek-chat", "deepseek-reasoner"]},
     {"key": "openai", "name": "OpenAI", "base_url": "https://api.openai.com/v1",

@@ -1,5 +1,5 @@
 <template>
-  <!-- AI 聊天面板：消息列表 + 输入框，调用 Vibe-Research /vr/chat NDJSON 流式接口 -->
+  <!-- AI 聊天面板：消息列表 + 输入框，调用 py-service 全站免费 AI 通道 /pyai/chat/stream（SSE） -->
   <div>
     <div class="space-y-3 max-h-[500px] overflow-y-auto mb-4 p-4 rounded-xl bg-[#1a1208] border border-amber-800/15">
       <div v-if="chatMessages.length" v-for="msg in chatMessages" :key="msg.id"
@@ -25,7 +25,7 @@
 <script setup>
 // ChatPanel：从 quant/index.vue 抽出的 AI 聊天面板
 // 内部持有 chatMessages / chatInput / chatLoading；通过 v-model:config 接收父组件 aiConfig
-// 调用 Vibe-Research 服务（/vr/chat，8900）流式输出 NDJSON 回复
+// 调用 py-service 全站免费 AI 通道（/pyai/chat/stream，SSE 流式，多渠道路由兜底）
 import { ref } from 'vue'
 
 const props = defineProps({
@@ -38,7 +38,7 @@ const chatMessages = ref([])
 const chatInput = ref('')
 const chatLoading = ref(false)
 
-// 发送聊天消息到 Vibe-Research 服务（/vr/chat，8900），流式输出回复
+// 发送聊天消息到 py-service 免费 AI 通道（/pyai/chat/stream，SSE 流式）
 async function sendChat() {
   if (!chatInput.value.trim() || chatLoading.value) return
   const msg = chatInput.value.trim()
@@ -50,19 +50,13 @@ async function sendChat() {
   chatMessages.value.push({ id: replyId, role: 'assistant', content: '', streaming: true })
 
   const cfg = props.config || {}
-  const saved = cfg.baseURL && cfg.model
-  if (!saved) {
-    const target = chatMessages.value.find(m => m.id === replyId)
-    if (target) {
-      target.content = '请先在「⚙ AI 模型设置」填写 Base URL 与模型名称，然后重试。'
-      target.streaming = false
-    }
-    chatLoading.value = false
-    return
-  }
 
   try {
-    const resp = await fetch('/vr/chat', {
+    // 携带上下文历史（不含正在流式输出的占位消息），让多轮对话连贯
+    const history = chatMessages.value
+      .filter(m => m.id !== replyId && m.content)
+      .map(m => ({ role: m.role, content: m.content }))
+    const resp = await fetch('/pyai/chat/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -70,14 +64,10 @@ async function sendChat() {
         'ngrok-skip-browser-warning': 'true',
       },
       body: JSON.stringify({
-        messages: [{ role: 'user', content: msg }],
-        context: '当前页面: 量化交易平台。请用中文回答，关注A股行情与量化分析。',
-        llm: {
-          provider: '',
-          baseURL: cfg.baseURL,
-          apiKey: cfg.apiKey,
-          model: cfg.model,
-        },
+        messages: history,
+        system: '当前页面: 量化交易平台。请用中文回答，关注A股行情与量化分析，回答简洁、分点。',
+        // 未配置自有模型时传 null，由服务端免费模型池自动路由
+        model: cfg.model || null,
       }),
     })
 
@@ -85,11 +75,12 @@ async function sendChat() {
       let detail = `请求失败 (HTTP ${resp.status})`
       try {
         const err = await resp.json()
-        if (err?.detail) detail = String(err.detail)
+        if (err?.detail || err?.msg) detail = String(err.detail || err.msg)
       } catch {}
       throw new Error(detail)
     }
 
+    // SSE 解析：每行形如 `data: {"delta": "..."}`，结束标记 `data: [DONE]`
     const reader = resp.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
@@ -104,18 +95,14 @@ async function sendChat() {
 
       for (const line of lines) {
         const trimmed = line.trim()
-        if (!trimmed) continue
+        if (!trimmed.startsWith('data:')) continue
+        const payload = trimmed.slice(5).trim()
+        if (!payload || payload === '[DONE]') continue
         let ev
-        try { ev = JSON.parse(trimmed) } catch { continue }
+        try { ev = JSON.parse(payload) } catch { continue }
         const target = chatMessages.value.find(m => m.id === replyId)
         if (!target) continue
-        if (ev.type === 'delta' && ev.content) {
-          target.content += ev.content
-        } else if (ev.type === 'tool' && ev.name) {
-          target.content += (target.content ? '\n' : '') + `[工具: ${ev.name}]`
-        } else if (ev.type === 'error') {
-          target.content += (target.content ? '\n' : '') + `⚠ ${ev.message || '分析出错'}`
-        }
+        if (ev.delta) target.content += ev.delta
       }
     }
     const target = chatMessages.value.find(m => m.id === replyId)
@@ -127,7 +114,7 @@ async function sendChat() {
     const target = chatMessages.value.find(m => m.id === replyId)
     if (target) {
       target.streaming = false
-      target.content = '分析失败: ' + (e.message || '网络错误') + '。请检查 Vibe-Research 服务 (8900) 与模型配置。'
+      target.content = '分析失败: ' + (e.message || '网络错误') + '。请确认 py-service(9006) 已启动且免费 AI 通道可用。'
     }
   } finally {
     chatLoading.value = false

@@ -1183,6 +1183,53 @@ def eastmoney_stock_news(code: str, page_size: int = 20) -> list[dict]:
     return rows
 
 
+# ---- 5.1b 新浪个股新闻（corp 新闻页，GBK HTML，稳定可用） ----
+
+# 页面结构：`2026-10-18&nbsp;19:23&nbsp;&nbsp;<a ...href='URL'>标题</a>`
+_SINA_NEWS_ROW = re.compile(
+    r"(\d{4}-\d{2}-\d{2})&nbsp;(\d{2}:\d{2})&nbsp;&nbsp;"
+    r"<a[^>]*?href='([^']+)'[^>]*?>(.*?)</a>", re.S)
+
+
+def sina_stock_news(code: str, page_size: int = 30) -> list[dict]:
+    """新浪个股新闻列表（``vCB_AllNewsStock``，GBK 页面）。
+
+    返回: ``[{title, time, url, source}]``；time 为 'YYYY-MM-DD HH:MM'。
+    说明：东财个股新闻搜索接口（search-api-web）已改版，常返回空列表，
+    故以本页作为主源，东财仅作兜底。
+    """
+    c = str(code or "").strip()
+    if not c:
+        return []
+    if c[0] == "6":
+        symbol = "sh" + c
+    elif c[0] in ("0", "3"):
+        symbol = "sz" + c
+    elif c[0] in ("4", "8", "9"):
+        symbol = "bj" + c
+    else:
+        symbol = c
+    url = ("https://vip.stock.finance.sina.com.cn/corp/go.php/"
+           f"vCB_AllNewsStock/symbol/{symbol}.phtml")
+    r = requests.get(url, headers={"User-Agent": UA, "Referer": "https://finance.sina.com.cn/"},
+                     timeout=15)
+    text = r.content.decode("gbk", "replace")
+    rows = []
+    for day, hm, href, title in _SINA_NEWS_ROW.findall(text):
+        title = re.sub(r"<[^>]+>", "", title).strip()
+        if not title:
+            continue
+        rows.append({
+            "title": title,
+            "time": f"{day} {hm}",
+            "url": href,
+            "source": "新浪财经",
+        })
+        if len(rows) >= max(int(page_size), 1):
+            break
+    return rows
+
+
 # ---- 5.2 财联社快讯（直连 cls.cn，v1 API + 本地签名，零 key） ----
 
 def cls_telegraph(page_size: int = 50) -> list[dict]:
@@ -1805,6 +1852,47 @@ def dragon_tiger_backup(trade_date: str) -> dict:
         t = r.read().decode("utf-8", "ignore")
     out["sse_raw"] = "\n".join(json.loads(t[t.index("(")+1:t.rindex(")")]).get("fileContents", []))
     return out
+
+
+def sina_board_flow(board_type: str = "industry") -> list:
+    """新浪板块资金流（当日，不认日期）——东财 push2 列表接口不可达时的板块资金流备源。
+
+    移植自 Vibe-Research 项目（该项目 2026-09-22 起确认东财 clist 成片取不到，改用新浪兜底）。
+    口径说明：新浪给的是「流入 − 流出」的净额，板块用新浪自己的分类（行业约 48 个），
+    与东财「主力净额」不是一个口径，两边的数不能互相比较。
+    返回 [{code, name, change_pct(%), net, inflow, outflow(元), net_ratio(%), leader, leader_pct(%)}]，
+    netamount 单位：元。
+    """
+    fenlei = {"industry": "0", "concept": "1"}.get(board_type)
+    if fenlei is None:
+        raise ValueError("board_type 须为 industry / concept")
+    u = (f"https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+         f"MoneyFlow.ssl_bkzj_bk?page=1&num=500&sort=netamount&asc=0&fenlei={fenlei}")
+    req = urllib.request.Request(u, headers={"User-Agent": UA, "Referer": "https://finance.sina.com.cn/"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        t = r.read().decode("utf-8", "ignore")
+    if "[" not in t:
+        raise RuntimeError(f"新浪板块资金流响应异常: {t[:120]}")
+    arr = json.loads(t[t.index("["):t.rindex("]") + 1])
+    def F(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+    def R(v):
+        x = F(v)
+        return None if x is None else round(x * 100, 4)  # 新浪给小数（0.0123 = 1.23%）
+    out = []
+    for x in arr:
+        if not isinstance(x, dict) or not x.get("name"):
+            continue
+        out.append({"code": str(x.get("category") or ""), "name": str(x["name"]),
+                    "change_pct": R(x.get("avg_changeratio")), "net": F(x.get("netamount")),
+                    "inflow": F(x.get("inamount")), "outflow": F(x.get("outamount")),
+                    "net_ratio": R(x.get("ratioamount")),
+                    "leader": str(x.get("ts_name") or ""), "leader_pct": R(x.get("ts_changeratio"))})
+    return out
+
 
 
 def fund_flow_backup(code: str, days: int = 60) -> list:

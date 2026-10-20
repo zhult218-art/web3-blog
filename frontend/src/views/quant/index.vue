@@ -1,6 +1,6 @@
 <template>
   <div class="quant-terminal min-h-screen px-4 md:px-6 py-8">
-    <div class="mx-auto max-w-[1400px]">
+    <div class="w-full">
       <!-- Header -->
       <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div class="min-w-0">
@@ -123,7 +123,8 @@
                 {{ parseFloat(item.returns) > 0 ? '+' : '' }}{{ item.returns }}%
               </span>
               <div class="flex gap-2">
-                <button class="text-[11px] px-2.5 py-1 rounded-lg bg-[#332314] text-amber-400 border border-amber-400/20 hover:bg-amber-500/20 transition" @click.stop="handleRunStrategy(item.id)">运行</button>
+                <button v-if="canOperateStrategy(item)" class="text-[11px] px-2.5 py-1 rounded-lg bg-[#332314] text-amber-400 border border-amber-400/20 hover:bg-amber-500/20 transition" @click.stop="handleRunStrategy(item.id)">运行</button>
+                <span v-else class="text-[11px] px-2.5 py-1 rounded-lg bg-[#1a1408] text-amber-700/50 border border-amber-400/10 cursor-not-allowed" :title="runBlockReason(item)">🔒 不可运行</span>
                 <span class="text-[11px] text-purple-400 opacity-0 group-hover:opacity-100 transition flex items-center gap-1">
                   详情 <span>→</span>
                 </span>
@@ -883,9 +884,9 @@
       </div>
 
       <!-- ========== TAB: 智能看板 ========== -->
-      <div v-if="activeTab === 'dashboard'">
+      <div v-if="activeTab === 'dashboard'" class="dash-screen">
         <!-- 统计概览 -->
-        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <div class="scroll-card text-center flex flex-col items-center justify-center min-h-[92px]">
             <div class="text-3xl font-black text-amber-100 scroll-title leading-none">{{ dashLimitStats.total }}</div>
             <div class="text-[11px] text-amber-600/60 font-serif mt-2">全部</div>
@@ -912,63 +913,48 @@
           </div>
         </div>
 
-        <!-- 可视化图表：涨跌分布饼图 + 涨幅TOP10 + 跌幅TOP10 -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+        <!-- 可视化图表 第一排：涨跌分布 / 涨幅TOP10 / 跌幅TOP10 / 情绪温度计（4 列并排，压缩留白） -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <div class="scroll-card overflow-hidden">
             <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-amber-200 font-serif">涨跌分布</h3></div>
-            <div id="dash-breadth-chart" class="w-full" style="height: 220px;"></div>
+            <div id="dash-breadth-chart" class="w-full" style="height: 176px;"></div>
           </div>
           <div class="scroll-card overflow-hidden">
             <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-red-400 font-serif">涨幅 TOP 10</h3></div>
-            <div id="dash-gainers-chart" class="w-full" style="height: 220px;"></div>
+            <div id="dash-gainers-chart" class="w-full" style="height: 176px;"></div>
           </div>
           <div class="scroll-card overflow-hidden">
             <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-green-400 font-serif">跌幅 TOP 10</h3></div>
-            <div id="dash-losers-chart" class="w-full" style="height: 220px;"></div>
-          </div>
-        </div>
-
-        <!-- 可视化图表：换手率/成交额 TOP10 + 市场情绪温度计 -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-          <div class="scroll-card overflow-hidden">
-            <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-amber-200 font-serif">换手率 TOP 10</h3></div>
-            <div id="dash-turnover-chart" class="w-full" style="height: 220px;"></div>
-          </div>
-          <div class="scroll-card overflow-hidden">
-            <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-amber-200 font-serif">成交额 TOP 10</h3></div>
-            <div id="dash-amount-chart" class="w-full" style="height: 220px;"></div>
+            <div id="dash-losers-chart" class="w-full" style="height: 176px;"></div>
           </div>
           <div class="scroll-card overflow-hidden">
             <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-amber-200 font-serif">市场情绪温度计</h3></div>
-            <div id="dash-emotion-gauge" class="w-full" style="height: 220px;"></div>
+            <div id="dash-emotion-gauge" class="w-full" style="height: 176px;"></div>
           </div>
         </div>
 
-        <!-- 可视化图表：振幅分布 + PE 分布 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+        <!-- 可视化图表 第二排：换手率 / 成交额 / 振幅分布 / PE 分布 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div class="scroll-card overflow-hidden">
+            <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-amber-200 font-serif">换手率 TOP 10</h3></div>
+            <div id="dash-turnover-chart" class="w-full" style="height: 176px;"></div>
+          </div>
+          <div class="scroll-card overflow-hidden">
+            <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-amber-200 font-serif">成交额 TOP 10</h3></div>
+            <div id="dash-amount-chart" class="w-full" style="height: 176px;"></div>
+          </div>
           <div class="scroll-card overflow-hidden">
             <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-amber-200 font-serif">振幅分布</h3></div>
-            <div id="dash-amplitude-chart" class="w-full" style="height: 220px;"></div>
+            <div id="dash-amplitude-chart" class="w-full" style="height: 176px;"></div>
           </div>
           <div class="scroll-card overflow-hidden">
             <div class="p-3 border-b border-amber-800/20"><h3 class="text-xs font-bold text-amber-200 font-serif">PE 分布</h3></div>
-            <div id="dash-pe-chart" class="w-full" style="height: 220px;"></div>
-          </div>
-        </div>
-
-        <!-- 可视化图表：量价散点（换手率 × 涨跌幅 × 成交额） -->
-        <div class="scroll-card overflow-hidden mb-6">
-          <div class="p-3 border-b border-amber-800/20 flex items-center justify-between">
-            <h3 class="text-xs font-bold text-amber-200 font-serif">量价散点（活跃度前300 · 换手率 × 涨跌幅 × 成交额）</h3>
-            <span class="text-[10px] text-amber-600/40">点大小 = 成交额 · 悬停查看明细</span>
-          </div>
-          <div class="p-2">
-            <div id="dash-scatter-chart" class="w-full" style="height: 300px;"></div>
+            <div id="dash-pe-chart" class="w-full" style="height: 176px;"></div>
           </div>
         </div>
 
         <!-- 拼级 + 大盘资金流 -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6 items-stretch">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch">
           <!-- 晋级数据 -->
           <div class="scroll-card overflow-hidden flex flex-col">
             <div class="p-4 border-b border-amber-800/20">
@@ -997,7 +983,7 @@
                   <span class="text-[9px] text-amber-600/40">共 {{ (p.stocks || []).length }} 家</span>
                 </div>
                 <div class="flex flex-wrap gap-1">
-                  <span v-for="st in (p.stocks || []).slice(0, 12)" :key="st.code"
+                  <span v-for="(st, i) in (p.stocks || []).slice(0, 12)" :key="st.code + i"
                     class="text-[10px] text-amber-100/80 bg-[#101c30]/70 rounded px-1.5 py-0.5 cursor-pointer hover:text-cyan-300"
                     @click="selectStock(st)">{{ st.name }}</span>
                   <span v-if="!(p.stocks || []).length" class="text-[9px] text-amber-600/40">无</span>
@@ -1005,7 +991,7 @@
               </div>
             </div>
             <!-- 连板梯队（含具体个股） -->
-            <div v-if="dashLadders.length" class="px-3 pb-3 space-y-1.5 max-h-[220px] overflow-y-auto">
+            <div v-if="dashLadders.length" class="px-3 pb-3 space-y-1.5 max-h-[170px] overflow-y-auto">
               <div v-for="lad in dashLadders" :key="lad.lb"
                 class="rounded-lg bg-red-900/20 border border-red-400/15 px-3 py-2">
                 <div class="flex items-center gap-2 mb-1">
@@ -1013,7 +999,7 @@
                   <span class="text-[9px] text-amber-600/40">共 {{ lad.count }} 家</span>
                 </div>
                 <div class="flex flex-wrap gap-1">
-                  <span v-for="st in lad.stocks.slice(0, 12)" :key="st.code"
+                  <span v-for="(st, i) in lad.stocks.slice(0, 12)" :key="st.code + i"
                     class="text-[10px] text-amber-100/80 bg-[#101c30]/70 rounded px-1.5 py-0.5 cursor-pointer hover:text-cyan-300"
                     @click="selectStock(st)">{{ st.name }}</span>
                 </div>
@@ -1028,7 +1014,9 @@
                 <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
                 大盘指数资金流
               </h3>
-              <p class="text-[10px] text-amber-600/50 mt-1">主力净流入（亿元）</p>
+              <p class="text-[10px] text-amber-600/50 mt-1">
+                {{ dashFundFlow?.flow_source === 'sina' ? '新浪口径：流入 − 流出（≠ 东财主力净额）' : '主力净流入（亿元）' }}
+              </p>
             </div>
             <div class="p-3 flex-1 flex flex-col justify-evenly gap-2">
               <div v-for="idx in (dashFundFlow?.indices || [])" :key="idx.name"
@@ -1042,8 +1030,15 @@
                     {{ (idx.main / 1e8).toFixed(1) }} 亿
                   </div>
                   <div class="text-[9px] text-amber-600/40">
-                    超大<span :class="idx.super >= 0 ? 'text-red-400' : 'text-green-400'">{{ (idx.super / 1e8).toFixed(1) }}</span>
-                    ·大<span :class="idx.big >= 0 ? 'text-red-400' : 'text-green-400'">{{ (idx.big / 1e8).toFixed(1) }}</span>
+                    <!-- tiered=true：东财给四档净额，展示超大/大；false：新浪只给流入/流出总额 -->
+                    <template v-if="idx.tiered">
+                      超大<span :class="idx.super >= 0 ? 'text-red-400' : 'text-green-400'">{{ (idx.super / 1e8).toFixed(1) }}</span>
+                      ·大<span :class="idx.big >= 0 ? 'text-red-400' : 'text-green-400'">{{ (idx.big / 1e8).toFixed(1) }}</span>
+                    </template>
+                    <template v-else>
+                      流入<span class="text-red-400">{{ ((idx.inflow || 0) / 1e8).toFixed(0) }}</span>
+                      ·流出<span class="text-green-400">{{ ((idx.outflow || 0) / 1e8).toFixed(0) }}</span>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -1059,15 +1054,18 @@
                 <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
                 板块主力净流入 Top
               </h3>
+              <p v-if="dashFundFlow?.flow_source === 'sina'" class="text-[10px] text-amber-600/50 mt-1">
+                新浪行业口径（约48个）· 流入 − 流出
+              </p>
             </div>
             <div class="p-3 flex-1 overflow-y-auto flex flex-col justify-evenly">
-              <div v-for="s in (dashFundFlow?.sectors_in || []).slice(0, 6)" :key="s.code"
+              <div v-for="(s, i) in (dashFundFlow?.sectors_in || []).slice(0, 6)" :key="'in' + (s.code || '') + i"
                 class="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-[#101c30]/60 cursor-pointer text-xs"
                 @click="selectStock(s)">
                 <span class="text-amber-100/80 truncate">{{ s.name }}</span>
                 <span class="text-red-400 font-mono ml-2 flex-shrink-0">+{{ (s.main / 1e8).toFixed(1) }}亿</span>
               </div>
-              <div v-for="s in (dashFundFlow?.sectors_out || []).slice(0, 4)" :key="'o' + s.code"
+              <div v-for="(s, i) in (dashFundFlow?.sectors_out || []).slice(0, 4)" :key="'out' + (s.code || '') + i"
                 class="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-[#101c30]/60 cursor-pointer text-xs"
                 @click="selectStock(s)">
                 <span class="text-amber-100/80 truncate">{{ s.name }}</span>
@@ -1078,8 +1076,21 @@
           </div>
         </div>
 
-        <!-- 板块涨跌曲线 -->
-        <div class="scroll-card overflow-hidden mb-6">
+        <!-- 双图并排：量价散点 + 板块涨跌走势（各占半宽，压缩纵向占比） -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 items-stretch">
+          <!-- 量价散点（换手率 × 涨跌幅 × 成交额） -->
+          <div class="scroll-card overflow-hidden">
+            <div class="p-3 border-b border-amber-800/20 flex items-center justify-between">
+              <h3 class="text-xs font-bold text-amber-200 font-serif">量价散点（活跃度前300 · 换手率 × 涨跌幅）</h3>
+              <span class="text-[10px] text-amber-600/40">点大小=成交额 · 滚轮可放大</span>
+            </div>
+            <div class="p-2">
+              <div id="dash-scatter-chart" class="w-full" style="height: 196px;"></div>
+            </div>
+          </div>
+
+          <!-- 板块涨跌曲线 -->
+          <div class="scroll-card overflow-hidden">
           <div class="p-4 border-b border-amber-800/20 flex items-center justify-between">
             <h3 class="text-sm font-bold text-amber-200 font-serif flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
@@ -1089,13 +1100,14 @@
           </div>
           <div class="p-3">
             <div v-if="dashSectorLoading" class="text-xs text-amber-700/40 py-10 text-center">板块曲线加载中（约2~3秒）...</div>
-            <div v-else-if="dashSectorTrends" id="dash-sector-trends-chart" class="w-full" style="height: 380px;"></div>
+            <div v-else-if="dashSectorTrends" id="dash-sector-trends-chart" class="w-full" style="height: 196px;"></div>
             <div v-else class="text-xs text-amber-700/40 py-10 text-center">暂无板块曲线数据</div>
+          </div>
           </div>
         </div>
 
         <!-- 研报速递（合规：仅元数据 + 原文链接；面板只放最新滚动条） -->
-        <div class="scroll-card overflow-hidden mb-6">
+        <div class="scroll-card overflow-hidden">
           <div class="p-4 border-b border-amber-800/20 flex items-center justify-between">
             <h3 class="text-sm font-bold text-amber-200 font-serif flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
@@ -1127,11 +1139,11 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
-          <!-- 左侧：AI 推荐 + 涨停板 -->
-          <div class="space-y-5">
-            <!-- AI 推荐优质股 -->
-            <div class="recommend-card overflow-hidden">
+        <!-- 列表类数据统一一行铺开（5 卡并排，占比小、内部滚动）：
+             AI 量化推荐 / 低位荐股 / 多策略选股 / 涨停板·连板 / 跌停板·炸板 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+          <!-- AI 推荐优质股 -->
+          <div class="recommend-card overflow-hidden">
               <div class="p-4 border-b border-green-400/10">
                 <h3 class="text-sm font-bold text-green-300 font-serif flex items-center gap-2">
                   <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
@@ -1139,7 +1151,7 @@
                 </h3>
                 <p class="text-[10px] text-amber-600/50 mt-1">涨幅2-9.5% · 换手3-25% · PE&lt;80</p>
               </div>
-              <div class="p-3 max-h-[400px] overflow-y-auto">
+              <div class="p-3 max-h-[260px] overflow-y-auto">
                 <div v-if="dashRecommendations.length" class="space-y-2">
                   <div v-for="(s, i) in dashRecommendations" :key="s.code + i"
                     class="flex items-center justify-between py-2 px-3 rounded-lg bg-green-900/30 hover:bg-green-900/50 transition cursor-pointer"
@@ -1170,7 +1182,7 @@
                 </div>
                 <button v-if="dashRecommend" class="text-[9px] text-amber-600/50" @click="loadRecommend(true)">刷新 ⟳</button>
               </div>
-              <div class="p-3 max-h-[400px] overflow-y-auto">
+              <div class="p-3 max-h-[260px] overflow-y-auto">
                 <div v-if="dashRecommendLoading" class="text-xs text-amber-700/40 py-6 text-center">荐股评分中（拉取K线+研报，约需数秒）...</div>
                 <div v-else-if="dashRecommend?.items?.length" class="space-y-2">
                   <div v-for="(s, i) in dashRecommend.items" :key="s.code + i"
@@ -1230,7 +1242,7 @@
                     class="text-[10px] text-amber-700/40 bg-[#101c30]/40 rounded-lg px-3 py-2 mb-2">
                     ⚠️ 该策略当前停用{{ dashMultiActiveData.disabled_reason ? '：' + dashMultiActiveData.disabled_reason : '' }}
                   </div>
-                  <div class="max-h-[400px] overflow-y-auto space-y-2">
+                  <div class="max-h-[260px] overflow-y-auto space-y-2">
                     <div v-if="dashMultiActiveData.items?.length" class="space-y-2">
                       <div v-for="(s, i) in dashMultiActiveData.items" :key="s.code + i"
                         class="rounded-lg bg-[#101c30]/50 border border-amber-800/20 hover:border-cyan-400/40 hover:bg-[#12243c]/60 transition cursor-pointer px-3 py-2"
@@ -1262,8 +1274,8 @@
               </div>
             </div>
 
-            <!-- 涨停板 / 连板 -->
-            <div class="limit-up-card overflow-hidden">
+          <!-- 涨停板 / 连板 -->
+          <div class="limit-up-card overflow-hidden">
               <div class="p-4 border-b border-red-400/10">
                 <h3 class="text-sm font-bold text-red-300 font-serif flex items-center gap-2">
                   <span class="w-2 h-2 rounded-full bg-red-400"></span>
@@ -1271,7 +1283,7 @@
                 </h3>
                 <p class="text-[10px] text-amber-600/50 mt-1">涨幅≥9.5%（创业板/科创板≥19.5%）</p>
               </div>
-              <div class="p-3 max-h-[300px] overflow-y-auto">
+              <div class="p-3 max-h-[240px] overflow-y-auto">
                 <div v-if="dashConsecutive.length" class="space-y-1.5">
                   <div v-for="(s, i) in dashConsecutive" :key="s.code + i"
                     class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-red-900/30 hover:bg-red-900/50 transition cursor-pointer text-xs"
@@ -1301,7 +1313,7 @@
                 </h3>
                 <p class="text-[10px] text-amber-600/50 mt-1">跌停 {{ (dashLimitPools?.limit_down || []).length }} · 炸板 {{ (dashLimitPools?.zhaban || []).length }}</p>
               </div>
-              <div class="p-3 max-h-[300px] overflow-y-auto">
+              <div class="p-3 max-h-[240px] overflow-y-auto">
                 <div v-if="(dashLimitPools?.limit_down || []).length" class="space-y-1.5">
                   <div v-for="(s, i) in (dashLimitPools.limit_down || []).slice(0, 15)" :key="s.code + i"
                     class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-emerald-900/20 hover:bg-emerald-900/40 transition cursor-pointer text-xs"
@@ -1329,10 +1341,10 @@
                   class="text-xs text-amber-700/40 py-6 text-center">今日无跌停 · 无炸板</div>
               </div>
             </div>
-          </div>
+        </div>
 
-          <!-- 右侧：全部股票数据表 -->
-          <div class="lg:col-span-2 scroll-card overflow-hidden flex flex-col">
+        <!-- 全部 A 股：整宽面板（表头吸顶 + 分页） -->
+        <div class="scroll-card overflow-hidden flex flex-col">
             <div class="p-4 border-b border-amber-800/20">
               <div class="flex flex-wrap items-center gap-3">
                 <h3 class="text-sm font-bold text-amber-200 font-serif">全部 A 股 <span class="text-[10px] text-amber-600/50">共 {{ filteredDashStocks.length }} 只</span></h3>
@@ -1413,7 +1425,6 @@
               </div>
             </div>
           </div>
-        </div>
       </div>
 
       <!-- ========== Strategy Detail Modal ========== -->
@@ -1435,9 +1446,10 @@
             <pre class="text-xs text-amber-200/70 bg-black/60 rounded-xl p-4 overflow-x-auto max-h-40">{{ strategyDetail.backtestData }}</pre>
           </div>
           <div class="mt-4 flex gap-3">
-            <button class="web3-btn text-xs !px-4" @click.stop="handleRunStrategy(strategyDetail.id)">
+            <button v-if="canOperateStrategy(strategyDetail)" class="web3-btn text-xs !px-4" @click.stop="handleRunStrategy(strategyDetail.id)">
               运行策略
             </button>
+            <span v-else class="text-[11px] px-3 py-2 rounded-lg bg-[#1a1408] text-amber-700/50 border border-amber-400/10 cursor-not-allowed" :title="runBlockReason(strategyDetail)">🔒 {{ runBlockReason(strategyDetail) }}</span>
             <button class="web3-btn-outline text-xs !px-4" @click.stop="showStrategyModal = false">关闭</button>
           </div>
         </div>
@@ -1468,19 +1480,19 @@
 //   再拆分。当前仅修 resize 监听泄漏，不强行拆分。
 // ====================================================
 import { ref, reactive, computed, onMounted, onActivated, onDeactivated, nextTick, watch, onBeforeUnmount } from 'vue'
-import { getQuantList, getStockKlineVR, getIndices, getMarketEmotion, getConceptHot, getIndustryList, getRadarData, getGlobalIndices, getPortfolioData, createStrategy, runStrategy, runPyBacktest, getPyBacktestStatus, getPyBacktestResult, getPyQuotes, getPyQuote, getPySearch, getPySectors, getPyAiAnalyze, getPyLlmProviders, getPyModels, getPyNews, getPyDashboard, getPyPortfolio, getPyLimitPools, getPyBoardProgress, getPySectorTrends, getPyFundFlow, getPyReportsLatest, getPyReports, getPyRecommend, getPyRecommendStrategies, getPyScreenStrategy, getPyScreenCustom, getPyLlmStatus, getPyStrategies, getMyHoldings, saveHolding, deleteHolding } from '@/api/quant'
+import { getQuantList, getStockKlineVR, getConceptHot, getIndustryList, getPortfolioData, createStrategy, runStrategy, runPyBacktest, getPyBacktestStatus, getPyBacktestResult, getPyQuotes, getPyQuote, getPySearch, getPySectors, getPyAiAnalyze, getPyLlmProviders, getPyModels, getPyNews, getPyDashboard, getPyPortfolio, getPyLimitPools, getPyBoardProgress, getPySectorTrends, getPyFundFlow, getPyReportsLatest, getPyReports, getPyRecommend, getPyRecommendStrategies, getPyScreenStrategy, getPyScreenCustom, getPyLlmStatus, getPyStrategies, getMyHoldings, saveHolding, deleteHolding } from '@/api/quant'
 
 // 显式命名以供外层 <keep-alive :include="['QuantIndex']"> 精确缓存本组件，
 // 避免从 /quant/cockpit 返回时重新挂载 214KB 懒加载 chunk + 重跑 onMounted 数据请求，
 // 进而避免 mode="out-in" 过渡期间出现的瞬时空白。
 defineOptions({ name: 'QuantIndex' })
-import { getIndexQuotes } from '@/api/akshare'
 import Pagination from '@/components/common/Pagination.vue'
 import Loading from '@/components/common/Loading.vue'
 import Modal from '@/components/common/Modal.vue'
 import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/modules/toast'
+import { useAuthStore } from '@/stores/modules/auth'
 import { confirm as dlgConfirm } from '@/composables/useDialog'
 import AiConfigPanel from './components/AiConfigPanel.vue'
 import ChatPanel from './components/ChatPanel.vue'
@@ -1490,7 +1502,21 @@ import StockQuotesTab from './components/StockQuotesTab.vue'
 import { formatMoney, marketSymbol } from './components/quoteUtils'
 
 const toast = useToastStore()
+const auth = useAuthStore()
 const router = useRouter()
+
+// 策略归属判定：ADMIN 可操作全部策略；普通用户仅能操作本人创建的策略。
+// 公共策略（userId 为空）由后端强制「仅管理员可操作」，前端据此提前置灰按钮
+// 并给出原因，避免用户点击后才收到 403。
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
+function canOperateStrategy(item) {
+  if (!item) return false
+  return isAdmin.value || (item.userId != null && String(item.userId) === String(auth.user?.id))
+}
+function runBlockReason(item) {
+  if (!item) return ''
+  return item.userId == null ? '公共策略仅管理员可运行' : '他人创建的策略不可运行'
+}
 
 // API 响应缓存（SWR：旧数据立即渲染 + 后台静默刷新；TTL 抖动防雪崩、空值短缓存防穿透）
 import { swr } from '@/utils/quantCache'
@@ -2190,7 +2216,7 @@ async function loadOverview() {
     if (qList.length) {
       stockList.value = qList.map(mapPyQuote)
       stockTotal.value = stockList.value.length
-      stockPage.value = 1
+      // 分页页码由子组件 StockQuotesTab 自己的 watch(props.stockList) 重置，这里不再越权访问 stockPage
     }
 
     if (m.updated_at) lastUpdate.value = m.updated_at
@@ -2536,24 +2562,34 @@ function renderDashExtraCharts() {
     .sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 300)
   const scatterUp = _scatterRaw.filter(s => (s.change_pct || 0) >= 0).map(s => ({
     name: s.name || s.code, code: s.code,
-    value: [Math.max(0.01, +(s.turnover_rate || 0).toFixed(2)), +(s.change_pct || 0).toFixed(2), s.amount || 0],
+    value: [Math.max(0.01, +(s.turnover_pct || 0).toFixed(2)), +(s.change_pct || 0).toFixed(2), s.amount || 0],
   }))
   const scatterDown = _scatterRaw.filter(s => (s.change_pct || 0) < 0).map(s => ({
     name: s.name || s.code, code: s.code,
-    value: [Math.max(0.01, +(s.turnover_rate || 0).toFixed(2)), +(s.change_pct || 0).toFixed(2), s.amount || 0],
+    value: [Math.max(0.01, +(s.turnover_pct || 0).toFixed(2)), +(s.change_pct || 0).toFixed(2), s.amount || 0],
   }))
-  // 成交额立方根缩放 → 限制 6~40
+  // 点大小：成交额立方根缩放后收敛到 3~13px。
+  // 原上限 40px 会让头部个股糊成一大团、把密集区整片盖住；缩小后密集区也能分辨单点，
+  // 成交额差异仍由点大小体现（1亿≈7px，50亿≈13px）。注意 x 轴字段是 turnover_pct
+  // （mapPyQuote 归一化后的名字），早前误用 turnover_rate 会让所有点挤在 0.01% 一列上。
   const symSize = d => {
     const v = Math.cbrt((d[2] || 0) / 1e6)
-    return Math.max(6, Math.min(40, v * 3))
+    return Math.max(3, Math.min(13, v * 1.6))
   }
+  // 纵轴按 1%~99% 分位截断：实测 300 个点里 76% 落在 ±3% 内，而自动范围会被
+  // 北交所/ST 极端值拉到 −12%~+30%，密集区只占约 1/7 高度 → 视觉上糊成一条带。
+  // 截断后密集区占约 1/3 高度，代价是少数 |涨跌幅|>10% 的极端票不绘制（标题已注明）。
+  const _yAll = [...scatterUp, ...scatterDown].map(d => d.value[1]).sort((a, b) => a - b)
+  const _yq = p => _yAll[Math.min(_yAll.length - 1, Math.max(0, Math.round((_yAll.length - 1) * p)))]
+  const yLo = Math.min(-5, Math.floor((_yq(0.01) || -5) * 2) / 2)
+  const yHi = Math.max(5, Math.ceil((_yq(0.99) || 5) * 2) / 2)
   const el8 = document.getElementById('dash-scatter-chart')
   if (el8) {
     try { dashScatterChart?.dispose() } catch {}
     dashScatterChart = echarts.init(el8)
     dashScatterChart.setOption({
       backgroundColor: 'transparent',
-      title: { text: '活跃度前300 · 点大小=成交额（换手率对数刻度）', left: 'center', top: 2, textStyle: { color: '#6d8fb0', fontSize: 9, fontWeight: 400 } },
+      title: { text: `活跃度前300 · 点大小=成交额 · 纵轴截断 ${yLo}%~${yHi}%`, left: 'center', top: 2, textStyle: { color: '#6d8fb0', fontSize: 9, fontWeight: 400 } },
       tooltip: {
         ..._dashChartTooltip,
         formatter: p => {
@@ -2574,23 +2610,29 @@ function renderDashExtraCharts() {
       },
       yAxis: {
         type: 'value', name: '涨跌幅(%)', nameLocation: 'middle', nameGap: 28,
+        min: yLo, max: yHi,
         nameTextStyle: { color: '#6d8fb0', fontSize: 9 },
         axisLine: { lineStyle: { color: 'rgba(120,170,220,0.2)' } },
         axisLabel: { color: '#6d8fb0', fontSize: 9, formatter: '{value}%' },
         splitLine: { lineStyle: { color: 'rgba(120,170,220,0.08)' } },
       },
+      // 密集区支持下钻：滚轮/拖拽放大到关心的一段，默认仍展示全量分布
+      dataZoom: [{ type: 'inside', xAxisIndex: 0, yAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false }],
       series: [
         {
           name: '上涨', type: 'scatter', data: scatterUp,
           symbolSize: symSize,
-          itemStyle: { color: 'rgba(248,113,113,0.55)', borderColor: '#f87171', borderWidth: 0.5 },
-          emphasis: { focus: 'series', itemStyle: { color: 'rgba(248,113,113,0.9)', borderWidth: 1 } },
+          // 0 轴参考虚线：一眼区分红/绿两侧
+          markLine: { silent: true, symbol: 'none', label: { show: false }, lineStyle: { color: 'rgba(140,180,220,0.3)', type: 'dashed', width: 1 }, data: [{ yAxis: 0 }] },
+          // 半透明填充 + 浅色描边：重叠时仍能看出是多个点而非一团色块
+          itemStyle: { color: 'rgba(248,113,113,0.62)', borderColor: 'rgba(255,200,200,0.45)', borderWidth: 0.5 },
+          emphasis: { itemStyle: { color: 'rgba(248,113,113,0.95)', borderColor: '#fff', borderWidth: 1 } },
         },
         {
           name: '下跌', type: 'scatter', data: scatterDown,
           symbolSize: symSize,
-          itemStyle: { color: 'rgba(52,211,153,0.55)', borderColor: '#34d399', borderWidth: 0.5 },
-          emphasis: { focus: 'series', itemStyle: { color: 'rgba(52,211,153,0.9)', borderWidth: 1 } },
+          itemStyle: { color: 'rgba(52,211,153,0.62)', borderColor: 'rgba(190,255,220,0.45)', borderWidth: 0.5 },
+          emphasis: { itemStyle: { color: 'rgba(52,211,153,0.95)', borderColor: '#fff', borderWidth: 1 } },
         },
       ],
     })
@@ -2769,12 +2811,17 @@ async function createNewStrategy() {
   } finally { creating.value = false }
 }
 
-// 触发运行指定策略
+// 触发运行指定策略（后端会写入一条 quant_log 执行日志）
+// 说明：runStrategy 已设置 suppressError，拦截器不再弹全局 toast，
+// 由这里统一给出带后端原因的错误提示（如「公共策略仅管理员可操作」）。
 async function handleRunStrategy(id) {
   try {
     await runStrategy(id)
     toast.success('策略运行已启动')
-  } catch { toast.error('策略运行失败') }
+  } catch (e) {
+    const msg = e?.response?.data?.message || e?.response?.data?.detail || e?.message || '网络错误'
+    toast.error('策略运行失败：' + msg)
+  }
 }
 
 // ===== News =====
@@ -3401,5 +3448,37 @@ onBeforeUnmount(() => {
 @keyframes dash-report-scroll {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
+}
+
+/* ============================================================
+   智能看板「数据大屏」排版（根节点 .dash-screen）
+   ------------------------------------------------------------
+   与上一版「一屏驾驶舱」的区别：不再锁定视口高度、不再用固定网格裁切组件，
+   页面按内容自然流动、可纵向滚动，每个分区都是「响应式栅格 + 等高卡片」：
+   1. 分区间距由本层统一控制（12px），模板不再各自写 mb-3 / mb-6，
+      保证从统计卡到最后一张表的纵向节奏完全一致；
+   2. 卡片高度由内容决定；同一行卡片靠 Grid 默认 stretch 自动等高，
+      过长的列表由卡片自带 max-h + overflow-y-auto 承载（A 股大表保留
+      表头吸顶 + 分页），因此单张卡片不会失控变高；
+   3. 标题栏统一冷青渐变 + 左侧强调条，卡片悬停微上浮，贴近行情大屏质感；
+   4. 图表按像素高度绘制（ECharts 必须有明确高度），宽度随栅格自适应，
+      window resize 时由 handleResize 统一 resize()。
+   ============================================================ */
+/* 分区间距：模板已去掉各自的 mb-3/mb-6，统一由这里控制 */
+.quant-terminal .dash-screen > * + * { margin-top: 0.75rem; }
+
+/* 卡片过渡：悬停微上浮 + 描边微光（与 .scroll-card:hover 叠加） */
+.quant-terminal .dash-screen :is(.scroll-card, .recommend-card, .limit-up-card, .limit-down-card) {
+  transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.quant-terminal .dash-screen :is(.scroll-card, .recommend-card, .limit-up-card, .limit-down-card):hover {
+  transform: translateY(-2px);
+}
+
+/* 标题栏：冷青渐变底 + 左侧强调条（卡片首个子节点即标题栏，统计卡无标题栏不受影响） */
+.quant-terminal .dash-screen :is(.scroll-card, .recommend-card, .limit-up-card, .limit-down-card) > .border-b:first-child {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.12) 0%, rgba(34, 211, 238, 0.03) 46%, transparent 100%);
+  border-bottom-color: rgba(120, 170, 220, 0.22) !important;
+  box-shadow: inset 2px 0 0 rgba(34, 211, 238, 0.45);
 }
 </style>

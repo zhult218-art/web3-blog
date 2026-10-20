@@ -15,6 +15,11 @@ import java.time.LocalDateTime;
 public class StrategyVO {
     /** 策略 ID */
     private Long id;
+    /**
+     * 策略归属用户 ID（NULL 表示公共策略）。
+     * 前端据此判断当前用户是否可运行/编辑该策略（公共策略仅管理员可操作）。
+     */
+    private Long userId;
     /** 策略名称 */
     private String name;
     /** 策略描述 */

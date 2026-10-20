@@ -68,6 +68,8 @@ class AStockDataService:
     _cache_ts = 0.0
     _CACHE_TTL = 30.0
     _vibe_down_since = 0.0  # Vibe 熔断时间戳（失败后 60s 内直接走腾讯/新浪）
+    _em_down_until = 0.0    # 东财族数据源熔断到期时间戳（被风控/网络阻断时避免每个请求都反复撞墙）
+    EM_COOLDOWN = 180.0
     _all_df = None
     _all_src = ""
     _all_ts = 0.0
@@ -90,6 +92,24 @@ class AStockDataService:
         # 写入即抖动，不同 key 错峰过期，避免负缓存集中失效
         AStockDataService._neg_cache[key] = (
             time.time(), AStockDataService.NEG_TTL * random.uniform(0.85, 1.15))
+
+    # ---- 东财族数据源熔断：东财对非浏览器请求会直接断连，冷却期内直接改用新浪/腾讯 ----
+    @staticmethod
+    def _em_available() -> bool:
+        return time.time() >= AStockDataService._em_down_until
+
+    @staticmethod
+    def _is_net_error(e) -> bool:
+        """区分「网络层被阻断」与「数据格式/代码问题」：前者才触发熔断。"""
+        s = f"{type(e).__name__} {e}".lower()
+        return any(k in s for k in ("connection", "remote", "reset", "abort", "timed out",
+                                    "timeout", "refused", "ssl", "disconnect", "incomplete",
+                                    "max retries", "httpsconnection"))
+
+    @staticmethod
+    def _em_trip(e=None):
+        AStockDataService._em_down_until = time.time() + AStockDataService.EM_COOLDOWN
+        logger.warning("eastmoney sources tripped for %.0fs (%s)", AStockDataService.EM_COOLDOWN, e)
 
     KLINE_PERIOD_MAP = {"1m": "1", "5m": "5", "15m": "15", "30m": "30", "60m": "60"}
     DAILY_PERIOD_MAP = {"1d": "daily", "d": "daily", "day": "daily", "daily": "daily",
@@ -352,12 +372,14 @@ class AStockDataService:
     @staticmethod
     def _fetch_snapshot_once():
         """依次尝试：东财直连 -> 新浪财经 -> akshare 东财；任一成功即返回 (df, src)，均失败返回 (None, '')。
+        东财熔断冷却期内跳过东财族源，直接走新浪，避免整表快照被一个不可达的源拖到几十秒。
         注：同花顺快照不返回名称/PE/PB/总市值，仅用于单股报价与特色数据端点，不作全市场快照源。"""
-        attempts = [
-            (lambda: AStockDataService._em_snapshot_direct(), "东财直连", 25.0),
-            (lambda: AStockDataService._sina_snapshot(), "新浪财经", 30.0),
-        ]
-        if ak is not None:
+        em_ok = AStockDataService._em_available()
+        attempts = []
+        if em_ok:
+            attempts.append((lambda: AStockDataService._em_snapshot_direct(), "东财直连", 25.0))
+        attempts.append((lambda: AStockDataService._sina_snapshot(), "新浪财经", 30.0))
+        if ak is not None and em_ok:
             attempts.append((lambda: ak.stock_zh_a_spot_em(), "东方财富(akshare)", 8.0))
         for fn, src, budget in attempts:
             t0 = time.time()
@@ -367,6 +389,8 @@ class AStockDataService:
                     logger.info("snapshot OK from %s rows=%s %.1fs", src, len(df), time.time() - t0)
                     return df, src
             except Exception as e:  # noqa: BLE001
+                if "东财" in src and AStockDataService._is_net_error(e):
+                    AStockDataService._em_trip(e)
                 logger.warning("snapshot %s failed %.1fs: %s", src, time.time() - t0, e)
         return None, ""
 
@@ -1157,7 +1181,8 @@ class AStockDataService:
                 AStockDataService._full_kline_memo[(code, p)] = (time.time(), rows)
 
         # 1) 东财原生日/周/月（日线重试3次；周/月降为2次快败，失败立即走日K重采样）
-        if ak is not None:
+        #    东财被风控/阻断时（熔断冷却期内）整段跳过，避免每个请求都白等数秒重试
+        if ak is not None and AStockDataService._em_available():
             try:
                 em_tries, em_delay = (3, 1.2) if ak_period == "daily" else (2, 0.8)
                 df = AStockDataService._with_retry(
@@ -1182,6 +1207,8 @@ class AStockDataService:
                     _remember(result)
                     return AStockDataService._tag(_window_out(result), source)
             except Exception as e:
+                if AStockDataService._is_net_error(e):
+                    AStockDataService._em_trip(e)
                 logger.warning("EM hist %s %s failed: %s", sym, ak_period, e)
         # 1.5) Ashare 兜底（新浪/腾讯独立实现，原生周/月；单次上限不足，全量历史请求跳过）
         if not full_req:
@@ -1213,19 +1240,22 @@ class AStockDataService:
         except Exception as e:
             AStockDataService._bs_fail_until = time.time() + 60  # 失败短熔断，避免每次请求都撞登录超时
             logger.warning("Baostock kline %s %s failed: %s", sym, ak_period, e)
-        # 1.7) adata 兜底（东财族源，风控解除后可用）
-        try:
-            ad_start = w_start or ("1990-01-01" if full_req else
-                                   (now - timedelta(days=int(days * cal_factor) + 60)).strftime("%Y-%m-%d"))
-            result = AStockDataService._adata_kline(code, ak_period, ad_start, w_end)
-            if result:
-                threading.Thread(
-                    target=lambda: SupabaseStore.save_kline(code, p, result, "AData"),
-                    daemon=True).start()
-                _remember(result)
-                return AStockDataService._tag(_window_out(result), "AData")
-        except Exception as e:
-            logger.warning("AData kline %s failed: %s", sym, e)
+        # 1.7) adata 兜底（东财族源，风控解除后可用；东财熔断冷却期内跳过）
+        if AStockDataService._em_available():
+            try:
+                ad_start = w_start or ("1990-01-01" if full_req else
+                                       (now - timedelta(days=int(days * cal_factor) + 60)).strftime("%Y-%m-%d"))
+                result = AStockDataService._adata_kline(code, ak_period, ad_start, w_end)
+                if result:
+                    threading.Thread(
+                        target=lambda: SupabaseStore.save_kline(code, p, result, "AData"),
+                        daemon=True).start()
+                    _remember(result)
+                    return AStockDataService._tag(_window_out(result), "AData")
+            except Exception as e:
+                if AStockDataService._is_net_error(e):
+                    AStockDataService._em_trip(e)
+                logger.warning("AData kline %s failed: %s", sym, e)
         # 2) 新浪日线（周/月重采样，日线直出）
         if ak is not None:
             try:
@@ -2389,6 +2419,55 @@ class AStockDataService:
         return out
 
     @staticmethod
+    def _fflow_sina_fill(indices: list, sectors_in: list, sectors_out: list) -> tuple:
+        """东财 push2 列表接口不可达时，用新浪板块资金流补齐板块榜与大盘榜。
+
+        背景：本机网络对 push2 / push2delay / push2his 三个东财行情主机均不可达
+        （直连与本地代理都失败，curl 报 56 连接被关闭），而 push2ex、datacenter-web、
+        reportapi 可达，因此资金流类接口只能靠新浪兜底。
+
+        返回 (indices, sectors_in, sectors_out, flow_source)。
+        口径提示：新浪是「流入 − 流出」净额（行业约 48 个，当日），与东财「主力净额」
+        不是同一口径，两边的数不可相互比较，故新浪来源的行带 tiered=False，
+        前端据此把「超大/大」改为「流入/流出」并标注口径。
+        """
+        if indices and sectors_in and sectors_out:
+            return indices, sectors_in, sectors_out, "eastmoney"
+        try:
+            from .astock_ext import sina_board_flow
+            rows = sina_board_flow("industry")
+        except Exception as e:
+            logger.warning("新浪板块资金流兜底失败: %s", e)
+            return indices, sectors_in, sectors_out, "eastmoney"
+        if not rows:
+            return indices, sectors_in, sectors_out, "eastmoney"
+
+        def mk(r: dict) -> dict:
+            return {"code": str(r.get("code") or ""), "name": str(r.get("name") or ""),
+                    "price": None, "pct": float(r.get("change_pct") or 0),
+                    "main": float(r.get("net") or 0), "main_pct": float(r.get("net_ratio") or 0),
+                    "super": 0.0, "big": 0.0, "medium": 0.0, "small": 0.0,
+                    "lead": str(r.get("leader") or "")}
+
+        pos = [r for r in rows if float(r.get("net") or 0) > 0]
+        neg = [r for r in rows if float(r.get("net") or 0) < 0]
+        if not sectors_in:
+            sectors_in = [mk(r) for r in pos[:12]]
+        if not sectors_out:
+            sectors_out = [mk(r) for r in reversed(neg[-12:])]
+        if not indices:
+            indices = [{
+                "name": "两市资金净额（新浪口径）",
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "main": sum(float(r.get("net") or 0) for r in rows),
+                "inflow": sum(float(r.get("inflow") or 0) for r in rows),
+                "outflow": sum(float(r.get("outflow") or 0) for r in rows),
+                "super": 0.0, "big": 0.0, "medium": 0.0, "small": 0.0,
+                "tiered": False,
+            }]
+        return indices, sectors_in, sectors_out, "sina"
+
+    @staticmethod
     def get_market_fund_flow(force: bool = False) -> Dict:
         """主力净流入流出：板块资金流入/流出榜 + 个股榜 + 大盘指数资金流。"""
         key = "market_fund_flow"
@@ -2429,15 +2508,19 @@ class AStockDataService:
                             "medium": float(f[3] or 0),
                             "big": float(f[4] or 0),
                             "super": float(f[5] or 0),
+                            "tiered": True,
                         })
                 except Exception as e:
                     logger.warning("index fflow %s failed: %s", secid, e)
+            indices, sectors_in, sectors_out, _src = AStockDataService._fflow_sina_fill(
+                indices, sectors_in, sectors_out)
             val = {
                 "indices": indices,
                 "sectors_in": sectors_in[:12],
                 "sectors_out": sectors_out[:12],
                 "stocks_in": stocks_in[:12],
                 "stocks_out": stocks_out[:12],
+                "flow_source": _src,
                 "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
             threading.Thread(
@@ -2448,7 +2531,10 @@ class AStockDataService:
             return val
         except Exception as e:
             logger.warning("market_fund_flow failed: %s", e)
-            return {"indices": [], "sectors_in": [], "sectors_out": [],
+            # 东财整链失败时同样走新浪兜底，避免面板彻底空白
+            indices, sectors_in, sectors_out, _src = AStockDataService._fflow_sina_fill([], [], [])
+            return {"indices": indices, "sectors_in": sectors_in, "sectors_out": sectors_out,
                     "stocks_in": [], "stocks_out": [],
+                    "flow_source": _src,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 

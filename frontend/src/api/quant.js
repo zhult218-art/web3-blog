@@ -1,18 +1,11 @@
 // ============================================================
 // 量化交易接口（quant-service，走网关 /api）
-// 包含三部分接口：
+// 包含两部分接口：
 // 1. quant-service：策略管理 / 股票基础接口
-// 2. Vibe-Research（vr）：经 /vr 前缀直连 8900 端口的 A 股扩展数据
-// 3. quant-py-service（py）：经 /pyquant 前缀直连 9006 端口的统一行情网关
+// 2. quant-py-service（py）：经 /pyquant 前缀直连 9006 端口的统一行情网关
+//    （原 Vibe-Research 8900 直连的 /vr 通道已废弃，A 股扩展数据统一由 py-service 提供）
 // ============================================================
 import request from './request'
-
-// Vibe-Research A股数据接口 (direct proxy to port 8900 via /vr/)
-// 行情聚合接口冷启动较慢，超时放宽到 60s，避免前端误报"请求超时"
-const vr = (path, config) => {
-  const full = `/vr${path}`
-  return request.request({ ...config, url: full, method: config?.method || 'get', baseURL: '', timeout: config?.timeout || 60000 })
-}
 
 // quant-service strategies
 // 股票列表/看板首次调用会触发 Java 后端拉取 Python 全市场数据（冷启动可达 30s+），超时放宽到 60s
@@ -21,15 +14,39 @@ const vr = (path, config) => {
 // 先用原生 fetch 绕过，待排查 axios 代理层问题后回退
 // 必须带超时且覆盖到响应体读完：fetch 在收到响应头即 resolve，
 // 若提前清掉定时器，body 卡住会让 res.json() 永久挂起并占用连接池槽位
-async function fetchJson(url, timeout = 15000) {
+async function fetchOnce(url, timeout) {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeout)
   try {
     const res = await fetch(url, { signal: ctrl.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return await res.json()
   } finally {
     clearTimeout(timer)
   }
+}
+
+// 在途请求去重：tab 切换时 onTabClick 与 watch(activeTab) 会同时触发同一个列表请求，
+// 共享同一次 fetch 可避免重复请求与随之而来的取消噪音（net::ERR_ABORTED）
+const _inflight = new Map()
+
+export async function fetchJson(url, timeout = 15000) {
+  if (_inflight.has(url)) return _inflight.get(url)
+  const p = (async () => {
+    try {
+      return await fetchOnce(url, timeout)
+    } catch (e) {
+      // 超时/被取消属于可恢复抖动（后端冷启动、上游限流）：放宽超时重试一次再放弃
+      if (e && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
+        return await fetchOnce(url, Math.max(timeout * 2, 30000))
+      }
+      throw e
+    } finally {
+      _inflight.delete(url)
+    }
+  })()
+  _inflight.set(url, p)
+  return p
 }
 export const getQuantList = params => {
   const qs = new URLSearchParams(params).toString()
@@ -38,44 +55,49 @@ export const getQuantList = params => {
 export const createStrategy = data => request.post('/strategy', data)
 export const updateStrategy = (id, data) => request.put(`/strategy/${id}`, data)
 export const deleteStrategy = id => request.delete(`/strategy/${id}`)
-export const runStrategy = id => request.post(`/strategy/${id}/run`)
+// 运行策略：suppressError 关闭拦截器的全局 toast，由调用方按业务语义给出
+// 精确提示（如「公共策略仅管理员可操作」），避免与拦截器 toast 重复弹出
+export const runStrategy = id => request.post(`/strategy/${id}/run`, null, { suppressError: true })
 export const getQuantLog = params => request.get('/quant/logs', { params })
 export const getStockList = () => request.get('/stock/list', { timeout: 60000 })
 export const getStockDetail = symbol => request.get(`/stock/${symbol}/detail`, { timeout: 60000 })
 export const getStockKline = (symbol, params) => request.get(`/stock/${symbol}/kline`, { params, timeout: 60000 })
 export const getStockDashboard = () => request.get('/stock/dashboard', { timeout: 60000 })
 
-// Vibe-Research endpoints (direct to 8900)
-export const getMarketOverview = () => vr('/market/overview')
-export const getMarketEmotion = () => vr('/market/emotion')
-export const getMarketTurnoverTop = () => vr('/market/turnover-top')
-export const getIndices = () => vr('/indices')
-export const getStockQuote = codes => vr('/quote', { params: { codes: codes.join(',') } })
+// A 股扩展数据（统一走 py-service /pyquant，替代原 Vibe-Research 8900 直连）
+// 估值/公告/限售解禁/概念板块走 data-ext 模块，行情/财务/资金等走 market 模块
+export const getStockQuote = codes => py('/api/quant/data-ext/tencent/quote', { params: { codes: Array.isArray(codes) ? codes.join(',') : codes } })
+// K 线（py 统一网关）。入参同时兼容旧 Vibe-Research 周期名与 py 周期名：
+// day/week/month/min60... → daily/weekly/monthly/60m...
 export const getStockKlineVR = (code, period = 'day') => {
-  const catMap = { day: 4, week: 5, month: 6, min60: 11, min30: 10, min15: 9, min5: 8, min1: 7 }
-  const cat = catMap[period] || 4
-  return vr('/kline', { params: { code, category: cat, offset: 120 } })
+  const p = {
+    day: 'daily', daily: 'daily', week: 'weekly', weekly: 'weekly',
+    month: 'monthly', monthly: 'monthly',
+    min60: '60m', '60m': '60m', min30: '30m', '30m': '30m',
+    min15: '15m', '15m': '15m', min5: '5m', '5m': '5m', min1: '1m', '1m': '1m',
+  }[period] || 'daily'
+  return py(`/api/quant/market/kline/${code}`, { params: { days: 120, period: p } })
 }
-export const getStockFinance = code => vr('/finance', { params: { code } })
-export const getStockValuation = code => vr('/valuation', { params: { code } })
-export const getStockDividend = code => vr('/dividend', { params: { code } })
-export const getStockBlockTrade = code => vr('/block-trade', { params: { code } })
-export const getStockHolders = code => vr('/holders', { params: { code } })
-export const getDragonTiger = (code, days) => vr('/dragon-tiger', { params: { code, days } })
-export const getStockLockup = code => vr('/lockup', { params: { code } })
-export const getConceptHot = (code) => vr('/hot-concepts', code ? { params: { code } } : {})
-export const getIndustryList = (top = 20) => vr('/industry', { params: { top } })
-export const getSectorBlocks = () => vr('/blocks')
-export const getReports = code => vr('/reports', { params: { code } })
-export const getAnnouncements = code => vr('/announcements', { params: { code } })
-export const getMarginData = code => vr('/margin', { params: { code } })
-export const getFundFlow = code => vr('/fund-flow', { params: { code } })
-export const getGlobalIndices = () => vr('/global/indices')
-export const getGlobalStock = (code, market) => vr('/global/stock', { params: { code, market } })
-export const getRadarData = () => vr('/radar')
-export const getPortfolioData = () => vr('/portfolio')
-export const getChatResponse = (message) => vr('/chat', { method: 'post', data: { message } })
-export const getStockNews = code => vr('/news', { params: { code } })
+export const getMarketTurnoverTop = (limit = 30) => py('/api/quant/market/quotes', { params: { limit } })
+export const getStockFinance = code => py(`/api/quant/market/finance/${code}`)
+export const getStockValuation = code => py('/api/quant/data-ext/valuation/full', { params: { code } })
+export const getStockDividend = code => py(`/api/quant/market/dividend/${code}`)
+export const getStockBlockTrade = code => py(`/api/quant/market/block-trade/${code}`)
+export const getStockHolders = code => py(`/api/quant/market/holders/${code}`)
+// 龙虎榜：东财数据中心（近 N 日上榜记录 + 最新买卖席位 + 机构净买），单位万元
+export const getDragonTiger = (code, days = 30) => py(`/api/quant/market/dragon-tiger/${code}`, { params: { days } })
+// 限售解禁（需交易日；默认取当日）
+export const getStockLockup = code => py('/api/quant/data-ext/lockup-expiry', { params: { code, trade_date: new Date().toISOString().slice(0, 10) } })
+// 个股所属概念板块（东财）
+export const getConceptHot = code => py('/api/quant/data-ext/concept-blocks', { params: { code } })
+export const getSectorBlocks = () => py('/api/quant/market/sectors')
+export const getIndustryList = (top = 20) => py('/api/quant/market/sectors')
+export const getReports = (code, params = {}) => py('/api/quant/research/reports', { params: { code, ...params } })
+export const getAnnouncements = code => py('/api/quant/data-ext/announcements', { params: { code } })
+export const getMarginData = code => py(`/api/quant/market/margin/${code}`)
+export const getFundFlow = code => py(`/api/quant/market/fund-flow/${code}`)
+export const getPortfolioData = () => py('/api/quant/portfolio')
+export const getStockNews = code => py('/api/quant/data-ext/news/stock', { params: { code } })
 
 // quant-py-service 统一数据网关 (proxy to 9006 via /pyquant/)
 // Python 服务获取行情数据较慢（全市场快照冷启可达数十秒），超时放宽到 60s

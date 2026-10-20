@@ -94,6 +94,34 @@ public final class AuthUtils {
   }
 
   /**
+   * 非抛异常地判断当前请求是否来自 ADMIN 角色用户。
+   *
+   * <p>与 {@link #requireAdmin} 不同，本方法不会抛出异常：未登录、令牌失效或非
+   * 管理员时一律返回 {@code false}，供"先取 userId 再按角色决定分支"的场景使用
+   * （例如公共策略仅管理员可操作，普通用户应得到明确的 403 而非被误判为"未登录"）。</p>
+   *
+   * @param authHeader Authorization 请求头原文，可为 null
+   * @param jwtUtil    JWT 工具类
+   * @param properties JWT 配置
+   * @return 当前用户为 ADMIN 时返回 true，否则返回 false
+   */
+  public static boolean isAdmin(String authHeader, JwtUtil jwtUtil, JwtProperties properties) {
+    if (authHeader == null || authHeader.isBlank()) {
+      return false;
+    }
+    try {
+      String token = resolveToken(authHeader, properties);
+      if (!jwtUtil.validate(token)) {
+        return false;
+      }
+      Claims claims = jwtUtil.parseClaims(token);
+      return "ROLE_ADMIN".equals(claims.get("authorities", String.class));
+    } catch (Exception ex) {
+      return false;
+    }
+  }
+
+  /**
    * 细粒度权限校验（与前端 utils/permissions.js 的负向权限语义保持一致）：
    * <ol>
    *   <li>ADMIN 角色恒通过；</li>

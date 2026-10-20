@@ -54,7 +54,9 @@ class BigScreenService:
     LOG_BUF_MAX = 200
 
     _cache = [0.0, None]              # [ts, snapshot]
-    _lock = threading.Lock()
+    _lock = threading.Lock()          # 缓存读写锁
+    _build_lock = threading.Lock()    # 构建串行锁：并发请求只真正构建一次
+    _refreshing = False               # 后台刷新中标志
     _log_seq = 0
     _log_buf = []                     # 已下发事件环形缓冲 [{seq,time,tag,cls,msg}]
     _event_keys = set()               # 事件去重（容量受控）
@@ -121,12 +123,14 @@ class BigScreenService:
     @classmethod
     def _kline_cached(cls, symbol: str, days: int) -> List[Dict]:
         memo = cls._kline_cache.get(symbol)
-        if memo and time.time() - memo[0] < 1800:
+        if memo and time.time() - memo[0] < (1800 if memo[1] else 60):
             return memo[1]
         try:
             rows = AStockDataService.get_kline(symbol, "1d", days)
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
+            logger.warning("bigscreen kline %s failed: %s", symbol, e)
             rows = []
+        # 拉空的条目只缓存 60s：上游（东财族域名）偶发不可达时，避免空结果被负缓存 30 分钟
         cls._kline_cache[symbol] = (time.time(), rows)
         return rows
 
@@ -134,8 +138,9 @@ class BigScreenService:
     def _benchmark_cached(cls) -> List[Dict]:
         if cls._bench_cache[1] is None or time.time() - cls._bench_cache[0] > 1800:
             try:
-                cls._bench_cache[1] = BacktestEngine._benchmark_daily(None) or []  # 该方法不依赖实例状态
-            except Exception:  # noqa: BLE001
+                cls._bench_cache[1] = BacktestEngine._benchmark_daily() or []  # 静态方法，含 30 分钟缓存
+            except Exception as e:  # noqa: BLE001
+                logger.warning("bigscreen benchmark fetch failed: %s", e)
                 cls._bench_cache[1] = []
             cls._bench_cache[0] = time.time()
         return cls._bench_cache[1]
@@ -197,7 +202,39 @@ class BigScreenService:
     # ---- 主入口 ----
     @classmethod
     def snapshot(cls) -> Dict:
+        """对外入口，stale-while-revalidate：有旧快照先返回旧值并由后台线程重建；
+        仅首次无缓存时才同步构建。大屏前端 1.5s 轮询时不会再被重建过程阻塞。"""
+        now_ts = time.time()
+        have = cls._cache[1]
+        if have is not None and now_ts - cls._cache[0] < cls.REFRESH_TTL:
+            return have
+        if have is not None:
+            cls._spawn_refresh()
+            return have
+        return cls._build_snapshot()
+
+    @classmethod
+    def _spawn_refresh(cls):
+        """后台异步重建（同一时刻只允许一个刷新线程）。"""
         with cls._lock:
+            if cls._refreshing:
+                return
+            cls._refreshing = True
+        threading.Thread(target=cls._refresh_worker, daemon=True).start()
+
+    @classmethod
+    def _refresh_worker(cls):
+        try:
+            cls._build_snapshot()
+        except Exception as e:  # noqa: BLE001
+            logger.warning("bigscreen background refresh failed: %s", e)
+        finally:
+            with cls._lock:
+                cls._refreshing = False
+
+    @classmethod
+    def _build_snapshot(cls) -> Dict:
+        with cls._build_lock:
             now_ts = time.time()
             if cls._cache[1] is not None and now_ts - cls._cache[0] < cls.REFRESH_TTL:
                 return cls._cache[1]

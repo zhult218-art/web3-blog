@@ -158,7 +158,8 @@ def eastmoney_reports_ep(code: str = Query(...), max_pages: int = 5):
 def eastmoney_industry_reports_ep(industry_code: str = "*", max_pages: int = 5, max_items: int = 100):
     """东财行业研报。"""
     try:
-        return _ok(ax.eastmoney_industry_reports(industry_code=industry_code, max_pages=max_pages, max_items=max_items))
+        rows = ax.eastmoney_industry_reports(industry_code=industry_code, max_pages=max_pages) or []
+        return _ok(rows[:max(int(max_items), 1)])
     except Exception as e:  # noqa: BLE001
         return _err("获取行业研报失败", e)
 
@@ -312,11 +313,18 @@ def dividend_history_ep(code: str = Query(...), page_size: int = 20):
 
 @router.get("/api/quant/data-ext/news/stock")
 def eastmoney_stock_news_ep(code: str = Query(...), page_size: int = 20):
-    """东财个股新闻。"""
+    """个股新闻（多源）：新浪个股新闻页为主（稳定），东财搜索接口兜底。"""
     try:
-        return _ok(ax.eastmoney_stock_news(code, page_size=page_size))
+        rows = ax.sina_stock_news(code, page_size=page_size)
     except Exception as e:  # noqa: BLE001
-        return _err("获取个股新闻失败", e)
+        logger.warning("sina stock news %s failed: %s", code, e)
+        rows = []
+    if not rows:
+        try:
+            rows = ax.eastmoney_stock_news(code, page_size=page_size)
+        except Exception as e:  # noqa: BLE001
+            return _err("获取个股新闻失败", e)
+    return _ok(rows)
 
 
 @router.get("/api/quant/data-ext/news/cls")

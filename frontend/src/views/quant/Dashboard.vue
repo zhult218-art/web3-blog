@@ -195,6 +195,7 @@ const router = useRouter()
 const CONFIG = {
   DATA_SOURCE: 'api',                           // 'mock' | 'api'（api = quant-py-service 真实 A 股行情）
   API_URL: '/pyquant/api/quant/dashboard/snapshot',
+  API_TIMEOUT_MS: 12000,                        // 快照超时：超过则当帧回落模拟数据，避免大屏空屏
   POLL_INTERVAL_MS: 1500,
   LOG_KEEP: 50,
   ALARM: { dayPnlPct: 2.0, maxDrawdownPct: 8.0 },
@@ -308,8 +309,11 @@ let lastLogSeq = 0
 const isLive = ref(false)
 async function getSnapshot() {
   if (CONFIG.DATA_SOURCE === 'api') {
+    // 必须带超时：后端慢/挂起时若一直等，轮询会堆积且大屏永远出不来
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), CONFIG.API_TIMEOUT_MS)
     try {
-      const res = await fetch(CONFIG.API_URL, { cache: 'no-store' })
+      const res = await fetch(CONFIG.API_URL, { cache: 'no-store', signal: ctrl.signal })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       isLive.value = true
@@ -317,6 +321,8 @@ async function getSnapshot() {
     } catch (e) {
       isLive.value = false
       if (import.meta.env.DEV) console.warn('[quant] 拉取后端失败，回落模拟数据：', e.message)
+    } finally {
+      clearTimeout(timer)
     }
   } else {
     isLive.value = false
@@ -359,8 +365,11 @@ const logCls = { info: 'lg-info', open: 'lg-open', close: 'lg-close', stop: 'lg-
 /* —— ECharts —— */
 const navEl = ref(null), barEl = ref(null), pieEl = ref(null), logEl = ref(null)
 let navChart, barChart, pieChart
+let disposed = false   // 组件已卸载标记：异步返回后不再触碰 DOM / 图表实例
 
 function initCharts() {
+  // 卸载后（或异步返回时）ref 可能已为 null，echarts.init(null) 会抛错
+  if (disposed || !navEl.value || !barEl.value || !pieEl.value) return
   navChart = echarts.init(navEl.value)
   navChart.setOption({
     animationDuration: 600,
@@ -394,6 +403,7 @@ function initCharts() {
 }
 
 function renderAll(snap) {
+  if (disposed || !navChart || !barChart || !pieChart) return
   Object.assign(account, snap.account)
   positions.value = snap.positions
   stamp.value = snap.stamp || ''
@@ -574,24 +584,32 @@ let timer = 0, fetching = false, bottomTimer = 0
 const onResize = () => { navChart?.resize(); barChart?.resize(); pieChart?.resize(); fitWave() }
 
 onMounted(async () => {
+  disposed = false
   if (CONFIG.DATA_SOURCE === 'mock') for (const l of MockEngine.seedLogs()) logs.value.push(l)
   await nextTick()
+  if (disposed) return                 // 首屏数据慢时用户可能已切走，避免在已卸载组件上操作
   initCharts()
   renderAll(await getSnapshot())
+  if (disposed) return
   // fetching 守卫：上一轮请求未返回时跳过本轮，防止慢接口下轮询堆积
   timer = setInterval(async () => {
-    if (document.hidden || fetching) return
+    if (document.hidden || fetching || disposed) return
     fetching = true
     try { renderAll(await getSnapshot()) } finally { fetching = false }
   }, CONFIG.POLL_INTERVAL_MS)
   // 底部看板数据（涨停池/板块/研报/快讯）30s 轮询
   fetchBottomData()
-  bottomTimer = setInterval(() => { if (!document.hidden) fetchBottomData() }, 30000)
-  waveCanvas = waveEl.value; waveCtx = waveCanvas.getContext('2d')
-  fitWave(); setWaveMode('demo'); waveLoop()
+  bottomTimer = setInterval(() => { if (!document.hidden && !disposed) fetchBottomData() }, 30000)
+  // 画布在异步期间可能已随卸载销毁，必须判空后再取 2d 上下文
+  if (waveEl.value) {
+    waveCanvas = waveEl.value
+    waveCtx = waveCanvas.getContext('2d')
+    fitWave(); setWaveMode('demo'); waveLoop()
+  }
   window.addEventListener('resize', onResize)
 })
 onUnmounted(() => {
+  disposed = true
   clearInterval(timer); clearInterval(bottomTimer); cancelAnimationFrame(rafId)
   window.removeEventListener('resize', onResize)
   teardownWave(); actx?.close().catch(() => {})

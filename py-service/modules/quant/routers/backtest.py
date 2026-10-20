@@ -5,18 +5,58 @@ import uuid
 import logging
 import asyncio
 from dataclasses import asdict
+from datetime import datetime, timedelta
 
 logger = logging.getLogger("quant")
 
 from ..datasources.astock import AStockDataService
 from ..services.ai import AIAnalysisService
-from ..services.backtest import BACKTEST_STRATEGY_META, BacktestEngine, run_backtest_task
+from ..services.backtest import (BACKTEST_STRATEGY_META, BacktestEngine,
+                                 _fetch_backtest_klines, run_backtest_task)
 from ..state import _backtest_store, _task_store
+from ..models.entities import AnalysisTask
+from ..models.enums import TaskStatus
 from ..models.schemas import BacktestRequest
 
 from fastapi import APIRouter
 
 router = APIRouter()
+
+# 内存任务表 TTL：超过 30 分钟的已完成任务从表中剔除，避免进程长时间运行时无上限增长
+_STORE_TTL = 1800.0
+
+
+def _prune_stores():
+    cutoff = datetime.now() - timedelta(seconds=_STORE_TTL)
+    for store in (_task_store, _backtest_store):
+        for k in list(store.keys()):
+            ts = getattr(store.get(k), "completed_at", None)
+            if not ts:
+                continue
+            try:
+                if datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") < cutoff:
+                    store.pop(k, None)
+            except (TypeError, ValueError):
+                continue
+
+
+def _on_task_done(t: asyncio.Task, task_id: str):
+    """兜底：任务协程本身抛错时，把失败写进任务表并记日志，
+    否则前端只会一直拿到 not_found（这正是此前回测「跑不出结果」的原因）。"""
+    if t.cancelled():
+        return
+    exc = t.exception()
+    if exc:
+        logger.exception("backtest task %s crashed: %s", task_id, exc)
+        task = _task_store.get(task_id) or AnalysisTask(
+            task_id=task_id, symbol="", status=TaskStatus.FAILED, progress=0,
+            current_stage="失败", created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        task.status = TaskStatus.FAILED
+        task.error = f"{type(exc).__name__}: {exc}"
+        task.current_stage = "失败"
+        _task_store[task_id] = task
+
 
 @router.post("/api/quant/backtest/run")
 async def run_backtest(req: BacktestRequest):
@@ -33,8 +73,11 @@ async def run_backtest(req: BacktestRequest):
         "days": req.days,
         "code": req.code or "",
         "name": req.name or "",
+        "include_ai": bool(req.include_ai),
     }
-    asyncio.create_task(run_backtest_task(task_id, req.strategy_id, symbols, config))
+    _prune_stores()
+    t = asyncio.create_task(run_backtest_task(task_id, req.strategy_id, symbols, config))
+    t.add_done_callback(lambda fut: _on_task_done(fut, task_id))
     return {"code": 0, "data": {"task_id": task_id, "status": "pending", "message": "回测任务已提交",
                                 "strategies": BACKTEST_STRATEGY_META}}
 
@@ -74,13 +117,15 @@ async def quick_backtest(req: BacktestRequest):
         "commission": 0.0003,
         "slippage": 0.001,
         "days": req.days,
+        "code": req.code or "",
+        "name": req.name or "",
     }
-    price_data = {}
-    for sym in symbols:
-        price_data[sym] = AStockDataService.get_kline(sym, days=config["days"])
+    # 行情拉取与回测引擎都是阻塞调用，放线程里执行，避免堵死事件循环（其它请求也一起卡住）
+    price_data = await asyncio.to_thread(_fetch_backtest_klines, symbols, config["days"])
 
     engine = BacktestEngine(config)
-    metrics = engine.run(req.strategy_id, symbols, price_data)
+    metrics = await asyncio.to_thread(
+        engine.run, req.strategy_id, symbols, price_data, config.get("code", ""))
 
     # 同时做AI分析
     ai_result = {}

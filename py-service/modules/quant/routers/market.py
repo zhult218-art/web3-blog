@@ -5,6 +5,7 @@ import os
 import time
 import logging
 import threading
+from dataclasses import asdict
 from datetime import datetime
 from typing import Dict
 
@@ -14,6 +15,7 @@ from fastapi import Query
 logger = logging.getLogger("quant")
 
 from ..datasources.astock import AStockDataService
+from ..datasources.astock_ext import dragon_tiger_board
 from ..datasources.supabase import SupabaseStore
 from ..services.data_sync import _backfill_sector_history
 from ..services.fund_history import FundHistoryService
@@ -90,33 +92,16 @@ def py_stock_block_trade(symbol: str):
 
 @router.get("/api/quant/market/dragon-tiger/{symbol}")
 def py_stock_dragon_tiger(symbol: str, days: int = 30):
-    """龙虎榜：代理 Vibe 获取并落库 Supabase（PK trade_date+code）。"""
+    """龙虎榜：东财数据中心（近 N 日上榜记录 + 最新买卖席位 + 机构净买），单位万元。
+
+    原先代理 Vibe-Research(8900)，该服务未部署导致此面板长期无数据，现改直连东财数据中心。
+    """
     code = AStockDataService._to_code(symbol)
+    trade_date = datetime.now().strftime("%Y-%m-%d")
     try:
-        url = f"{AStockDataService.VIBE_BASE}/api/dragon-tiger"
-        r = requests.get(url, params={"code": code, "days": days}, timeout=15)
-        r.raise_for_status()
-        data = (r.json() or {}).get("data") or {}
-        records = data.get("records") or []
-        if records:
-            latest_date = records[0].get("date") or ""
-            save_rows = [{
-                "code": code,
-                "name": AStockDataService.STOCK_POOL.get(AStockDataService._to_symbol(code), ""),
-                "close": None,
-                "change_percent": None,
-                "buy_amount": None,
-                "sell_amount": None,
-                "net_amount": float(rec.get("net_buy") or 0),
-                "seats": data.get("seats"),
-                "reason": rec.get("reason") or "",
-            } for rec in records[:1]]  # 仅存最近一条（含席位明细）
-            if latest_date:
-                threading.Thread(
-                    target=lambda: SupabaseStore.save_dragon_tiger(latest_date, save_rows),
-                    daemon=True).start()
-        return {"code": 0, "data": data, "source": "vibe"}
-    except Exception as e:
+        data = dragon_tiger_board(code, trade_date, look_back=max(int(days), 1))
+        return {"code": 0, "data": data, "source": "eastmoney"}
+    except Exception as e:  # noqa: BLE001
         logger.warning("dragon-tiger %s failed: %s", code, e)
         return {"code": 0, "data": {"records": [], "seats": {"buy": [], "sell": []},
                                       "institution": {"buy_amt": 0, "sell_amt": 0, "net_amt": 0}},
