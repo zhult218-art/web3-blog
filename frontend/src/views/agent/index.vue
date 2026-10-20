@@ -125,9 +125,21 @@
       <!-- ═══ 输入 ═══ -->
       <footer class="agent-input-wrap">
         <div class="agent-input-box">
+          <select v-if="models.length" v-model="selectedModel" class="agent-model-select"
+            :disabled="busy" :title="`当前模型：${selectedModel}`">
+            <option v-for="m in models" :key="m.id" :value="m.id" :disabled="m.ok === false">
+              {{ m.id }}{{ m.ok === false ? '（暂不可用）' : '' }}
+            </option>
+          </select>
           <textarea ref="inputArea" v-model="input" rows="1" @keydown="onKey"
             class="agent-textarea" :placeholder="placeholderText"
             :disabled="busy"></textarea>
+          <button class="agent-optimize" :disabled="busy || optimizing || !input.trim()"
+            :title="optimizing ? '正在优化提示词…' : '优化提示词（AI 改写，不会直接发送）'"
+            @click="optimizeInput">
+            <span v-if="optimizing" class="send-spinner"></span>
+            <span v-else>✨</span>
+          </button>
           <button class="agent-send" :disabled="busy || !input.trim()" @click="send">
             <span v-if="busy" class="send-spinner"></span>
             <span v-else>➤</span>
@@ -142,14 +154,21 @@
 <script setup>
 import { ref, nextTick, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import * as echarts from 'echarts'
-import { agentChatStream, consumeAgentStream, agentWorkflows, agentMatchWorkflow, agentExecuteFlow, consumeAgentFlowEvents } from '@/api/agent'
+import { agentChatStream, consumeAgentStream, agentWorkflows, agentMatchWorkflow, agentExecuteFlow, consumeAgentFlowEvents, agentModels } from '@/api/agent'
+import { aiOptimizePrompt } from '@/api/freeAi'
+import { useToastStore } from '@/stores/modules/toast'
+
+const toast = useToastStore()
 
 const messages = ref([])
 const input = ref('')
 const busy = ref(false)
+const optimizing = ref(false)     // 提示词优化中（独立于发送忙碌态，避免误发消息）
 const lastAgent = ref('')
 const inputArea = ref(null)
 const msgBox = ref(null)
+const models = ref([])            // 可选模型列表（后端 /agent/models 返回）
+const selectedModel = ref('')     // 会话台选定模型；空则后端用提供商默认模型
 const skills = ref([])
 const activeFlow = ref(null)
 const aiServiceStatus = ref('checking') // checking/online/offline
@@ -313,6 +332,27 @@ async function executeFlow() {
   }
 }
 
+// ═════════ 提示词优化（移植自 prompt-optimizer 的基础优化模板） ═════════
+// 仅改写输入框中的提示词文本本身，不发送、不执行；由 py-service 免费通道完成。
+async function optimizeInput() {
+  const text = input.value.trim()
+  if (!text || busy.value || optimizing.value) return
+  optimizing.value = true
+  try {
+    const optimized = await aiOptimizePrompt(text, { context: 'Agent 会话台' })
+    if (optimized) {
+      input.value = optimized
+      toast.success('提示词已优化')
+    } else {
+      toast.warning('未获得优化结果，请重试')
+    }
+  } catch (e) {
+    toast.error(e?.message || '提示词优化失败')
+  } finally {
+    optimizing.value = false
+  }
+}
+
 // ═════════ 对话主入口 ═════════
 
 async function send() {
@@ -357,7 +397,7 @@ async function chatStream(text) {
     const res = await agentChatStream([
       ...history.slice(0, -1),
       { role: 'user', content: text },
-    ])
+    ], selectedModel.value || undefined)
     await consumeAgentStream(res, (delta) => {
       if (assistantMsg.cancelled) return
       assistantMsg.raw += delta
@@ -487,6 +527,17 @@ onMounted(async () => {
     const list = await agentWorkflows()
     skills.value = Array.isArray(list) ? list : []
   } catch { /* 技能列表不可用时不展示栏目 */ }
+  try {
+    const res = await agentModels()
+    models.value = Array.isArray(res?.models) ? res.models : []
+    // 默认选中：后端默认模型且探活可用 → 否则退到第一个可用模型 → 再退到后端默认
+    // → 最后用列表首个。不可用模型在下拉里置灰，故不能默认选中它们。
+    const preferred = models.value.find(m => m.id === res?.default && m.ok !== false)
+      || models.value.find(m => m.ok !== false)
+      || models.value.find(m => m.id === res?.default)
+      || models.value[0]
+    if (preferred) selectedModel.value = preferred.id
+  } catch { /* 模型列表不可用时不展示选择器 */ }
 })
 
 // 组件卸载时释放 ECharts 实例，避免图表与消息对象常驻内存
@@ -688,11 +739,31 @@ onBeforeUnmount(() => {
   border-radius: 16px; padding: 8px; transition: border .2s;
 }
 .agent-input-box:focus-within { border-color: rgba(168,181,147,0.45); }
+/* 模型选择器：与输入框同排，长模型名截断显示 */
+.agent-model-select {
+  flex: 0 0 auto; max-width: 190px; padding: 8px 10px; border-radius: 11px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+  color: #cfd8e3; font-size: 12px; cursor: pointer; outline: none;
+  text-overflow: ellipsis; transition: border .2s;
+}
+.agent-model-select:focus { border-color: rgba(168,181,147,0.5); }
+.agent-model-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.agent-model-select option { background: #14161f; color: #cfd8e3; }
 .agent-textarea {
   flex: 1; background: transparent; border: none; outline: none; color: #e6eaf1;
   font-size: 13.5px; padding: 7px 8px; resize: none; max-height: 160px; line-height: 1.5;
 }
 .agent-textarea::placeholder { color: #5b6475; }
+.agent-optimize {
+  width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
+  background: rgba(255,255,255,0.06); color: #cfd8e3; font-size: 15px;
+  border: 1px solid rgba(255,255,255,0.12);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .2s;
+}
+.agent-optimize:hover:not(:disabled) {
+  border-color: rgba(168,181,147,0.5); background: rgba(168,181,147,0.14);
+}
+.agent-optimize:disabled { opacity: 0.4; cursor: not-allowed; }
 .agent-send {
   width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
   background: linear-gradient(135deg,#a8b593,#6b7d57); color: #14160f; font-size: 15px;

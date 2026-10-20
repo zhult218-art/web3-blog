@@ -27,6 +27,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
  * (zh) Agent 聊天编排入口 + 多步技能工作流（Workflow）入口。
  * POST /agent/chat { "messages": [...] }          —— 自由对话（SSE 流式，需登录）
  * GET  /agent/workflows                            —— 技能列表（公开）
+ * GET  /agent/models                               —— 可用模型列表（公开，供会话台模型选择器）
  * POST /agent/workflow/match { "message":"..." }   —— 关键词匹配技能（公开）
  * POST /agent/workflow/execute { "slug","answers" }—— 执行技能（SSE 产出产物，需登录）
  * 前端无需携带 sk- 令牌；本服务用应用级系统令牌调用中转引擎并计费，
@@ -51,20 +52,29 @@ public class AgentController {
         // 计费接口：必须登录（匿名可刷运营商账单）
         AuthUtils.requireUserId(auth, jwtUtil, jwtProperties);
         String messagesJson = "[]";
+        String model = null;
         try {
             JsonNode root = MAPPER.readTree(rawBody);
             JsonNode messages = root.path("messages");
             messagesJson = messages.isArray() ? messages.toString() : "[]";
+            // 会话台模型选择器传来的模型名；缺失/非法时为 null，由服务层回退默认模型
+            model = root.path("model").asText(null);
         } catch (Exception e) {
             // 忽略，使用空消息
             log.debug("[agent] parse request body for messages skipped: {}", e.getMessage());
         }
-        return agentWorkflowService.chat(messagesJson, resolveIp(request));
+        return agentWorkflowService.chat(messagesJson, model, resolveIp(request));
     }
 
     @GetMapping("/workflows")
     public String workflows() {
         return agentFlowService.listJson();
+    }
+
+    /** 可用模型列表（供会话台模型选择器；公开只读，不回传密钥，不涉及计费） */
+    @GetMapping("/models")
+    public String models() {
+        return agentWorkflowService.listModels();
     }
 
     @PostMapping("/workflow/match")

@@ -72,3 +72,23 @@ export async function aiHealth() {
   const res = await fetch(BASE + '/health')
   return res.json().catch(() => ({}))
 }
+
+/**
+ * 优化用户提示词（移植自 prompt-optimizer 的基础优化模板）
+ * 改写的是提示词文本本身，不会回答或执行其内容。
+ * @param {string} prompt 原始提示词
+ * @param {object} [opts] { context, model }
+ * @returns {Promise<string>} 优化后的提示词
+ */
+export async function aiOptimizePrompt(prompt, opts = {}) {
+  const res = await fetch(BASE + '/optimize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, ...opts }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || data?.code !== 0) {
+    throw new Error(data?.msg || `提示词优化失败(${res.status})`)
+  }
+  return (data?.data?.text || '').trim()
+}

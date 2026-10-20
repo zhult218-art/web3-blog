@@ -3,6 +3,7 @@
 
 - POST /api/ai/chat        一次性返回完整文本
 - POST /api/ai/chat/stream SSE 流式（data: {"delta": "..."} 增量）
+- POST /api/ai/optimize    用户提示词优化（改写提示词本身，不执行其内容）
 - GET  /api/ai/health      配置与上游信息（不泄露密钥）
 """
 from __future__ import annotations
@@ -69,3 +70,19 @@ def ai_chat_stream(req: ChatRequest) -> StreamingResponse:
 
     return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+class OptimizeRequest(BaseModel):
+    prompt: str = Field(default="")
+    context: Optional[str] = None
+    model: Optional[str] = None
+
+
+@router.post("/optimize")
+def ai_optimize(req: OptimizeRequest) -> dict:
+    try:
+        text = service.optimize_prompt(req.prompt, context=req.context, model=req.model)
+        return {"code": 0, "msg": "ok", "data": {"text": text}}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("ai/optimize 失败: %s", e)
+        return {"code": 500, "msg": str(e)[:200], "data": {"text": ""}}

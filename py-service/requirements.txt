@@ -37,3 +37,6 @@ anyio>=4.2.0
 
 # ── Voice / TTS (Edge readaloud, DRM v2 follows upstream) ─
 edge-tts==7.3.1
+
+# ── GhostTrack phone lookup (Google libphonenumber Python port, offline) ─
+phonenumbers>=8.13.0

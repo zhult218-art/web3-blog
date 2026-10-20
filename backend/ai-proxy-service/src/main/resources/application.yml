@@ -74,10 +74,12 @@ ai-proxy:
     # 排在最前 → OUR_FREE_MODEL_KEY 非空时 Agent 即优先走这条免费通道，其余提供商标记
     # 为不生效；留空则按老顺序回落到下面的付费提供商。密钥即该服务数据目录
     # settings.json 里的 forwardKey（本机回环自签，不出宿主）。
+    # 默认模型取聚合入口 openrouter/free：匿名池整组（deepseek-v4.1-flash-free 等）
+    # 可能被上游 403/LANE_LOCKED，用聚合入口可避免开箱即用时报错。
     - name: OurFreeModel
       base-url: ${OUR_FREE_MODEL_BASE_URL:http://127.0.0.1:18900/v1}
       api-key: ${OUR_FREE_MODEL_KEY:}
-      model: ${OUR_FREE_MODEL_MODEL:deepseek-v4.1-flash-free}
+      model: ${OUR_FREE_MODEL_MODEL:openrouter/free}
     - name: NightRouter
       base-url: ${NIGHTROUTER_BASE_URL:https://api.nightrouter.ai/v1}
       api-key: ${NIGHTROUTER_API_KEY:}

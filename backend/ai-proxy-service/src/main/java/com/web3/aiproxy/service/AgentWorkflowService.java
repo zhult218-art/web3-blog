@@ -12,7 +12,14 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +47,15 @@ public class AgentWorkflowService {
 
     private static final Logger log = LoggerFactory.getLogger(AgentWorkflowService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    // 模型可用性探活：单条 8s 超时、整体 10s 上限，并发 8 条（避免把上游瞬时打满）
+    private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(8);
+    private static final Duration PROBE_TOTAL_TIMEOUT = Duration.ofSeconds(10);
+    private static final ExecutorService PROBE_POOL = Executors.newFixedThreadPool(8, r -> {
+        Thread t = new Thread(r, "agent-model-probe");
+        t.setDaemon(true);
+        return t;
+    });
 
     private final ProxyEngineService engineService;
     private final AiProxyProperties props;
@@ -71,11 +87,12 @@ public class AgentWorkflowService {
      * Agent 对话统一入口：路由 + 建上下文 + 交给中转引擎（SSE）。
      *
      * @param messages 型如 [{"role":"user"|"assistant","content":"..."}]
+     * @param model    会话台模型选择器选定的模型；为空则回退提供商配置的默认模型
      * @param clientIp 客户端 IP（透传给中转引擎用于限额/IP白名单）
      * @return 流式 ResponseEntity（SSE 格式）
      */
     @SuppressWarnings("unchecked")
-    public ResponseEntity<StreamingResponseBody> chat(String messagesJson, String clientIp) {
+    public ResponseEntity<StreamingResponseBody> chat(String messagesJson, String model, String clientIp) {
         JsonNode rawMessages;
         try {
             rawMessages = MAPPER.readTree(messagesJson);
@@ -107,7 +124,7 @@ public class AgentWorkflowService {
         // 优先使用 sk- 系统令牌走渠道引擎（支持计费/限额/降级）
         String token = props.getAgentSystemToken();
         if (token != null && !token.isBlank()) {
-            body.put("model", defaultModel());
+            body.put("model", resolveModel(model, defaultModel()));
             String jsonBody;
             try {
                 jsonBody = MAPPER.writeValueAsString(body);
@@ -126,7 +143,7 @@ public class AgentWorkflowService {
         // 未配置系统令牌 → 尝试直连 LLM 提供商（api-key 非空的第一个）
         AiProxyProperties.LlmProvider provider = firstAvailableProvider();
         if (provider != null) {
-            body.put("model", provider.getModel());
+            body.put("model", resolveModel(model, provider.getModel()));
             String jsonBodyTemp;
             try {
                 jsonBodyTemp = MAPPER.writeValueAsString(body);
@@ -161,6 +178,90 @@ public class AgentWorkflowService {
 
         // 既无系统令牌，也无可用直连提供商 → 本地兜底
         return fallbackSse(fallbackHint(userInput));
+    }
+
+    /**
+     * 解析本次请求实际使用的模型：会话台选择器选了就用用户选的，
+     * 没选（null/空白）则回退到提供商配置的默认模型。
+     */
+    private String resolveModel(String requested, String fallback) {
+        return (requested != null && !requested.isBlank()) ? requested.trim() : fallback;
+    }
+
+    /**
+     * 列出当前生效 LLM 提供商可用的模型（供会话台模型选择器使用）。
+     * 取第一个 api-key 非空的直连提供商，调用其 GET /models，并裁剪为
+     * id / ownedBy / contextWindow 三项后回传 —— 不回传密钥，也不透传上游细节。
+     * 每个模型再并发探活并附 ok 标记：会话台据此把上游拒答（403/429/超时）的
+     * 模型标注为不可用。提供商不可用或请求失败时返回空列表，前端退化为「仅默认模型」。
+     *
+     * @return {"provider":名称|null,"default":默认模型,"models":[{id,ownedBy,contextWindow,ok}]}
+     */
+    public String listModels() {
+        ObjectNode out = MAPPER.createObjectNode();
+        ArrayNode arr = out.putArray("models");
+        AiProxyProperties.LlmProvider provider = firstAvailableProvider();
+        if (provider == null) {
+            out.putNull("provider");
+            return out.toString();
+        }
+        out.put("provider", provider.getName());
+        // 提供商配置的默认模型：供前端选择器做初始选中项，避免前端硬编码模型名
+        out.put("default", provider.getModel());
+
+        // 先收集模型元数据，再统一并发探活
+        List<ObjectNode> items = new ArrayList<>();
+        try {
+            ResponseEntity<byte[]> resp = forwarder.probeModels(provider.getBaseUrl(), provider.getApiKey());
+            if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                JsonNode root = MAPPER.readTree(resp.getBody());
+                for (JsonNode m : root.path("data")) {
+                    if (!m.isObject()) continue;
+                    String id = m.path("id").asText("");
+                    if (id.isBlank()) continue;
+                    ObjectNode item = MAPPER.createObjectNode();
+                    item.put("id", id);
+                    item.put("ownedBy", m.path("owned_by").asText(""));
+                    if (m.hasNonNull("context_window")) {
+                        item.put("contextWindow", m.path("context_window").asLong());
+                    }
+                    items.add(item);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[Agent] 拉取模型列表失败 ({}): {}", provider.getName(), e.getMessage());
+        }
+
+        Map<String, Boolean> health = probeHealth(provider, items);
+        for (ObjectNode item : items) {
+            // 探活未返回的按不可用处理，避免前端把不可用模型当成可用
+            item.put("ok", health.getOrDefault(item.path("id").asText(""), Boolean.FALSE));
+            arr.add(item);
+        }
+        return out.toString();
+    }
+
+    /**
+     * 并发探活各模型：单条最多 {@link #PROBE_TIMEOUT}，整体最多 {@link #PROBE_TOTAL_TIMEOUT}。
+     * 探活只影响「可用性标注」，失败或超时一律视为不可用，不阻断列表返回。
+     */
+    private Map<String, Boolean> probeHealth(AiProxyProperties.LlmProvider provider, List<ObjectNode> items) {
+        Map<String, Boolean> health = new ConcurrentHashMap<>();
+        if (items.isEmpty()) return health;
+        List<CompletableFuture<Void>> tasks = new ArrayList<>();
+        for (ObjectNode item : items) {
+            String id = item.path("id").asText("");
+            tasks.add(CompletableFuture.runAsync(() -> health.put(id,
+                    forwarder.probeChat(provider.getBaseUrl(), provider.getApiKey(), id, PROBE_TIMEOUT)),
+                    PROBE_POOL));
+        }
+        try {
+            CompletableFuture.allOf(tasks.toArray(new CompletableFuture[0]))
+                    .get(PROBE_TOTAL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.warn("[Agent] 模型探活未在 {}s 内全部返回，未返回的按不可用标注", PROBE_TOTAL_TIMEOUT.toSeconds());
+        }
+        return health;
     }
 
     /** 返回第一个 api-key 非空的 LLM 提供商，无则 null */

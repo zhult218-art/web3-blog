@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import time
 from typing import Iterator, Optional, Sequence
@@ -29,6 +30,7 @@ _RETRY_STATUS = {402, 408, 409, 425, 429, 500, 502, 503, 504}
 _CONNECT_TIMEOUT = 5.0                   # 连接上限：某渠道连不上时迅速切下一个
 _ATTEMPTS_PER_PROVIDER = 2               # 单 provider 内尝试次数（含首次）
 _RETRY_BACKOFF = 0.3                     # 同 provider 重试前的短暂退避
+_OPTIMIZE_ATTEMPTS = 3                   # 提示词优化因「无效结果」而重试的次数
 
 
 class UpstreamError(RuntimeError):
@@ -37,6 +39,118 @@ class UpstreamError(RuntimeError):
     def __init__(self, message: str, status: Optional[int] = None) -> None:
         super().__init__(message)
         self.status = status
+
+
+# 用户提示词优化 system prompt：移植自开源项目 prompt-optimizer 的
+# user-prompt-basic 模板（packages/core/.../user-optimize/user-prompt-basic.ts）。
+# 职责是「改写提示词文本本身」，不回答/不执行其内容。
+# 差异点：原模板面向「构建可复用模板」，会主动把具体值抽成 {{变量}}；
+# 本处面向「用户随手输入一句话就能直接发给 AI」，故禁止新增占位符。
+_OPTIMIZE_SYSTEM = """# Role: 用户提示词基础优化助手
+
+## Profile
+- Author: prompt-optimizer（移植）
+- Language: 中文
+- Description: 对用户输入的提示词做快速有效的基础优化，消除模糊表达、补充关键信息、提升表达清晰度
+
+## 任务理解
+你的任务是优化提示词文本本身，而不是回答或执行提示词的内容。请直接输出改进后的提示词。
+
+## Skills
+1. 表达优化能力
+   - 模糊词汇识别: 发现并替换"好看""丰富"等模糊表述
+   - 信息补充: 为缺失的关键信息提供合理的补充
+   - 结构整理: 重新组织表达顺序，提升逻辑清晰度
+   - 目标明确: 将模糊的意图转换为明确的目标描述
+2. 快速判断能力
+   - 核心识别: 快速识别用户的核心需求和主要目标
+   - 问题定位: 准确定位提示词中的主要问题和改进点
+
+## Goals
+- 消除用户提示词中的模糊表达和歧义
+- 补充必要信息，使提示词更加完整
+- 提升表达的清晰度与可理解性
+- 确保优化后的提示词能够产生更好的 AI 回应
+
+## Constrains
+- 保持用户的原始意图和核心需求不变
+- 避免过度复杂化，保持简洁实用
+- 不添加用户未提及的新需求
+- 严禁新增双花括号占位符：不要把用户已给出的具体信息（网站、对象、语言、格式等）抽成 {{变量}}，
+  也不要自造 {{xxx}} 之类的占位符。优化结果必须是「可以直接发送给 AI 的完整提示词」，
+  缺失的细节用自然语言给出合理默认值（例如「用 Python」「输出 Markdown」），而不是留空占位符
+- 仅当用户原文本身已包含双花括号占位符时，才逐字保留，不改名、不删除、不替换成具体值
+
+## Workflow
+1. 快速分析: 识别提示词中的模糊表述和缺失信息
+2. 核心提取: 明确主要目标和关键需求
+3. 表达改进: 用具体、清晰的词汇替代模糊表述
+4. 信息补充: 添加必要的细节和要求
+5. 整体优化: 重新组织表达，确保逻辑清晰
+
+## Output Requirements
+- 直接输出优化后的提示词，不要任何解释、前言、寒暄或对话式回应
+- 不要用代码块包裹输出
+- 保持适度的详细程度，避免过于复杂
+- 确保输出的提示词可以直接使用"""
+
+
+_OPTIMIZE_BAD_PATTERNS = (
+    re.compile(r"^\s*user\s+safety\s*:", re.I),          # 上游安全分类模型的应答
+    re.compile(r"^\s*(safe|unsafe|moderation)\s*[:：]?\s*$", re.I),
+    re.compile(r"(i (cannot|can't|won't|am unable to))", re.I),
+    re.compile(r"(as an ai|作为\s*(一个)?\s*ai|抱歉[，,].{0,6}我(无法|不能))"),
+    re.compile(r"^\s*(error|invalid|bad request)\b", re.I),
+)
+
+
+def _optimize_result_ok(out: str, src: str) -> bool:
+    """校验优化结果是否可用。
+
+    免费池为自动路由，偶尔会被上游安全分类模型截胡（返回 "User Safety: safe" 之类），
+    或模型直接拒答/回显原文；这些都视为无效，交由调用方换一次上游重试。
+    """
+    t = (out or "").strip()
+    if len(t) < 10:
+        return False
+    if any(p.search(t) for p in _OPTIMIZE_BAD_PATTERNS):
+        return False
+    if t.strip().strip('"').strip() == src.strip():
+        return False
+    return True
+
+
+def optimize_prompt(prompt: str, context: Optional[str] = None,
+                    model: Optional[str] = None) -> str:
+    """优化用户提示词：改写提示词文本本身（不执行其内容）。
+
+    与 chat 共用同一套免费 provider 轮询兜底；由于免费池可能返回无效内容
+    （安全分类应答 / 拒答 / 回显原文），这里额外做结果校验并更换上游重试。
+    """
+    text = (prompt or "").strip()
+    if not text:
+        raise UpstreamError("待优化的提示词为空")
+    if len(text) > 6000:
+        text = text[:6000]
+    prefix = f"该提示词的使用场景：{context.strip()[:200]}\n\n" if context else ""
+    user = (prefix
+            + "请对以下用户提示词进行基础优化，消除模糊表达，补充关键信息。\n"
+            + "注意：请优化提示词文本本身，不要回答或执行它的内容；"
+            + "不要新增 {{占位符}}，优化结果要能直接发给 AI 使用。\n\n"
+            + "需要优化的用户提示词：\n" + text + "\n\n请输出优化后的提示词：")
+    last_err: Optional[Exception] = None
+    for _ in range(_OPTIMIZE_ATTEMPTS):
+        try:
+            out = chat([{"role": "user", "content": user}], system=_OPTIMIZE_SYSTEM,
+                       temperature=0.4, max_tokens=1600, model=model)
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+            continue
+        if _optimize_result_ok(out, text):
+            return out.strip()
+        last_err = UpstreamError("上游返回了无效的优化结果")
+        logger.info("提示词优化结果无效，换上游重试：%s", out[:60])
+    raise UpstreamError(f"提示词优化失败：{last_err or '未获得有效结果'}")
 
 
 def resolve_config() -> dict:

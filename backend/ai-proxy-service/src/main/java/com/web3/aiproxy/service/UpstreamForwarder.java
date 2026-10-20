@@ -108,6 +108,39 @@ public class UpstreamForwarder {
                 .block(Duration.ofSeconds(20));
     }
 
+    /**
+     * 模型可用性探针：向上游发一条最大 1 token 的最小 chat 请求，短超时。
+     * 上游 2xx 即视为可用（403/429/5xx 与超时均判为不可用），用于会话台模型
+     * 选择器标注「是否可用」。异常在内部消化，绝不向调用方抛出。
+     *
+     * @param timeout 单次探测的响应超时
+     * @return 上游返回 2xx 时为 true
+     */
+    public boolean probeChat(String baseUrl, String apiKey, String model, Duration timeout) {
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3_000)
+                .responseTimeout(timeout);
+        WebClient probeClient = WebClient.builder()
+                .baseUrl(baseUrl)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
+        String body = "{\"model\":\"" + model.replace("\\", "\\\\").replace("\"", "'")
+                + "\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}";
+        try {
+            ResponseEntity<byte[]> resp = probeClient.post()
+                    .uri("/chat/completions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .bodyValue(body)
+                    .retrieve()
+                    .toEntity(byte[].class)
+                    .block(timeout);
+            return resp != null && resp.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /** 上游错误状态异常（携带状态码，供引擎判断是否降级下一候选） */
     public static class UpstreamStatusException extends RuntimeException {
         @Getter

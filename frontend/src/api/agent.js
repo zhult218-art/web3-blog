@@ -22,15 +22,26 @@ function authHeaders(extra = {}) {
 /**
  * 发起 Agent 流式对话。
  * @param {Array} messages [{role:'user'|'assistant', content}]
+ * @param {string} [model] 会话台选择器选定的模型；不传则后端用提供商默认模型
  * @returns {ReadableStream<Uint8Array>} fetch 的 response body 流
  */
-export function agentChatStream(messages) {
+export function agentChatStream(messages, model) {
   return fetch(AGENT_PATH, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify(model ? { messages, model } : { messages }),
     credentials: 'include',
   })
+}
+
+/**
+ * 拉取会话台可选模型列表（后端读当前生效 LLM 提供商的 /models 并裁剪字段）。
+ * @returns {Promise<{provider:string|null, models:Array<{id:string,ownedBy:string,contextWindow?:number}>}>}
+ */
+export async function agentModels() {
+  const res = await fetch('/api/agent/models', { credentials: 'include' })
+  if (!res.ok) throw new Error(`模型列表请求失败 (${res.status})`)
+  return res.json()
 }
 
 /**

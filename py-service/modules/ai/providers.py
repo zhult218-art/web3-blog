@@ -70,7 +70,9 @@ _cooldown: dict = {}   # provider.name -> 冷却截止时间戳
 # 地址/模型可用 OUR_FREE_MODEL_BASE_URL / OUR_FREE_MODEL_MODEL 覆盖，
 # 密钥也可用 OUR_FREE_MODEL_KEY 直接注入（跳过读文件）。
 _OFM_DEFAULT_BASE = "http://127.0.0.1:18900/v1"
-_OFM_DEFAULT_MODEL = "deepseek-v4.1-flash-free"
+# 默认取聚合入口 openrouter/free：OFM 的匿名池整组模型（deepseek-v4.1-flash-free 等）
+# 可能被上游返回 403 / LANE_LOCKED，聚合入口则稳定可用。
+_OFM_DEFAULT_MODEL = "openrouter/free"
 _OFM_DEFAULT_HOME = Path.home() / ".our-free-model"
 
 
