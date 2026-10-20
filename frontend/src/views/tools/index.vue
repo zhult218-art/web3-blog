@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
-    <div class="mx-auto max-w-5xl">
+    <div class="mx-auto w-full max-w-[1800px] lg:w-[85%]">
       <PageHeader title="运维工具箱" subtitle="Online DevTools · Scripts · Converters · Generators"
         :crumbs="[{ label: '首页', to: '/' }, { label: '运维工具箱' }]" />
 
@@ -196,6 +196,11 @@ async function deleteScriptItem(item) {
 const onlineTools = [
   { id: 'plaza', name: '60秒 API 广场', icon: '🌐', desc: '60+接口在线调试', path: '/tools/api-plaza' },
   { id: 'video-vip', name: 'VIP视频解析', icon: '🎬', desc: '全网VIP免费解析', path: '/tools/video-vip' },
+  { id: 'scraper', name: '网页采集', icon: '🕸️', desc: '抓取·选择器·转Markdown', path: '/tools/scraper' },
+  { id: 'linkswift', name: '网盘直链助手', icon: '☁️', desc: '九大网盘直链提取', path: '/tools/linkswift' },
+  { id: 'googlehack', name: 'Google Hacking', icon: '🔎', desc: '检索语法·敏感文件', path: '/tools/googlehack' },
+  { id: 'dnd-resume', name: '简历工坊', icon: '📄', desc: '拖拽式简历生成', path: '/tools/dnd-resume' },
+  { id: 'ghosttrack', name: 'GhostTrack', icon: '👻', desc: 'IP·手机号·用户名追踪', path: '/tools/ghosttrack' },
   { id: 'news60s', name: '60秒读世界', icon: '📰', desc: '每日新闻快报', path: '/tools/news60s' },
   { id: 'qrnote', name: 'API 工具中心', icon: '🧩', desc: '第三方免费API聚合', path: '/tools/api' },
   { id: 'sites', name: '分享网站', icon: '🛰️', desc: '优质外链收藏(含AI导航)', path: '/tools/sites' },
