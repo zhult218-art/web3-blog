@@ -61,19 +61,35 @@
           <div class="hud-time">{{ currentTime }}</div>
         </div>
       </div>
+
+      <!-- 首屏与下方内容的极光分界：三层视差波浪（借鉴 blog.cosine.ren）
+           波浪以渐变填充（浪尖一线青色微光 → 底部收进区块底色 #08090f），
+           三层各自露出自己的浪尖，堆出极光的层次；动画只做水平漂移 -->
+      <div class="hero-wave" aria-hidden="true">
+        <svg class="wave" xmlns="http://www.w3.org/2000/svg" viewBox="0 24 150 28" preserveAspectRatio="none">
+          <defs>
+            <path id="gh-gentle-wave"
+              d="m -160,44.4 c 30,0 58,-18 87.7,-18 30.3,0 58.3,18 87.3,18 30,0 58,-18 88,-18 30,0 58,18 88,18 l 0,34.5 -351,0 z" />
+            <!-- userSpaceOnUse：渐变直接对齐可视波段（viewBox 的 y 24→52 即 0%→100%），
+                 否则每条 use 各按自身包围盒映射，三条浪尖的浓淡会各不相同 -->
+            <linearGradient id="ghWaveGrad" gradientUnits="userSpaceOnUse" x1="0" y1="24" x2="0" y2="52">
+              <stop offset="0" stop-color="#00d4ff" stop-opacity="0.32" />
+              <stop offset="0.28" stop-color="#8b7cf6" stop-opacity="0.16" />
+              <stop offset="0.6" stop-color="#0b1220" stop-opacity="0.94" />
+              <stop offset="1" stop-color="#08090f" stop-opacity="1" />
+            </linearGradient>
+          </defs>
+          <g class="parallax">
+            <use href="#gh-gentle-wave" x="50" y="0" />
+            <use href="#gh-gentle-wave" x="50" y="3" />
+            <use href="#gh-gentle-wave" x="50" y="6" />
+          </g>
+        </svg>
+      </div>
     </section>
 
-    <!-- ============ [01] 核心作品预览（精简 3 件 + 查看全部入口） ============ -->
-    <div class="section-seam" aria-hidden="true"></div>
-    <HomeShowcaseMini />
-
-    <!-- ============ [02] 技术文章（精简 3 篇） ============ -->
-    <div class="section-seam" aria-hidden="true"></div>
-    <ArticleCards />
-
-    <!-- ============ [03] 全站快速导航（单行 chip） ============ -->
-    <div class="section-seam" aria-hidden="true"></div>
-    <HomeQuickNav />
+    <!-- ============ [01] 关于我（首屏之后的主内容，深空网格与星野首屏同色系，由极光波浪分界） ============ -->
+    <AboutMe />
 
     <!-- ============ FOOTER 极简双栏 ============ -->
     <footer class="footer">
@@ -163,9 +179,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import * as THREE from 'three'
-import HomeShowcaseMini from '@/components/home/HomeShowcaseMini.vue'
-import ArticleCards from '@/components/home/ArticleCards.vue'
-import HomeQuickNav from '@/components/home/HomeQuickNav.vue'
+import AboutMe from '@/components/home/AboutMe.vue'
 import DailyQuote from '@/components/home/DailyQuote.vue'
 import WelcomeGreeting from '@/components/home/WelcomeGreeting.vue'
 import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
@@ -237,9 +251,173 @@ const onHardRefresh = () => { hardRefresh() }
 
 let scene, camera, renderer, clock
 let headGroup, particles
+let starEyes = []
 let raf = 0
 let timeInterval = 0
 let canvasBox = null
+
+// ============================================================
+// 星球之眼（轻量版 FULU 电子眼）
+// 借鉴 FULU_Visual_Tuner-main 电子眼工作台的视觉与行为：杏仁眼形、眼球鼓起（球冠贴面）、
+// 注视限位、空闲微动与随机扫视、随机眨眼；此处全部用 Three.js 基础图元实现，
+// 无贴图 / 无 GLSL / 无外部依赖，开销极小。
+//   · 眼形：球体统一压扁成透镜（scale 0.86×0.62），上下缘深色弧线勾勒杏仁轮廓
+//   · 虹膜：分层球冠贴合眼球表面（角膜环→极光紫→冰青→瞳孔→双高光），偏转时永不穿模
+//   · 注视：虹膜组绕眼球中心偏转，弹簧阻尼跟随鼠标，并限制在 MAX_TILT 内
+//   · 眨眼：随机间隔整眼纵向压缩，快速闭合后回弹
+// ============================================================
+const EYE_R = 0.098            // 眼球半径（放大，星球上更醒目）
+const EYE_FLAT_Y = 0.86        // 纵向压扁（杏仁感）
+const EYE_FLAT_Z = 0.62        // 前后压扁（透镜感）
+const IRIS_R = 0.040           // 虹膜半径（放大，反差更清晰）
+const MAX_TILT = 0.42          // 注视最大偏角（弧度，模拟眼内限位）
+const EYE_POSITIONS = [
+  { x: -0.235, y: 0.165, z: 0.93 },
+  { x: 0.235, y: 0.165, z: 0.93 }
+]
+
+// 构建双眼并挂到头部模型上，返回运行时状态数组
+function buildStarEyes(parent) {
+  const ballMat = new THREE.MeshBasicMaterial({ color: 0xf7f9ff })
+  const rimMat = new THREE.MeshBasicMaterial({ color: 0x111634 })
+  const limbalMat = new THREE.MeshBasicMaterial({ color: 0x141838 })   // 角膜环（瞳缘深色圈）
+  const irisMat = new THREE.MeshBasicMaterial({ color: 0x7c5cff })     // 虹膜外圈：极光紫
+  const irisInnerMat = new THREE.MeshBasicMaterial({ color: 0x2ee6f6 }) // 虹膜内圈：冰青
+  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x05070f })
+  const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
+  const capAngle = Math.asin(IRIS_R / EYE_R)   // 虹膜在眼球上的半张角
+  const arcGeo = new THREE.TorusGeometry(EYE_R, 0.0055, 5, 24, Math.PI * 0.92)
+  const result = []
+
+  for (const p of EYE_POSITIONS) {
+    const group = new THREE.Group()
+    group.position.set(p.x, p.y, p.z)
+    group.scale.set(1, EYE_FLAT_Y, EYE_FLAT_Z)
+
+    // 眼球：完整球体，统一缩放后自然成为透镜形（球冠虹膜始终贴合其表面）
+    group.add(new THREE.Mesh(new THREE.SphereGeometry(EYE_R, 24, 16), ballMat))
+
+    // 上下缘曲线：深色弧线勾勒杏仁轮廓
+    const upper = new THREE.Mesh(arcGeo, rimMat)
+    upper.position.z = 0.008
+    upper.rotation.z = Math.PI * 0.04
+    group.add(upper)
+    const lower = new THREE.Mesh(arcGeo, rimMat)
+    lower.position.z = 0.008
+    lower.rotation.z = Math.PI * 0.96
+    group.add(lower)
+
+    // 注视枢轴：绕眼球中心偏转 → 虹膜/瞳孔/高光整体滑动且不穿模
+    // 分层球冠（半径由内到外递增，确保逐层盖在更外层）：
+    //   角膜环 → 虹膜紫 → 虹膜青 → 瞳孔 → 双高光
+    const gaze = new THREE.Group()
+    gaze.rotation.x = Math.PI / 2
+    group.add(gaze)
+    gaze.add(new THREE.Mesh(
+      new THREE.SphereGeometry(EYE_R * 1.006, 22, 8, 0, Math.PI * 2, 0, capAngle * 1.16), limbalMat))
+    gaze.add(new THREE.Mesh(
+      new THREE.SphereGeometry(EYE_R * 1.012, 22, 9, 0, Math.PI * 2, 0, capAngle * 1.0), irisMat))
+    gaze.add(new THREE.Mesh(
+      new THREE.SphereGeometry(EYE_R * 1.018, 22, 9, 0, Math.PI * 2, 0, capAngle * 0.66), irisInnerMat))
+    gaze.add(new THREE.Mesh(
+      new THREE.SphereGeometry(EYE_R * 1.025, 18, 7, 0, Math.PI * 2, 0, capAngle * 0.40), pupilMat))
+    // 主高光（左上大片）
+    const spark = new THREE.Mesh(
+      new THREE.SphereGeometry(EYE_R * 1.032, 14, 6, 0, Math.PI * 2, 0, capAngle * 0.30), sparkMat)
+    spark.rotation.set(-capAngle * 0.55, 0, -capAngle * 0.75)
+    gaze.add(spark)
+    // 副高光（右下小点，让眼更有神）
+    const spark2 = new THREE.Mesh(
+      new THREE.SphereGeometry(EYE_R * 1.030, 10, 5, 0, Math.PI * 2, 0, capAngle * 0.14), sparkMat)
+    spark2.rotation.set(capAngle * 0.62, 0, capAngle * 0.85)
+    gaze.add(spark2)
+
+    // 外圈光晕：极光紫，随呼吸轻微脉动
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(EYE_R * 1.18, EYE_R * 1.56, 28),
+      new THREE.MeshBasicMaterial({ color: 0xa855f7, transparent: true, opacity: 0.26, side: THREE.DoubleSide }))
+    ring.position.z = 0.02
+    group.add(ring)
+
+    parent.add(group)
+    result.push({
+      group, gaze, ring,
+      tiltX: 0, tiltY: 0, vx: 0, vy: 0,
+      sacX: 0, sacY: 0, nextSaccade: 1 + Math.random() * 3,
+      nextBlink: 1.5 + Math.random() * 4, blinkPhase: -1
+    })
+  }
+  return result
+}
+
+// 鼠标位置归一化（-1~1，屏幕 Y 向上为正），供注视方向使用
+let pointerNX = 0
+let pointerNY = 0
+function onPointerMove(e) {
+  const rect = heroCanvas.value?.getBoundingClientRect?.()
+  if (!rect || !rect.width) return
+  pointerNX = Math.max(-1, Math.min(1, (e.clientX - rect.left - rect.width / 2) / (rect.width * 0.9)))
+  pointerNY = Math.max(-1, Math.min(1, (rect.height / 2 - (e.clientY - rect.top)) / (rect.height * 0.9)))
+}
+
+// 每帧驱动：注视弹簧阻尼 + 随机扫视 + 随机眨眼 + 光晕脉动
+function updateStarEyes(dt, t) {
+  if (!starEyes.length) return
+  const d = Math.min(dt, 0.05)
+  const K = 55        // 弹簧刚度
+  const C = 9         // 阻尼系数
+  for (const e of starEyes) {
+    // 目标注视角：鼠标方向 + 空闲微动
+    let tx = pointerNX * MAX_TILT
+    let ty = pointerNY * MAX_TILT + Math.sin(t * 0.7 + e.group.position.x) * 0.03
+
+    // 随机扫视：偶尔快速瞥向别处，随后指数衰减回位
+    e.nextSaccade -= d
+    if (e.nextSaccade <= 0) {
+      e.nextSaccade = 1.6 + Math.random() * 3.2
+      e.sacX = (Math.random() - 0.5) * MAX_TILT * 1.3
+      e.sacY = (Math.random() - 0.5) * MAX_TILT * 0.7
+    }
+    const decay = Math.pow(0.02, d)
+    e.sacX *= decay
+    e.sacY *= decay
+    tx += e.sacX
+    ty += e.sacY
+    tx = Math.max(-MAX_TILT, Math.min(MAX_TILT, tx))
+    ty = Math.max(-MAX_TILT, Math.min(MAX_TILT, ty))
+
+    // 弹簧阻尼跟随
+    e.vx += (tx - e.tiltX) * K * d - e.vx * C * d
+    e.vy += (ty - e.tiltY) * K * d - e.vy * C * d
+    e.tiltX += e.vx * d
+    e.tiltY += e.vy * d
+    e.gaze.rotation.z = -e.tiltX
+    e.gaze.rotation.x = Math.PI / 2 - e.tiltY
+
+    // 眨眼：约 0.3s 完成闭合与回弹
+    e.nextBlink -= d
+    if (e.nextBlink <= 0) {
+      e.nextBlink = 2.5 + Math.random() * 4.5
+      e.blinkPhase = 0
+    }
+    let squash = 1
+    if (e.blinkPhase >= 0) {
+      e.blinkPhase += d
+      const P = 0.3
+      if (e.blinkPhase < P) {
+        squash = 1 - Math.pow(Math.sin((e.blinkPhase / P) * Math.PI), 0.7) * 0.92
+      } else {
+        e.blinkPhase = -1
+      }
+    }
+    e.group.scale.y = EYE_FLAT_Y * squash
+    e.ring.material.opacity = 0.16 + Math.sin(t * 1.6) * 0.1
+  }
+}
+
+// ============================================================
+// Three.js 场景：粒子人头 + 轨道环（原有，保持不变）
+// ============================================================
 
 // 刷新页面显示的当前时间
 function updateTime() {
@@ -351,23 +529,8 @@ function initThreeScene() {
   particles = new THREE.Points(particleGeo, particleMat)
   headGroup.add(particles)
 
-  const eyeGeo = new THREE.SphereGeometry(0.06, 8, 8)
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff })
-  const leftEye = new THREE.Mesh(eyeGeo, eyeMat)
-  leftEye.position.set(-0.22, 0.15, 0.95)
-  headGroup.add(leftEye)
-  const rightEye = new THREE.Mesh(eyeGeo, eyeMat)
-  rightEye.position.set(0.22, 0.15, 0.95)
-  headGroup.add(rightEye)
-
-  const eyeRingGeo = new THREE.RingGeometry(0.08, 0.12, 16)
-  const eyeRingMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
-  const leftRing = new THREE.Mesh(eyeRingGeo, eyeRingMat)
-  leftRing.position.set(-0.22, 0.15, 0.96)
-  headGroup.add(leftRing)
-  const rightRing = new THREE.Mesh(eyeRingGeo, eyeRingMat)
-  rightRing.position.set(0.22, 0.15, 0.96)
-  headGroup.add(rightRing)
+  // ── 星球之眼：轻量版「FULU 电子眼」（替代原两个青色圆球 + 圆环）──
+  starEyes = buildStarEyes(headGroup)
 
   const lineMat = new THREE.LineBasicMaterial({ color: 0x667eea, transparent: true, opacity: 0.1 })
   for (let i = 0; i < 15; i++) {
@@ -437,6 +600,9 @@ function animate() {
 
   camera.position.z = 4.5 + ease * 8
 
+  // 星球之眼：注视跟随 / 扫视 / 眨眼 / 光晕脉动
+  updateStarEyes(dt, t)
+
   // 雪花背景默认可见（0.5），随首屏下滑渐强至 0.95
   if (bgField.value) {
     bgField.value.style.opacity = 0.5 + ease * 0.45
@@ -492,6 +658,7 @@ onMounted(() => {
   window.addEventListener('resize', onResize)
   window.addEventListener('scroll', handleScroll, { passive: true })
   window.addEventListener('keydown', onMailKeydown)
+  window.addEventListener('pointermove', onPointerMove, { passive: true })
 })
 
 // 卸载时清理定时器、动画帧、渲染器与场景资源
@@ -501,12 +668,14 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('keydown', onMailKeydown)
+  window.removeEventListener('pointermove', onPointerMove)
   clearTimeout(copyTimer)
   if (renderer) {
     renderer.dispose()
     renderer.forceContextLoss()
   }
   if (scene) scene.clear()
+  starEyes = []
 })
 
 // 路由离开瞬间（早于过渡类名）：先停渲染并同步移出渲染树，
@@ -542,6 +711,45 @@ onBeforeRouteLeave(() => {
   display: flex;
   min-height: calc(100vh - 64px);
   overflow: hidden;
+  /* 波浪高度：HUD 底栏据此上抬，避免时间/坐标被极光波浪压住 */
+  --wave-h: clamp(64px, 8vw, 132px);
+}
+
+/* ============================================================
+   首屏 → 内容区的极光分界（借鉴 blog.cosine.ren 的三层视差波浪）
+   路径用一个 4 周期正弦（gentle-wave），preserveAspectRatio="none" 横向拉满；
+   三层 use 分别以 14s / 9s / 6s 做水平漂移，最下层完全不透明压住首屏底边。
+   填充用 ghWaveGrad：浪尖一线青色微光、中段转紫、底部收进区块底色 #08090f，
+   于是「星野首屏」与「网格内容区」之间是一条会流动的极光岸线
+   ============================================================ */
+.hero-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--wave-h);
+  z-index: 5;                 /* 在 canvas(1) 之上、HUD(10) 之下：不遮挡交互 */
+  pointer-events: none;
+}
+.hero-wave .wave {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.hero-wave .parallax > use { animation: waveDrift 12s linear infinite; }
+/* 后层压淡、前层最实：三层浪尖依次显影，堆出纵深 */
+.hero-wave .parallax > use:nth-child(1) {
+  fill: url(#ghWaveGrad); opacity: 0.5; animation-duration: 14s; animation-delay: -2s;
+}
+.hero-wave .parallax > use:nth-child(2) {
+  fill: url(#ghWaveGrad); opacity: 0.78; animation-duration: 9s; animation-delay: -3s;
+}
+.hero-wave .parallax > use:nth-child(3) {
+  fill: url(#ghWaveGrad); opacity: 1; animation-duration: 6s; animation-delay: -4s;
+}
+@keyframes waveDrift {
+  0%   { transform: translateX(-90px); }
+  100% { transform: translateX(85px); }
 }
 
 .hero-canvas {
@@ -557,7 +765,8 @@ onBeforeRouteLeave(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 1.5rem 2rem;
+  /* 底边留出波浪的高度，让时间/坐标栏落在纸色岸线之上 */
+  padding: 1.5rem 2rem calc(1rem + var(--wave-h) * 0.72);
   pointer-events: none;
 }
 
@@ -753,7 +962,8 @@ onBeforeRouteLeave(() => {
 
 .scroll-hint {
   position: absolute;
-  bottom: 6rem;
+  /* 抬高到波浪之上，避免「SCROLL TO EXPLORE」被纸色岸线吞掉 */
+  bottom: calc(var(--wave-h) + 2.2rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -808,64 +1018,6 @@ onBeforeRouteLeave(() => {
   letter-spacing: 0.15em;
   color: rgba(255,255,255,0.72);
   font-family: 'Courier New', monospace;
-}
-
-/* ============================================================
-   SECTION SEAM: 区块衔接光带（渐变呼吸流光，柔化区块切换）
-   ============================================================ */
-.section-seam {
-  position: relative;
-  height: 110px;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.section-seam::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(720px, 74vw);
-  height: 1.5px;
-  transform: translate(-50%, -50%);
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(102, 126, 234, 0.05) 12%,
-    rgba(102, 126, 234, 0.5) 38%,
-    rgba(0, 212, 255, 0.65) 50%,
-    rgba(139, 124, 246, 0.5) 62%,
-    rgba(118, 75, 162, 0.05) 88%,
-    transparent 100%);
-  filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.45));
-  animation: seamBreath 5s ease-in-out infinite;
-}
-
-/* 流光扫过 */
-.section-seam::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(720px, 74vw);
-  height: 1.5px;
-  transform: translate(-50%, -50%);
-  background: linear-gradient(90deg,
-    transparent 0%, transparent 42%,
-    rgba(255, 255, 255, 0.85) 50%, 
-    transparent 58%, transparent 100%);
-  background-size: 220% 100%;
-  mix-blend-mode: screen;
-  animation: seamSweep 6s linear infinite;
-}
-
-@keyframes seamBreath {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
-
-@keyframes seamSweep {
-  from { background-position: 130% 0; }
-  to { background-position: -130% 0; }
 }
 
 /* ============================================================
@@ -1297,7 +1449,8 @@ onBeforeRouteLeave(() => {
   }
 
   .hud-overlay {
-    padding: 1rem;
+    /* 小屏同样要为波浪留出底边，否则坐标为纸色岸线所盖 */
+    padding: 1rem 1rem calc(0.5rem + var(--wave-h) * 0.72);
   }
 
   .footer-content {

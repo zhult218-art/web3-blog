@@ -28,12 +28,16 @@
       </router-link>
 
       <!-- Desktop Nav -->
-      <nav class="hidden md:flex items-center gap-1">
-        <router-link v-for="item in visibleNav" :key="item.path" :to="item.path"
+      <nav ref="navListEl" class="nav-list hidden md:flex items-center gap-1 relative" @mouseleave="onNavLeave">
+        <!-- 滑块指示器：单块玻璃高亮在导航项间滑动（DOM 上先于各链接，
+             因此各链接及其内容绘制在滑块之上；pointer-events 关闭不影响点击） -->
+        <span class="nav-glide" :class="{ 'nav-glide-on': glideVisible }" :style="glideStyle" aria-hidden="true"></span>
+        <router-link v-for="(item, i) in visibleNav" :key="item.path" :to="item.path"
           class="nav-link relative px-3.5 py-2 text-sm rounded-lg group"
           :class="isActive(item.path) ? 'nav-active' : ''"
-          @mouseenter="onNavEnter(item)"
-          @focus="onNavEnter(item)"
+          @mouseenter="onNavHover(i)"
+          @focus="onNavEnter(item); onNavHover(i)"
+          @blur="onNavLeave"
         >
           <span class="nav-label relative z-10">
             <span class="nl-main">{{ item.label }}</span>
@@ -43,7 +47,7 @@
         </router-link>
 
         <!-- 功能总览下拉（全部入口按用途分组，单一下拉更清爽） -->
-        <div v-if="visibleMenuGroups.length || isAdmin" class="group">
+        <div v-if="visibleMenuGroups.length || isAdmin" class="group" @mouseenter="onNavLeave">
           <button class="nav-link relative px-3.5 py-1.5 text-sm rounded-lg group-btn"
             :class="{ 'nav-active': isAnyActive(menuPaths) }">
             <span class="nav-label relative z-10">
@@ -78,6 +82,11 @@
 
       <!-- Right Side -->
       <div class="flex items-center gap-3">
+        <!-- 全局搜索（Shift+S）：唤起 SearchPanel，与主题钮同风格 -->
+        <button class="nav-icon-btn" title="全站搜索 (Shift+S)" aria-label="全站搜索" @click="ui.toggleSearch()">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+        </button>
+
         <!-- Theme Switcher -->
         <div class="relative">
           <button class="theme-toggle-btn" title="切换主题配色" @click="themeOpen = !themeOpen">
@@ -214,11 +223,12 @@
 // 桌面端主航道 + "功能总览"单一宽下拉（按用途分组）+ 移动端抽屉展开
 // 按用户权限过滤菜单项；含主题配色切换、购物车角标、用户菜单
 // ============================================================
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useCartStore } from '@/stores/modules/cart'
 import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
+import { useUiStore } from '@/stores/modules/ui'
 import { hasPerm } from '@/utils/permissions'
 import { useTheme } from '@/composables/useTheme'
 import { useServiceHealth, isServiceUp } from '@/composables/useServiceHealth'
@@ -228,6 +238,7 @@ import { prefetchBlogMeta } from '@/api/blog'
 const auth = useAuthStore()
 const cart = useCartStore()
 const site = useSiteSettingsStore()
+const ui = useUiStore()
 // 品牌名 / Logo 来自系统设置（blog_setting 持久化），后台修改后即时生效
 const brandName = computed(() => site.brandName)
 const logoUrl = computed(() => site.site.logoUrl || '')
@@ -272,8 +283,57 @@ onMounted(() => {
   document.addEventListener('click', onDocClick)
   // 确保品牌名/功能开关配置就绪（路由守卫通常已加载，此处幂等兜底）
   site.load()
+  // 滑块指示器：挂载后定位一次；字体加载完成会改变文字宽度，需再校正一次
+  scheduleGlide()
+  document.fonts?.ready?.then(scheduleGlide).catch(() => {})
+  if (typeof ResizeObserver !== 'undefined' && navListEl.value) {
+    glideResizeObserver = new ResizeObserver(scheduleGlide)
+    glideResizeObserver.observe(navListEl.value)
+  }
 })
-onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocClick)
+  glideResizeObserver?.disconnect()
+  glideResizeObserver = null
+})
+
+// ── 导航滑块指示器 ───────────────────────────────────────────
+// 单块玻璃高亮在导航项之间滑动：悬停项优先，未悬停时停靠当前激活项。
+// 位置直接读取目标元素真实布局尺寸（offsetLeft/Top/Width/Height），
+// 因此中文/英文切换、权限变化导致导航项增减时都能正确跟随。
+const navListEl = ref(null)
+const glideVisible = ref(false)
+const glideStyle = ref({ left: '0px', top: '0px', width: '0px', height: '0px' })
+const hoveredIdx = ref(-1)
+let glideResizeObserver = null
+
+// 把滑块移动到目标导航项的包围盒
+function moveGlideTo(el) {
+  if (!el || !el.offsetWidth) { glideVisible.value = false; return }
+  glideVisible.value = true
+  glideStyle.value = {
+    left: el.offsetLeft + 'px',
+    top: el.offsetTop + 'px',
+    width: el.offsetWidth + 'px',
+    height: el.offsetHeight + 'px'
+  }
+}
+
+// 计算滑块目标：悬停项优先 → 当前激活项 → 无（隐藏）
+function updateGlide() {
+  const list = navListEl.value
+  if (!list) return
+  const links = Array.from(list.querySelectorAll(':scope > a.nav-link'))
+  moveGlideTo(links[hoveredIdx.value] || links.find(a => a.classList.contains('nav-active')))
+}
+
+// 直接定位，不用 requestAnimationFrame 合并：悬停/resize/路由切换的触发频次本就很低，
+// 读取 offset* 也很廉价；若依赖 rAF，页面处于后台标签页（帧被节流）时指示器会永远停在初始位置。
+function scheduleGlide() { updateGlide() }
+
+function onNavHover(i) { hoveredIdx.value = i; scheduleGlide() }
+function onNavLeave() { hoveredIdx.value = -1; scheduleGlide() }
+
 // 主导航（桌面端常驻）—— 异世界冒险风：label 为冒险语术，sub 为直观说明
 // svc: 关联的微服务名称，服务关闭时隐藏该项
 // feature: 关联系统设置中的功能开关，关闭后隐藏（管理员仍可见）
@@ -307,7 +367,6 @@ const menuGroups = [
     { path: '/software', label: '魔导工坊', sub: '软件中心', perm: 'software', svc: 'software-service', icon: '💾' },
     { path: '/resources', label: '宝物仓库', sub: '资源库', perm: 'resources', svc: 'resource-service', icon: '📦' },
     { path: '/knowledge', label: '星图知识库', sub: '学习地图', perm: 'home', icon: '🧭' },
-    { path: '/upload', label: '星空仓库', sub: '资源上传', perm: 'home', icon: '☁️' },
     { path: '/wifi', label: '信号侦测', sub: 'WiFi 安全审计', perm: 'wifi', icon: '📶' },
   ]},
   { name: '职业赚钱', items: [
@@ -322,9 +381,9 @@ const menuGroups = [
     { path: '/nails', label: '美甲小铺', sub: '预约·作品集', perm: 'home', svc: 'media-service', feature: 'media', icon: '💅' },
   ]},
   { name: '交流关于', items: [
-    { path: '/link', label: '同伴名册', sub: '友人帐', perm: 'link', icon: '🤝' },
+    { path: '/link', label: '同伴名册', sub: '友链', perm: 'link', icon: '🤝' },
     { path: '/comments', label: '传音魔石', sub: '留言板', perm: 'comments', icon: '💬' },
-    { path: '/about', label: '世界设定集', sub: '关于我们', perm: 'about', icon: '📖' },
+    { path: '/about', label: '世界设定集', sub: '关于我', perm: 'about', icon: '📖' },
     { path: '/qzone', label: '时光回溯', sub: 'QQ空间备份', perm: 'qzone', icon: '🕰️' },
   ]},
 ]
@@ -346,6 +405,12 @@ function isAnyActive(paths) {
 const isAdmin = computed(() => {
   return auth.isLoggedIn && auth.user?.role === 'ADMIN'
 })
+
+// 路由切换 / 导航项增减（服务健康状态、权限变化）后重新定位滑块。
+// 必须放在 isAdmin 等依赖声明之后：watch 会在注册时立即求值一次源表达式，
+// 若提前注册会触发 "Cannot access 'isAdmin' before initialization"（TDZ）。
+watch(() => route.path, scheduleGlide)
+watch(visibleNav, () => nextTick(scheduleGlide))
 
 // 判断路由是否处于某菜单项（含子路径）
 function isActive(path) {
@@ -415,6 +480,32 @@ function handleLogout() {
   opacity: 0.85;
 }
 
+/* ── 导航滑块指示器 ──
+   单块玻璃高亮在导航项之间滑动：悬停时跟随鼠标，移开后停靠当前激活项。
+   取代原先每个导航项各自的 hover 底色，形成连续的"液体"跟随感。
+   尺寸/位置由 JS 按目标元素真实包围盒写入，故此处只负责外观与过渡。 */
+.nav-glide {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  border-radius: 10px;
+  background: var(--nav-pill);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 10px 24px -14px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    left 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    top 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    width 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.2s ease;
+}
+.nav-glide-on { opacity: 1; }
+
 /* 导航项：醒目文字 + 按压反馈；hover 呈 3D 玻璃面前倾 */
 .nav-link {
   color: var(--nav-fg);
@@ -430,7 +521,6 @@ function handleLogout() {
 }
 .nav-link:hover {
   color: var(--nav-fg-hi);
-  background: var(--nav-pill);
   text-shadow: 0 0 16px var(--color-glow-soft);
   transform: perspective(500px) rotateX(10deg) translateY(-2px) scale(1.04);
   box-shadow:

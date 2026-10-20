@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
-    <div class="mx-auto max-w-5xl">
+    <div class="mx-auto w-full max-w-[1800px] lg:w-[85%]">
       <PageHeader title="软件资源" subtitle="Software Downloads · Cross-Platform · Developer Tools"
         :crumbs="[{ label: '首页', to: '/' }, { label: '软件下载' }]">
         <template #actions>

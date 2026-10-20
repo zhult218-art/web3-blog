@@ -9,7 +9,9 @@ import BlogLayout from '@/layouts/BlogLayout.vue'
 import LoginView from '@/views/login/index.vue'
 import { useAuthStore } from '@/stores/modules/auth'
 import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
+import { useLoadingStore } from '@/stores/modules/loading'
 import { hasPerm } from '@/utils/permissions'
+import { installViewTransitions } from './viewTransitions'
 
 // ── Web3Layout 子路由（共享同一份 ThreeBackground / ParticleBackground / Web3Nav）
 const web3Routes = [
@@ -44,10 +46,21 @@ const web3Routes = [
   { path: 'tools/api-plaza', name: 'ToolsApiPlaza', component: () => import('@/views/tools/ApiPlaza.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/sites', name: 'ToolsSites', component: () => import('@/views/tools/sites.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/video-vip', name: 'ToolsVideoVip', component: () => import('@/views/tools/VideoVip.vue'), meta: { requiresAuth: false, perm: 'tools' } },
+  // 网页采集（py-service 9006 scrape 模块，经 /pyscrape 代理）
+  { path: 'tools/scraper', name: 'ToolsScraper', component: () => import('@/views/tools/WebScraper.vue'), meta: { requiresAuth: false, perm: 'tools' } },
+  // 网盘直链助手（LinkSwift 油猴脚本托管 + 一键安装）
+  { path: 'tools/linkswift', name: 'ToolsLinkswift', component: () => import('@/views/tools/LinkSwift.vue'), meta: { requiresAuth: false, perm: 'tools' } },
+  // Google Hacking 检索语法生成（仅生成 dork 并跳转 Google，不做任何抓取）
+  { path: 'tools/googlehack', name: 'ToolsGoogleHack', component: () => import('@/views/tools/GoogleHack.vue'), meta: { requiresAuth: false, perm: 'tools' } },
+  // 简历工坊（dnd-resume 官方演示站 iframe 内嵌；本地环境不满足其 node>=24 + pnpm 构建要求）
+  { path: 'tools/dnd-resume', name: 'ToolsDndResume', component: () => import('@/views/tools/DndResume.vue'), meta: { requiresAuth: false, perm: 'tools' } },
+  // GhostTrack 网络追踪（py-service 9006 ghosttrack 模块，经 /gtapi 代理）
+  { path: 'tools/ghosttrack', name: 'ToolsGhostTrack', component: () => import('@/views/tools/GhostTrack.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'tools/:tool', name: 'ToolPage', component: () => import('@/views/tools/ToolPage.vue'), meta: { requiresAuth: false, perm: 'tools' } },
   { path: 'software', name: 'Software', component: () => import('@/views/software/index.vue'), meta: { requiresAuth: false, perm: 'software' } },
   { path: 'resources', name: 'Resources', component: () => import('@/views/resources/index.vue'), meta: { requiresAuth: false, perm: 'resources' } },
-  { path: 'upload', name: 'Upload', component: () => import('@/views/upload/index.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+  // 资源上传已并入资源库页（仅管理员可见入口），旧地址重定向过去避免历史链接失效
+  { path: 'upload', redirect: '/resources' },
   // 展示 / 可视化
   { path: 'nails', name: 'Nails', component: () => import('@/views/nails/index.vue'), meta: { requiresAuth: false, perm: 'home', feature: 'media' } },
   { path: 'three', name: 'ThreePage', component: () => import('@/views/three/index.vue'), meta: { requiresAuth: false, feature: 'metaverse' } },
@@ -200,5 +213,16 @@ router.beforeEach(async (to) => {
   }
   return true
 })
+
+// 路由切换驱动的全局加载：导航开始 → 结束/出错时收起（用于懒加载 chunk 的加载态）
+router.beforeEach((to, from) => {
+  if (to.fullPath !== from.fullPath) useLoadingStore().navStart()
+  return true
+})
+router.afterEach(() => useLoadingStore().navEnd())
+router.onError(() => useLoadingStore().navEnd())
+
+// 布局内切页启用 View Transitions API 过渡（浏览器不支持 / 开启减少动效时自动跳过）
+installViewTransitions(router)
 
 export default router

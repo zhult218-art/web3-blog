@@ -70,26 +70,6 @@ export default defineConfig({
         timeout: 60000,
         proxyTimeout: 60000
       },
-      // Vibe-Research A 股扩展数据服务（端口 8900）
-      // 修复：此前缺少 /vr 代理导致"市场概览/热点"等 Tab 的请求全部 404/超时；
-      // 8900 端全部接口带 /api 前缀，故 /vr/xxx -> /api/xxx
-      // 当 Vibe-Research 未部署时，代理 error 事件返回空 JSON，避免前端 500 刷屏
-      '/vr': {
-        target: 'http://127.0.0.1:8900',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/vr/, '/api'),
-        // 行情聚合接口偶发较慢，代理层不设超时限制
-        timeout: 120000,
-        proxyTimeout: 120000,
-        configure: (proxy) => {
-          proxy.on('error', (err, req, res) => {
-            if (res && !res.headersSent) {
-              res.writeHead(200, { 'Content-Type': 'application/json' })
-              res.end(JSON.stringify({ code: 200, data: null, message: 'Vibe-Research offline' }))
-            }
-          })
-        }
-      },
       '/whisper': {
         target: 'http://127.0.0.1:9006',
         changeOrigin: true,
@@ -161,6 +141,25 @@ export default defineConfig({
         rewrite: path => path.replace(/^\/audius-api/, ''),
         timeout: 30000,
         proxyTimeout: 30000
+      },
+      // 网页采集（轻量档）：py-service 9006 的 scrape 模块，curl_cffi 抓取 + scrapling 解析。
+      // /pyscrape/xxx -> /api/scrape/xxx（页面路由是 /tools/scraper，前缀与页面错开）
+      '/pyscrape': {
+        target: 'http://localhost:9006',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/pyscrape/, '/api/scrape'),
+        timeout: 120000,
+        proxyTimeout: 120000
+      },
+      // GhostTrack 网络追踪（py-service 9006 的 ghosttrack 模块）。
+      // /gtapi/xxx -> /api/ghosttrack/xxx（页面路由是 /tools/ghosttrack，前缀与页面错开）
+      '/gtapi': {
+        target: 'http://localhost:9006',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/gtapi/, '/api/ghosttrack'),
+        // 用户名跨站检测要并发探测 22 个站点，单站 8s 超时 + 限流让整体偏慢
+        timeout: 120000,
+        proxyTimeout: 120000
       },
       // 市场驾驶舱（tick-stock-panel）：代码级移植到 py-service（端口 9006）。
       // 前端通过 iframe 加载 /cockpit/，React 应用内 API 调用走 /cockpit/api/*。

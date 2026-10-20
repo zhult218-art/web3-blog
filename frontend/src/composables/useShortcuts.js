@@ -33,7 +33,7 @@ export const SHORTCUT_BINDINGS = [
   { key: 'Shift+H', label: '回到首页' },
   { key: 'Shift+M', label: '播放/暂停音乐' },
   { key: 'Shift+A', label: '中控台' },
-  { key: 'Shift+L', label: '友人帐' },
+  { key: 'Shift+L', label: '友链' },
   { key: 'Shift+P', label: '关于' },
   { key: 'Shift+I', label: '切换右键菜单' },
   { key: 'Shift+K', label: '快捷键面板' }

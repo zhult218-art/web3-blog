@@ -131,6 +131,9 @@
             placeholder="也可以直接输入文字与星途对话…"
             @keydown.enter.prevent="sendText"
           />
+          <button class="opt-btn" :disabled="!inputText.trim() || optimizing"
+            :title="optimizing ? '正在优化…' : '优化提示词（AI 改写，不会直接发送）'"
+            @click="optimizeText">{{ optimizing ? '…' : '✨' }}</button>
           <button class="send-btn" :disabled="!inputText.trim()" @click="sendText">发送</button>
         </div>
 
@@ -222,6 +225,7 @@ import {
 import { speakEdgeStream, createEdgeSpeaker, stopEdgeSpeech, EDGE_VOICES, isEdgeTtsSupported } from '@/api/edgeTts'
 import { startWhisperRecord, whisperTranscribe } from '@/composables/useWhisperStt'
 import { agentChatStream, consumeAgentStream } from '@/api/agent'
+import { aiOptimizePrompt } from '@/api/freeAi'
 import { fetchArticleList, fetchArticleDetail } from '@/api/article'
 import {
   startVoiceStream, sendVoice, stopVoiceStream, disposeVoiceStream, isVoiceStreamRunning,
@@ -590,6 +594,31 @@ function sendText() {
   respond(t)
 }
 
+// ---- 提示词优化：移植自 prompt-optimizer 的基础优化模板（py-service 免费通道）----
+// 仅改写输入框中的文字本身，不发送、不执行。
+const optimizing = ref(false)
+async function optimizeText() {
+  const t = inputText.value.trim()
+  if (!t || optimizing.value) return
+  optimizing.value = true
+  try {
+    const out = await aiOptimizePrompt(t, { context: '星途助手' })
+    if (out) {
+      inputText.value = out
+      try {
+        const { useToastStore } = await import('@/stores/modules/toast')
+        useToastStore().success('提示词已优化 ✨')
+      } catch { /* 无 toast 容器时静默 */ }
+    } else {
+      dlgAlert('未获得优化结果，请稍后重试')
+    }
+  } catch (e) {
+    dlgAlert(e?.message || '提示词优化失败')
+  } finally {
+    optimizing.value = false
+  }
+}
+
 // ---- 把 AI 回复一键存入知识库 ----
 const showKbModal = ref(false)
 const kbBusy = ref(false)
@@ -869,7 +898,7 @@ const LOCAL_CMDS = [
   { match: ['分享网站', '外链', '好站'], action: '/tools/sites', reply: '正在打开分享网站' },
   { match: ['软件', '下载'], action: '/software', reply: '正在打开软件库' },
   { match: ['资源'], action: '/resources', reply: '正在打开资源中心' },
-  { match: ['上传'], action: '/upload', reply: '正在打开资源上传' },
+  { match: ['上传'], action: '/resources', reply: '正在打开资源中心（上传入口仅管理员可见）' },
   { match: ['美甲'], action: '/nails', reply: '正在打开美甲小铺' },
   { match: ['3D', '粒子', '星空漫游'], action: '/three', reply: '正在打开 3D 星空漫游' },
   { match: ['架构'], action: '/architecture', reply: '正在打开微服务架构图鉴' },
@@ -877,7 +906,7 @@ const LOCAL_CMDS = [
   { match: ['AI引擎', 'AI助手', '知识库'], action: '/ai', reply: '正在打开 AI 引擎' },
   { match: ['Agent', '智能体', '工作流'], action: '/agent', reply: '正在打开 Agent 工作台' },
   { match: ['相册'], action: '/album', reply: '正在打开相册集' },
-  { match: ['友链', '友人帐'], action: '/link', reply: '正在打开友人帐' },
+  { match: ['友链', '友人帐'], action: '/link', reply: '正在打开友链' },
   { match: ['留言'], action: '/comments', reply: '正在打开留言板' },
   { match: ['关于'], action: '/about', reply: '正在打开关于页面' },
   { match: ['订单'], action: '/profile/orders', reply: '正在打开我的订单' },
@@ -2354,6 +2383,13 @@ onBeforeUnmount(() => {
 }
 .send-btn:hover:not(:disabled) { background: linear-gradient(135deg, rgba(34, 211, 238, 0.34), rgba(168, 85, 247, 0.34)); }
 .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.opt-btn {
+  padding: 0 10px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05); color: #e9d5ff;
+}
+.opt-btn:hover:not(:disabled) { border-color: rgba(168, 85, 247, 0.5); background: rgba(168, 85, 247, 0.18); }
+.opt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Mobile */
 @media (max-width: 768px) {

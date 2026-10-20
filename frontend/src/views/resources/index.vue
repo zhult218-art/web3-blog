@@ -1,10 +1,11 @@
 <template>
   <div class="min-h-screen px-4 md:px-6 py-10">
-    <div class="mx-auto max-w-5xl">
+    <div class="mx-auto w-full max-w-[1800px] lg:w-[85%]">
       <PageHeader title="资源中心" subtitle="File Sharing · Downloads · Categories"
         :crumbs="[{ label: '首页', to: '/' }, { label: '资源分享' }]">
+        <!-- 上传入口仅管理员可见（资源上传已从独立页面并入本页） -->
         <template #actions>
-          <router-link to="/upload" class="web3-btn text-xs !px-4 !py-1.5">上传资源</router-link>
+          <button v-if="isAdmin" class="web3-btn text-xs !px-4 !py-1.5" @click="openUpload">上传资源</button>
         </template>
       </PageHeader>
 
@@ -103,6 +104,56 @@
         </div>
       </Modal>
 
+      <!-- Upload Modal（管理员） -->
+      <Modal v-model="showUpload" title="上传资源">
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block">资源标题 <span class="text-red-400">*</span></label>
+            <input v-model="upForm.title" class="web3-input text-sm" placeholder="输入资源标题" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">分类</label>
+              <select v-model="upForm.category" class="web3-input text-sm">
+                <option value="">未分类</option>
+                <option>文档</option><option>图片</option><option>视频</option><option>音频</option><option>压缩包</option><option>其他</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">描述</label>
+              <input v-model="upForm.description" class="web3-input text-sm" placeholder="简短描述" />
+            </div>
+          </div>
+          <div
+            class="border-2 border-dashed border-white/10 rounded-2xl p-6 text-center cursor-pointer hover:border-purple-400/40 transition"
+            :class="{ 'border-purple-400/50 bg-purple-500/5': upDragging }"
+            @dragover.prevent="upDragging = true"
+            @dragleave="upDragging = false"
+            @drop.prevent="onUpDrop"
+            @click="fileInput?.click()"
+          >
+            <div v-if="!upFile" class="space-y-2">
+              <span class="text-3xl">📤</span>
+              <p class="text-sm text-gray-400">拖拽文件到此处或<span class="text-purple-400">点击选择</span></p>
+              <p class="text-[10px] text-gray-600">支持任意文件类型，最大 200MB</p>
+            </div>
+            <div v-else class="space-y-1">
+              <span class="text-2xl">📄</span>
+              <p class="text-sm text-white font-semibold">{{ upFile.name }}</p>
+              <p class="text-xs text-gray-500">{{ formatSize(upFile.size) }}</p>
+              <button class="text-xs text-red-400 mt-1" @click.stop="upFile = null; upDragging = false">移除</button>
+            </div>
+            <input ref="fileInput" type="file" class="hidden" @change="onUpFileChange" />
+          </div>
+          <div class="flex justify-end gap-2">
+            <button class="text-xs text-gray-400 hover:text-white px-4" @click="showUpload = false">取消</button>
+            <button class="web3-btn text-xs !px-5" :disabled="!upFile || !upForm.title.trim() || uploading" @click="submitUpload">
+              {{ uploading ? '上传中...' : '上传文件' }}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <!-- Edit Modal -->
       <Modal v-model="showEditModal" :title="'编辑资源'">
         <div class="space-y-4">
@@ -137,7 +188,7 @@
 // 支持下载、编辑与删除资源
 // ====================================================
 import { ref, reactive, computed, onMounted } from 'vue'
-import { getResourceList, updateResource, deleteResource, recordResourceDownload } from '@/api/resources'
+import { getResourceList, updateResource, deleteResource, recordResourceDownload, uploadResource } from '@/api/resources'
 import { useToastStore } from '@/stores/modules/toast'
 import { useAuthStore } from '@/stores/modules/auth'
 import { downloadFile } from '@/utils/download'
@@ -159,6 +210,42 @@ const editingItem = ref(null)
 const showDetail = ref(false)
 const selectedResource = ref(null)
 const form = reactive({ title: '', category: '', description: '' })
+
+// ── 上传（仅管理员）：表单状态 + 拖拽/选择文件 ──
+const showUpload = ref(false)
+const upFile = ref(null)
+const upDragging = ref(false)
+const uploading = ref(false)
+const fileInput = ref(null)
+const upForm = reactive({ title: '', category: '', description: '' })
+
+function openUpload() {
+  Object.assign(upForm, { title: '', category: '', description: '' })
+  upFile.value = null; upDragging.value = false
+  showUpload.value = true
+}
+function onUpFileChange(e) { upFile.value = e.target.files?.[0] || null }
+function onUpDrop(e) { upDragging.value = false; upFile.value = e.dataTransfer?.files?.[0] || null }
+
+// 提交上传：成功后关闭弹窗、重置表单并刷新列表
+async function submitUpload() {
+  if (!upFile.value || !upForm.title.trim()) return
+  uploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', upFile.value)
+    fd.append('title', upForm.title)
+    fd.append('category', upForm.category)
+    fd.append('description', upForm.description)
+    await uploadResource(fd)
+    toast.success('上传成功!')
+    showUpload.value = false
+    Object.assign(upForm, { title: '', category: '', description: '' })
+    upFile.value = null
+    load()
+  } catch { toast.error('上传失败') }
+  finally { uploading.value = false }
+}
 
 // 下载资源：先调用后端计数接口，再触发浏览器下载
 async function download(item) {

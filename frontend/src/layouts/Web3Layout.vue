@@ -3,7 +3,7 @@
     <ThreeBackground v-if="dynamicBgOn" />
     <ParticleBackground v-if="dynamicBgOn" />
     <Web3Nav />
-    <main class="relative z-10 min-h-[calc(100vh-64px)]">
+    <main class="relative z-10 min-h-[calc(100vh-64px)]" style="view-transition-name: vt-content">
       <router-view v-slot="{ Component }">
         <!-- 结构：Suspense > keep-alive > component。
              keep-alive 的直接子节点必须是单一组件（<component :is>），否则报

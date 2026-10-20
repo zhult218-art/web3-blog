@@ -65,6 +65,20 @@
         </div>
       </div>
 
+      <!-- 网易云歌单导入（Meting 方案）：粘贴歌单链接/ID，整张歌单并入播放列表 -->
+      <div class="netease-bar" ref="neteaseBar">
+        <span class="nb-tag">✧ NETEASE 歌单</span>
+        <input
+          v-model="playlistInput" class="cloud-input nb-input"
+          placeholder="粘贴歌单链接或 ID，如 music.163.com/#/playlist?id=3778678"
+          @keyup.enter="importPlaylist"
+        />
+        <button class="cloud-go" :disabled="importing" @click="importPlaylist">
+          {{ importing ? '导入中…' : '导入歌单' }}
+        </button>
+        <span v-if="playlistTip" class="nb-tip" :class="{ err: playlistTipErr }">{{ playlistTip }}</span>
+      </div>
+
       <div class="player-wrap" ref="playerWrap">
         <div class="player-caption" ref="playerCaption">
           <span class="pc-dot" :class="{ 'pc-on': playing }"></span>
@@ -106,6 +120,7 @@ import MusicPlayer from './components/MusicPlayer.vue'
 import AudioBars from '@/components/common/AudioBars.vue'
 import { getMusicList } from '@/api/media'
 import { ITUNES_PRESET, searchItunes } from '@/api/itunes'
+import { importNeteasePlaylist } from '@/api/music'
 import { useSupabase } from '@/composables/useSupabase'
 import { usePlayerStore } from '@/stores/modules/player'
 import { fixNeteaseId } from '@/config/musicFixes'
@@ -141,6 +156,7 @@ const heroZone = ref(null)
 const heroVinyl = ref(null)
 const waveWrap = ref(null)
 const cloudBar = ref(null)
+const neteaseBar = ref(null)
 const playerWrap = ref(null)
 const playerCaption = ref(null)
 const mainFoot = ref(null)
@@ -186,6 +202,39 @@ async function doSearch() {
   } catch { /* 忽略 */ }
 }
 
+// ── 网易云歌单导入（Meting 方案）──
+// 用户粘贴歌单链接/ID → 拉取整张歌单 → 并入曲库列表；
+// 曲目 url 为空，播放时由 player store 按 neteaseId 按需换取网易云流地址
+const playlistInput = ref('')
+const importing = ref(false)
+const playlistTip = ref('')
+const playlistTipErr = ref(false)
+
+async function importPlaylist() {
+  const raw = playlistInput.value.trim()
+  if (!raw || importing.value) return
+  importing.value = true
+  playlistTip.value = ''
+  playlistTipErr.value = false
+  try {
+    const res = await importNeteasePlaylist(raw, 200)
+    if (!res.tracks.length) {
+      playlistTipErr.value = true
+      playlistTip.value = '该歌单没有可导入的曲目（可能已下架、为私密歌单或需要登录）'
+      return
+    }
+    const before = tracks.value.length
+    mergeTracks(res.tracks, `NETEASE · ${res.name || '歌单'}`)
+    playlistTip.value = `已导入 ${res.tracks.length} 首，新增 ${tracks.value.length - before} 首`
+    playlistInput.value = ''
+  } catch (e) {
+    playlistTipErr.value = true
+    playlistTip.value = e?.response?.data?.message || e?.message || '导入失败，请检查链接或稍后重试'
+  } finally {
+    importing.value = false
+  }
+}
+
 // 星星随机样式
 function starStyle(i) {
   const seed = i * 131
@@ -228,6 +277,7 @@ function runIntro() {
     .fromTo(tYear.value, { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: 'power2.out' }, 0.68)
     .fromTo(waveWrap.value, { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.7, ease: 'power2.out' }, 0.72)
     .fromTo(cloudBar.value, { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.6, ease: 'power2.out' }, 0.82)
+    .fromTo(neteaseBar.value, { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.55, ease: 'power2.out' }, 0.88)
     .fromTo(playerWrap.value, { y: 44, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.85, ease: 'power3.out' }, 0.9)
     .fromTo(playerCaption.value, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 1.02)
     .fromTo(mainFoot.value, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 1.08)
@@ -617,6 +667,43 @@ onBeforeUnmount(() => {})
   transition: all 0.25s;
 }
 .cloud-go:hover { background: rgba(14, 83, 108, 0.6); box-shadow: 0 0 12px rgba(34, 211, 238, 0.3); }
+.cloud-go:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============ 网易云歌单导入条 ============ */
+.netease-bar {
+  width: min(880px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(168, 85, 247, 0.22);
+  background: linear-gradient(90deg, rgba(88, 28, 135, 0.22), rgba(12, 14, 34, 0.5));
+}
+
+.nb-tag {
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  color: rgba(233, 213, 255, 0.85);
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+}
+
+.nb-input {
+  flex: 1;
+  width: auto;
+  min-width: 200px;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+.nb-input:focus { border-color: rgba(192, 132, 252, 0.7); }
+
+.nb-tip {
+  font-size: 0.68rem;
+  color: rgba(110, 231, 183, 0.9);
+  letter-spacing: 0.04em;
+}
+.nb-tip.err { color: rgba(252, 165, 165, 0.95); }
 
 .player-wrap {
   width: min(720px, 100%);

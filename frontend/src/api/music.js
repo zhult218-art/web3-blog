@@ -28,12 +28,75 @@ export function isMusicServiceDown(err) {
 
 // 歌单详情（含曲目列表）
 export const getNeteasePlaylist = (id, limit = 60) => musicGet(`/netease/playlist/detail?id=${id}&limit=${limit}`)
+// 歌单全部曲目（分页，标准上限 1000）；部分部署未开启该接口时由调用方回退到详情里的 tracks
+export const getNeteasePlaylistTracks = (id, limit = 200, offset = 0) =>
+  musicGet(`/netease/playlist/track/all?id=${id}&limit=${limit}&offset=${offset}`)
 // 单曲播放地址（br=码率：128000 标准 / 192000 较高 / 320000 极高 / 999000 无损）
 export const getNeteaseSongUrl = (id, br = 320000) => musicGet(`/netease/song/url?id=${id}&br=${br}`)
 // 歌词
 export const getNeteaseLyric = id => musicGet(`/netease/lyric?id=${id}`)
 // 搜索（keywords 关键字，limit 数量）
 export const searchNetease = (keywords, limit = 20) => musicGet(`/netease/search?keywords=${encodeURIComponent(keywords)}&limit=${limit}`)
+
+// ============================================================
+// 歌单导入（借鉴 Astro 博客的 Meting 歌单集成方案）
+// 解析粘贴进来的网易云歌单链接 / ID，拉取整张歌单并入播放列表
+// ============================================================
+
+// 从歌单链接或裸 ID 中提取歌单 ID
+// 支持：playlist?id=123 / #/playlist?id=123 / playlist/123 / toplist?id=123 / 纯数字
+export function parseNeteasePlaylistId(input) {
+  const raw = String(input || '').trim()
+  if (!raw) return ''
+  if (/^\d{4,}$/.test(raw)) return raw
+  const m = raw.match(/[?&#]id=(\d+)/) || raw.match(/\/(?:playlist|toplist)\/(\d+)/)
+  return m ? m[1] : ''
+}
+
+// 网易云原始曲目对象 → 播放器统一曲目结构
+// id 加 ne- 前缀：既避免与站点曲库数字 id 冲突（数字 id 会误触发本地点播埋点），
+// url 留空由 player store 播放时按 neteaseId 按需换取流地址
+function normalizeNeteaseTrack(song, playlistCover = '') {
+  const songId = song?.id
+  if (!songId) return null
+  const artists = song.ar || song.artists || []
+  return {
+    id: 'ne-' + songId,
+    neteaseId: String(songId),
+    title: song.name || song.title || '未知曲目',
+    artist: artists.map(a => a?.name).filter(Boolean).join(' / ') || '未知艺术家',
+    album: song.al?.name || song.album?.name || '',
+    cover: song.al?.picUrl || song.album?.picUrl || playlistCover || '',
+    duration: Math.round((song.dt || song.duration || 0) / 1000) || 0,
+    url: '',
+    source: 'netease',
+  }
+}
+
+// 导入歌单：返回 { id, name, cover, tracks }
+// 曲目优先取 /playlist/track/all（完整分页），失败则回退详情接口里的 tracks 字段
+export async function importNeteasePlaylist(input, limit = 200) {
+  const id = parseNeteasePlaylistId(input)
+  if (!id) throw new Error('无法识别歌单链接，请粘贴完整的网易云歌单地址或歌单 ID')
+  let songs = []
+  try {
+    const res = await getNeteasePlaylistTracks(id, limit)
+    const arr = res?.songs || res?.data?.songs
+    if (Array.isArray(arr) && arr.length) songs = arr
+  } catch { /* 该接口未开启时回退详情接口，不视为致命错误 */ }
+
+  const detail = await getNeteasePlaylist(id, limit)
+  const pl = detail?.playlist || detail?.data?.playlist || detail?.data || detail
+  const cover = pl?.coverImgUrl || pl?.coverImg || ''
+  if (!songs.length && Array.isArray(pl?.tracks)) songs = pl.tracks
+
+  return {
+    id,
+    name: pl?.name || '',
+    cover,
+    tracks: songs.map(s => normalizeNeteaseTrack(s, cover)).filter(Boolean),
+  }
+}
 
 // ============================================================
 // 站点曲库后端接口（走网关 /music/*）

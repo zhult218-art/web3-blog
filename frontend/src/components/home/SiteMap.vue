@@ -95,7 +95,6 @@ const groups = [
       { path: '/tools/sites', label: '分享网站', sub: '优质外链', icon: '🔗' },
       { path: '/software', label: '魔导工坊', sub: '软件中心', icon: '📦' },
       { path: '/resources', label: '宝物仓库', sub: '资源库', icon: '🗃️' },
-      { path: '/upload', label: '星空仓库', sub: '资源上传', icon: '☁️' },
     ],
   },
   {
@@ -116,9 +115,9 @@ const groups = [
   {
     name: '交流关于', en: 'COMMUNITY & ABOUT', icon: '💬',
     items: [
-      { path: '/link', label: '同伴名册', sub: '友人帐', icon: '🤝' },
+      { path: '/link', label: '同伴名册', sub: '友链', icon: '🤝' },
       { path: '/comments', label: '传音魔石', sub: '留言板', icon: '✉️' },
-      { path: '/about', label: '世界设定集', sub: '关于我们', icon: '📜' },
+      { path: '/about', label: '世界设定集', sub: '关于我', icon: '📜' },
     ],
   },
   {

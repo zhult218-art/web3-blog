@@ -895,7 +895,7 @@ const adminPrivs = [
 // ═══ 冒险任务 ═══
 const actions = [
   { to: '/profile/orders', icon: '📋', label: '我的订单', desc: '查看交易记录' },
-  { to: '/upload', icon: '📤', label: '上传资源', desc: '分享你的发现' },
+  { to: '/resources', icon: '📦', label: '资源库', desc: '浏览与下载资源' },
   { to: '/community/create', icon: '✍️', label: '撰写文章', desc: '记录冒险日志' },
   { to: '/ai-station', icon: '🤖', label: 'AI 站点', desc: '智能助手工具' }
 ]

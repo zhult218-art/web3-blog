@@ -39,13 +39,28 @@ function originFavicon(url) {
   }
 }
 
+// 站外图标一律经后端同源代理抓取：浏览器不再直连第三方站点，
+// 从根源消除 ORB 拦截、证书异常、连接重置等控制台报错；
+// 代理抓取失败时后端返回首字母色块，因此 <img> 几乎不会加载失败。
+const API_BASE = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '')
+
+function proxyIcon(target, letter, color) {
+  const q = new URLSearchParams({ url: target, letter, color })
+  return `${API_BASE}/blog/nav/icon?${q.toString()}`
+}
+
 // 候选图标地址列表，按优先级排列
 const candidates = computed(() => {
   const list = []
   const icon = (props.iconUrl || '').trim()
-  if (icon) list.push(icon)
+  if (icon.startsWith('data:image/')) {
+    // 内联图标本身就是同源数据，无需代理
+    list.push(icon)
+  } else if (/^https?:\/\//i.test(icon)) {
+    list.push(proxyIcon(icon, letter.value, props.color))
+  }
   const fav = originFavicon(props.url)
-  if (fav && fav !== icon) list.push(fav)
+  if (fav && fav !== icon) list.push(proxyIcon(fav, letter.value, props.color))
   return list
 })
 

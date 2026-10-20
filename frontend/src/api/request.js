@@ -12,6 +12,7 @@
 import axios from 'axios'
 import router from '@/router'
 import { useAuthStore } from '@/stores/modules/auth'
+import { useLoadingStore } from '@/stores/modules/loading'
 
 // 节流：同类网络错误在 5 秒内只弹一次 toast，避免后端不可用时刷屏
 let lastNetErrorAt = 0
@@ -37,6 +38,11 @@ request.interceptors.request.use(
     // 防止浏览器缓存 API 响应（开发期服务重启后旧错误响应仍被缓存命中）
     config.headers['Cache-Control'] = 'no-cache'
     config.headers['Pragma'] = 'no-cache'
+    // 全局加载计数：记录真实在途请求（静默轮询类请求可设 silent 跳过）
+    if (!config.silent) {
+      config.__loading = true
+      useLoadingStore().start()
+    }
     return config
   },
   error => Promise.reject(error)
@@ -44,9 +50,13 @@ request.interceptors.request.use(
 
 // 响应拦截器：成功时直接返回业务数据；失败时 Toast 提示、401 静默续期后重试
 request.interceptors.response.use(
-  response => response.data,
+  response => {
+    if (response.config?.__loading) useLoadingStore().done()
+    return response.data
+  },
   async error => {
     const cfg = error.config || {}
+    if (cfg.__loading) useLoadingStore().done()
 
     // 主动取消的请求不是服务故障：AbortController 超时中止、路由切换/整页刷新时
     // 浏览器取消在途 XHR(HMR、trae-preview 反复 reload)、轮询竞态取消前一个请求。

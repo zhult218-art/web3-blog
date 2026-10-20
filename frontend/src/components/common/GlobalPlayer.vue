@@ -380,6 +380,10 @@ watch(() => player.currentLyricIndex, (idx) => {
 </script>
 
 <style scoped>
+/* 路由过渡（View Transitions API）期间播放器作为常驻元素保持稳定，
+   位置在两份快照中一致 → 显式禁用动画，避免多余重绘（见 router/viewTransitions.js） */
+.gp-root { view-transition-name: vt-player; }
+
 /* ── Transition ── */
 .global-player-enter-active,
 .global-player-leave-active { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); }

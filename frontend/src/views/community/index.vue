@@ -24,13 +24,29 @@
         </template>
       </PageHeader>
 
-      <!-- Filter Tabs：统一 web3-pill 胶囊样式 -->
-      <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-        <button v-for="tab in tabs" :key="tab.key" @click="switchTab(tab.key)"
-          class="web3-pill whitespace-nowrap" :class="{ 'web3-pill-active': activeTab === tab.key }">
-          {{ tab.label }}
-          <span v-if="tab.count" class="ml-1.5 text-[10px] opacity-60">{{ tab.count }}</span>
+      <!-- 板块导航：全部 + 7 个主题共 8 项，固定 4 列铺排保证每行整齐不残缺 -->
+      <div class="board-bar">
+        <button v-for="b in boardTabs" :key="b.key" @click="switchBoard(b.key)"
+          class="board-chip" :class="{ 'board-chip-active': activeBoard === b.key }"
+          :style="{ '--accent': b.color }">
+          <span class="bc-icon">{{ b.icon }}</span>
+          <span class="bc-name">{{ b.name }}</span>
+          <span class="bc-count">{{ boardCount(b.key) }}</span>
         </button>
+      </div>
+
+      <!-- 当前板块说明：把原大卡片里的描述收到这一行，避免重复占位 -->
+      <div class="board-intro">
+        <span class="bi-bar" :style="{ background: currentBoard.color }"></span>
+        <span class="bi-name">{{ currentBoard.name }}</span>
+        <span class="bi-en">{{ currentBoard.en }}</span>
+        <span class="bi-desc">{{ currentBoard.desc }}</span>
+      </div>
+
+      <!-- 标签筛选提示 -->
+      <div v-if="tagFilter" class="mb-4 flex items-center gap-2 text-[11px]">
+        <span class="px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-400/20"># {{ tagFilter }}</span>
+        <button class="text-gray-500 hover:text-white transition-colors" @click="tagFilter = ''">清除筛选 ×</button>
       </div>
 
       <!-- Hot Tag Chips -->
@@ -49,19 +65,19 @@
         <div class="flex-1 min-w-0">
           <!-- Sort bar -->
           <div class="flex items-center gap-2 mb-5">
-            <button v-for="s in sorts" :key="s.key" @click="sort = s.key; fetch()"
+            <button v-for="s in sorts" :key="s.key" @click="sort = s.key; visibleCount = size"
               :class="['text-[11px] px-3 py-1.5 rounded-lg transition-all duration-200',
                 sort === s.key ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-400/20' : 'text-gray-500 hover:text-gray-300 border border-transparent']">
               {{ s.label }}
             </button>
             <div class="ml-auto text-[10px] text-gray-600 matrix-text">
-              {{ list.length > 0 ? `共 ${total} 条` : '' }}
+              {{ feed.length > 0 ? `共 ${total} 条` : '' }}
             </div>
           </div>
 
           <!-- Content Cards -->
-          <div v-if="list.length" class="space-y-4">
-            <div v-for="item in list" :key="item.id" v-tilt
+          <div v-if="feed.length" class="space-y-4">
+            <div v-for="item in feed" :key="item.id" v-tilt
               class="group glass-panel overflow-hidden cursor-pointer hover:border-purple-400/25 transition-all duration-400"
               @click="goDetail(item)">
               <!-- Rich media area -->
@@ -90,6 +106,7 @@
                   <span class="text-[10px] text-gray-600">{{ formatDate(item.createdAt) }}</span>
                   <span class="text-[10px] text-gray-600">·</span>
                   <span class="text-[10px] text-gray-600">{{ item.category || '综合' }}</span>
+                  <span v-if="item.isSeed" class="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-gray-400 border border-white/[0.08]">示例</span>
                 </div>
 
                 <h3 class="text-base md:text-lg font-bold text-white group-hover:text-cyan-300 transition-colors duration-300 leading-snug mb-2">
@@ -161,7 +178,7 @@
           </EmptyState>
 
           <!-- Pagination -->
-          <div v-if="total > page * size" class="mt-8 flex justify-center">
+          <div v-if="feed.length < total" class="mt-8 flex justify-center">
             <button @click="loadMore" :disabled="loadingMore" class="web3-btn-outline text-xs !px-6 !py-2.5 flex items-center gap-2">
               <span v-if="loadingMore" class="inline-block h-3 w-3 rounded-full border-2 border-white/20 border-t-white animate-spin"></span>
               {{ loadingMore ? '加载中...' : '加载更多' }}
@@ -238,14 +255,15 @@
 
 <script setup>
 // ====================================================
-// 社区广场页：聚合博客文章、论坛讨论与视频内容，
-// 支持 tab/排序切换、点赞、收藏、标签搜索与分页加载
+// 社区广场页：按主题板块（技术/抽象/工作/感情/金融/吃瓜/搞笑）
+// 聚合讨论内容，支持板块切换、标签筛选、排序、点赞、收藏与分页加载
 // ====================================================
-import { ref, onMounted, onActivated, onDeactivated, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getForumList, likePost, getPostStats } from '@/api/forum'
 import { getOnlineCount } from '@/api/admin'
 import { useToastStore } from '@/stores/modules/toast'
+import { boards, seedPosts } from '@/data/communityBoards'
 import PublishModal from '@/components/community/PublishModal.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -261,23 +279,18 @@ const showPublish = ref(false)
 
 const loading = ref(false)
 const loadingMore = ref(false)
-const list = ref([])
-const total = ref(0)
+const backendList = ref([])    // 服务端真实帖子
+const backendTotal = ref(0)    // 服务端帖子总数（用于判断是否还有下一页）
 const page = ref(1)
 const size = ref(10)
 const sort = ref('latest')
-const activeTab = ref('all')
+const activeBoard = ref('all')
+const tagFilter = ref('')
+const visibleCount = ref(10)
 const onlineCount = ref(0)
 const totalPosts = ref(0)
 const totalComments = ref(0)
 const todayPosts = ref(0)
-
-const tabs = [
-  { key: 'all', label: '全部', count: null },
-  { key: 'discussion', label: '讨论', count: null },
-  { key: 'video', label: '视频', count: null },
-  { key: 'hot', label: '热门', count: null },
-]
 
 const sorts = [
   { key: 'latest', label: '最新发布' },
@@ -288,6 +301,51 @@ const sorts = [
 const trendingTags = ref([])
 const activeAuthors = ref([])
 const savedBookmarkIds = new Set()
+
+// ── 板块聚合 ────────────────────────────────────────────────
+// 某板块的预置话题（all 表示全部）
+function seedsOfBoard(key) {
+  return key === 'all' ? seedPosts : seedPosts.filter(p => p.board === key)
+}
+
+// 判断一条真实帖子属于哪个板块：分类或标签里命中板块名/键名即算
+function postInBoard(p, key) {
+  if (key === 'all') return true
+  const b = boards.find(x => x.key === key)
+  if (!b) return true
+  const hay = `${p.category || ''},${p.tags || ''}`
+  return hay.includes(b.name) || hay.includes(b.key)
+}
+
+// 完整候选列表：预置话题 + 真实帖子，按板块/标签/排序合并
+const allFeed = computed(() => {
+  const seeds = seedsOfBoard(activeBoard.value)
+  const posts = backendList.value.filter(p => postInBoard(p, activeBoard.value))
+  let merged = activeBoard.value === 'all' ? [...posts, ...seeds] : [...seeds, ...posts]
+  if (tagFilter.value) merged = merged.filter(p => (p.tags || '').includes(tagFilter.value))
+  if (sort.value === 'hot') merged = [...merged].sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
+  return merged
+})
+
+// 当前展示的帖子（客户端分页切片）
+const feed = computed(() => allFeed.value.slice(0, visibleCount.value))
+const total = computed(() => allFeed.value.length)
+
+// 板块角标：预置话题数 + 命中的真实帖子数
+function boardCount(key) {
+  return seedsOfBoard(key).length + backendList.value.filter(p => postInBoard(p, key)).length
+}
+
+// 导航项：全部 + 7 个主题板块（共 8 项，固定 4 列正好两行）
+const boardTabs = computed(() => [
+  { key: 'all', name: '全部', en: 'ALL', icon: '✦', color: '#8b9dff', desc: '社区里的全部讨论' },
+  ...boards,
+])
+
+// 当前选中板块（用于顶部说明行）
+const currentBoard = computed(() =>
+  boardTabs.value.find(b => b.key === activeBoard.value) || boardTabs.value[0]
+)
 
 // 格式化时间：1 分钟内显示「刚刚」，1 小时内显示「x 分钟前」，今天显示「HH:mm」，其余显示短日期
 function formatDate(d) {
@@ -301,41 +359,31 @@ function formatDate(d) {
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 
-// 按当前 tab/排序请求论坛帖子（web3_forum），社区与博客分库，互不混用。
-// 一次拉取 size*3 条做客户端 tab 过滤缓冲；loadMore 追加下一页而非替换列表
+// 拉取服务端真实帖子（web3_forum），社区与博客分库，互不混用。
+// 结果统一放入 backendList，与预置话题在 allFeed 中合并后再客户端分页
 async function fetch({ append = false } = {}) {
   if (append) loadingMore.value = true
   else loading.value = true
   try {
-    const res = await getForumList({ page: page.value, size: size.value * 3 }).catch(() => ({ data: { records: [] } }))
+    const res = await getForumList({ page: page.value, size: size.value }).catch(() => ({ data: { records: [] } }))
     const data = res?.data || {}
-    const records = data.records || data || []
-    const filtered = records
-      .filter(r => {
-        if (activeTab.value === 'discussion' && r.mediaType === 'video') return false
-        if (activeTab.value === 'video' && r.mediaType !== 'video') return false
-        return true
-      })
+    const records = (data.records || data || [])
       .map(r => ({ ...r, type: r.mediaType === 'video' ? 'video' : 'discussion' }))
 
-    if (sort.value === 'hot') {
-      filtered.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
-    }
-    // 追加模式：拼接下一页并按 id 去重；否则整页替换（切 tab/排序时）
     if (append) {
-      const seen = new Set(list.value.map(i => i.id))
-      list.value = [...list.value, ...filtered.filter(i => !seen.has(i.id))]
+      const seen = new Set(backendList.value.map(i => i.id))
+      backendList.value = [...backendList.value, ...records.filter(i => !seen.has(i.id))]
     } else {
-      list.value = filtered.slice(0, size.value)
+      backendList.value = records
     }
-    total.value = Number(data.total) || filtered.length
+    backendTotal.value = Number(data.total) || backendList.value.length
   } catch (e) {
     if (import.meta.env.DEV) console.warn('fetch fail', e)
   } finally {
     loading.value = false
     loadingMore.value = false
-    // Sync bookmark states from localStorage
-    for (const item of list.value) {
+    // 同步本地收藏状态（真实帖子 + 预置话题）
+    for (const item of [...backendList.value, ...seedPosts]) {
       item.bookmarked = savedBookmarkIds.has(item.id)
     }
   }
@@ -354,20 +402,29 @@ async function loadStats() {
   } catch {}
 }
 
-// 切换顶部 tab（全部/文章/讨论/视频/热门）并重新加载列表
-function switchTab(key) {
-  activeTab.value = key
-  page.value = 1
-  fetch()
+// 切换板块：重置标签筛选与分页，回到该板块第一屏
+function switchBoard(key) {
+  activeBoard.value = key
+  tagFilter.value = ''
+  visibleCount.value = size.value
 }
 
-// 点击条目跳转到帖子详情页（社区只读 web3_forum）
+// 点击条目跳转：预置话题为示例内容，不跳详情；真实帖子进详情页
 function goDetail(item) {
+  if (item.isSeed) {
+    toast.info('这是预置的示例话题，欢迎发布你的第一条真实内容')
+    return
+  }
   router.push(`/community/post/${item.id}`)
 }
 
-// 点赞/取消点赞：社区帖子走 likePost（web3_forum）
+// 点赞/取消点赞：预置话题仅本地计数，真实帖子走 likePost（web3_forum）
 async function like(item) {
+  if (item.isSeed) {
+    item.liked = !item.liked
+    item.likeCount = Math.max(0, (item.likeCount || 0) + (item.liked ? 1 : -1))
+    return
+  }
   try {
     await likePost(item.id)
     item.likeCount = (item.likeCount || 0) + (item.liked ? -1 : 1)
@@ -388,27 +445,20 @@ function bookmark(item) {
   toast.success(item.bookmarked ? '已加入收藏' : '已取消收藏')
 }
 
-// 点击热门标签跳转到搜索页
+// 点击热门标签：按标签筛选当前板块内容（再次点击取消）
 function searchTag(tag) {
-  activeTab.value = 'all'
-  page.value = 1
-  // Filter current list to show only posts with this tag
-  const all = [...list.value]
-  list.value = all.filter(item => item.tags && item.tags.includes(tag))
-  if (list.value.length === 0) {
-    // Restore list and show info if no matches in cached data
-    list.value = all
-    toast.info(`标签「${tag}」在当前列表中暂无结果`)
-  } else {
-    toast.success(`已筛选标签「${tag}」，共 ${list.value.length} 条`)
-  }
+  tagFilter.value = tagFilter.value === tag ? '' : tag
+  visibleCount.value = size.value
 }
 
-// 滚动到底部加载下一页数据（追加，不清空已有列表）
+// 加载更多：先放开客户端展示条数；服务端仍有下一页时继续追加真实帖子
 async function loadMore() {
   if (loadingMore.value) return
-  page.value++
-  await fetch({ append: true })
+  visibleCount.value += size.value
+  if (backendList.value.length < backendTotal.value) {
+    page.value++
+    await fetch({ append: true })
+  }
 }
 
 // 加载真实在线人数（admin-service 实时统计，近 10 分钟去重 IP）
@@ -461,6 +511,89 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ── 板块导航条：8 项固定 4 列，两行整齐；窄屏降为 2 列 ── */
+.board-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.board-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(150deg, rgba(18, 18, 40, 0.7), rgba(10, 10, 24, 0.58));
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s, color 0.25s, box-shadow 0.25s;
+}
+.board-chip:hover {
+  transform: translateY(-2px);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.board-chip-active {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 18%, rgba(16, 16, 38, 0.82)), rgba(10, 10, 24, 0.6));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.bc-icon { flex-shrink: 0; font-size: 0.92rem; line-height: 1; }
+.bc-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bc-count {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-family: 'Courier New', monospace;
+  color: color-mix(in srgb, var(--accent) 88%, #fff);
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ── 当前板块说明行 ── */
+.board-intro {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 18px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.42);
+}
+.bi-bar { flex-shrink: 0; width: 3px; height: 13px; border-radius: 2px; }
+.bi-name { font-weight: 700; color: rgba(255, 255, 255, 0.86); }
+.bi-en {
+  font-size: 0.54rem;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.26);
+  font-family: 'Courier New', monospace;
+}
+.bi-desc {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .board-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bi-en { display: none; }
+}
+
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .line-clamp-3 {

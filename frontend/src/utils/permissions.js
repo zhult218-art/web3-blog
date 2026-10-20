@@ -33,7 +33,7 @@ export const PERMISSIONS = [
       { code: 'music', label: '音乐馆' },
       { code: 'resources', label: '资源' },
       { code: 'album', label: '相册集' },
-      { code: 'link', label: '友人帐' },
+      { code: 'link', label: '友链' },
       { code: 'comments', label: '留言板' },
       { code: 'about', label: '关于' },
     ],

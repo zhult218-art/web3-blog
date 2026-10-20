@@ -34,7 +34,7 @@
                 <router-link to="/blog/categories" class="link-item">📁 分类</router-link>
                 <router-link to="/blog/tags" class="link-item">🏷️ 标签</router-link>
                 <router-link to="/blog/archives" class="link-item">🗂️ 归档</router-link>
-                <router-link to="/blog/link" class="link-item">🤝 友人帐</router-link>
+                <router-link to="/blog/link" class="link-item">🤝 友链</router-link>
                 <router-link to="/blog/comments" class="link-item">💬 留言板</router-link>
                 <span class="link-item cursor-pointer" @click="randomPost">🎲 随便逛逛</span>
               </div>
