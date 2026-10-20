@@ -350,39 +350,57 @@ onBeforeUnmount(() => {
 .notice-fade-leave-to { opacity: 0; transform: translateX(12px); }
 
 /* 右侧标签 */
+/* 右侧「公告」拉手：此前是一整块高饱和紫渐变 + 粉色脉冲角标，
+   在暗色玻璃体系里像浏览器插件挂件，也比页面里任何元素都抢眼。
+   改为深色玻璃 + 一道青紫渐变细边，未读只用一个会呼吸的小点提示。 */
 .notice-tab {
   top: 45%;
   transform: translateY(-50%);
-  background: linear-gradient(180deg, rgba(124, 58, 237, 0.75), rgba(168, 85, 247, 0.6));
-  border: 1px solid rgba(217, 70, 239, 0.45);
+  padding: 0.85rem 0.42rem;
+  background: rgba(10, 10, 22, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-right: none;
-  box-shadow: 0 6px 24px rgba(168, 85, 247, 0.35);
-  backdrop-filter: blur(12px);
-  transition: background 0.3s, box-shadow 0.3s;
+  border-radius: 12px 0 0 12px;
+  box-shadow: -6px 0 24px rgba(4, 4, 14, 0.45), inset 1px 0 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px);
+  transition: background 0.3s, box-shadow 0.3s, transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.notice-tab::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #22d3ee, #a855f7);
+  opacity: 0.75;
 }
 .notice-tab:hover {
-  background: linear-gradient(180deg, rgba(124, 58, 237, 0.95), rgba(217, 70, 239, 0.75));
-  box-shadow: 0 6px 30px rgba(217, 70, 239, 0.5);
+  background: rgba(18, 18, 38, 0.9);
+  box-shadow: -8px 0 30px rgba(34, 211, 238, 0.22), inset 1px 0 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-50%) translateX(-2px);
 }
 .notice-tab-hot {
   animation: tabGlow 2s ease-in-out infinite;
 }
 @keyframes tabGlow {
-  0%, 100% { box-shadow: 0 6px 24px rgba(168, 85, 247, 0.35); }
-  50% { box-shadow: 0 6px 34px rgba(217, 70, 239, 0.75), 0 0 18px rgba(236, 72, 153, 0.5); }
+  0%, 100% { box-shadow: -6px 0 24px rgba(4, 4, 14, 0.45), inset 1px 0 0 rgba(255, 255, 255, 0.05); }
+  50% { box-shadow: -6px 0 26px rgba(34, 211, 238, 0.35), inset 1px 0 0 rgba(34, 211, 238, 0.35); }
 }
 .notice-badge {
-  min-width: 18px;
-  height: 18px;
+  min-width: 16px;
+  height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: #ec4899;
+  background: rgba(236, 72, 153, 0.9);
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 16px;
   text-align: center;
-  animation: badgePulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.14);
+  animation: badgePulse 2.4s ease-in-out infinite;
 }
 @keyframes badgePulse {
   0%, 100% { transform: scale(1); }

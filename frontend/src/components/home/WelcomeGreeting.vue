@@ -77,11 +77,13 @@ onMounted(async () => {
   margin: 0 auto 0.4rem;
   text-align: center;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.78);
   letter-spacing: 0.04em;
   min-height: 1.5em;
+  /* 首屏人物衣料偏亮，这行小字容易糊；补一层近距离投影 */
+  text-shadow: 0 1px 8px rgba(4, 4, 14, 0.85);
 }
-.greet-prefix { color: rgba(255, 255, 255, 0.6); }
+.greet-prefix { color: rgba(255, 255, 255, 0.7); }
 .greet-location b {
   color: #67e8f9;
   font-weight: 600;

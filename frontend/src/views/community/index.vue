@@ -526,8 +526,11 @@ onUnmounted(() => {
   padding: 9px 14px;
   border-radius: 11px;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(150deg, rgba(18, 18, 40, 0.7), rgba(10, 10, 24, 0.58));
-  color: rgba(255, 255, 255, 0.6);
+  /* 透明度从 0.7/0.58 提到 0.94/0.9：壁纸上的浅色发丝会直接透过来，
+     板块名读不清。加一层 backdrop-blur 保留「玻璃」质感，同时保证字压得住 */
+  background: linear-gradient(150deg, rgba(18, 18, 40, 0.94), rgba(10, 10, 24, 0.9));
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.72);
   font-size: 0.74rem;
   font-weight: 600;
   text-align: left;
@@ -542,7 +545,7 @@ onUnmounted(() => {
 .board-chip-active {
   color: #fff;
   border-color: color-mix(in srgb, var(--accent) 58%, transparent);
-  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 18%, rgba(16, 16, 38, 0.82)), rgba(10, 10, 24, 0.6));
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 22%, rgba(16, 16, 38, 0.95)), rgba(10, 10, 24, 0.92));
   box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
@@ -579,7 +582,7 @@ onUnmounted(() => {
 .bi-en {
   font-size: 0.54rem;
   letter-spacing: 0.22em;
-  color: rgba(255, 255, 255, 0.26);
+  color: rgba(255, 255, 255, 0.4);
   font-family: 'Courier New', monospace;
 }
 .bi-desc {

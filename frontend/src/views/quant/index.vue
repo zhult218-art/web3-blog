@@ -652,33 +652,20 @@
 
       <!-- ========== TAB: 智能看板 ========== -->
       <div v-if="activeTab === 'dashboard'" class="dash-screen">
-        <!-- 统计概览 -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div class="scroll-card text-center flex flex-col items-center justify-center min-h-[92px]">
-            <div class="text-3xl font-black text-amber-100 scroll-title leading-none">{{ dashLimitStats.total }}</div>
-            <div class="text-[11px] text-amber-600/60 font-serif mt-2">全部</div>
-          </div>
-          <div class="scroll-card text-center flex flex-col items-center justify-center min-h-[92px]">
-            <div class="text-3xl font-black text-red-400 leading-none">{{ dashLimitStats.up }}</div>
-            <div class="text-[11px] text-amber-600/60 font-serif mt-2">上涨</div>
-          </div>
-          <div class="scroll-card text-center flex flex-col items-center justify-center min-h-[92px]">
-            <div class="text-3xl font-black text-green-400 leading-none">{{ dashLimitStats.down }}</div>
-            <div class="text-[11px] text-amber-600/60 font-serif mt-2">下跌</div>
-          </div>
-          <div class="limit-up-card text-center flex flex-col items-center justify-center min-h-[92px]">
-            <div class="text-3xl font-black text-red-400 leading-none">{{ dashLimitStats.limitUp }}</div>
-            <div class="text-[11px] text-red-400/60 font-serif mt-2">涨停</div>
-          </div>
-          <div class="scroll-card text-center flex flex-col items-center justify-center min-h-[92px]">
-            <div class="text-3xl font-black text-green-400 leading-none">{{ dashLimitStats.limitDown }}</div>
-            <div class="text-[11px] text-amber-600/60 font-serif mt-2">跌停</div>
-          </div>
-          <div class="scroll-card text-center flex flex-col items-center justify-center min-h-[92px]">
-            <div class="text-3xl font-black text-amber-300 leading-none">{{ dashLimitStats.st }}</div>
-            <div class="text-[11px] text-amber-600/60 font-serif mt-2">ST</div>
+        <!-- 统计概览：KPI 卡（标签 / 数值 / 占比条），涨停跌停带语义色 -->
+        <div class="kpi-row">
+          <div v-for="k in dashKpis" :key="k.key" class="kpi-card" :class="`kpi-${k.key}`">
+            <div class="kpi-top">
+              <span class="kpi-label">{{ k.label }}</span>
+              <span class="kpi-tag">{{ k.tag }}</span>
+            </div>
+            <div class="kpi-num">{{ k.value }}<small v-if="k.unit">{{ k.unit }}</small></div>
+            <div class="kpi-bar"><i :style="{ width: k.pct + '%' }"></i></div>
           </div>
         </div>
+
+        <!-- 分区标题：市场温度 -->
+        <div class="dash-sec"><span class="dash-sec-t">市场温度</span><span class="dash-sec-line"></span><span class="dash-sec-en">MARKET TEMPERATURE</span></div>
 
         <!-- 可视化图表 第一排：涨跌分布 / 涨幅TOP10 / 跌幅TOP10 / 情绪温度计（4 列并排，压缩留白） -->
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -700,6 +687,9 @@
           </div>
         </div>
 
+        <!-- 分区标题：结构分布 -->
+        <div class="dash-sec"><span class="dash-sec-t">结构分布</span><span class="dash-sec-line"></span><span class="dash-sec-en">DISTRIBUTION</span></div>
+
         <!-- 可视化图表 第二排：换手率 / 成交额 / 振幅分布 / PE 分布 -->
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <div class="scroll-card overflow-hidden">
@@ -719,6 +709,9 @@
             <div id="dash-pe-chart" class="w-full" style="height: 176px;"></div>
           </div>
         </div>
+
+        <!-- 分区标题：资金动向 -->
+        <div class="dash-sec"><span class="dash-sec-t">资金动向</span><span class="dash-sec-line"></span><span class="dash-sec-en">CAPITAL FLOW</span></div>
 
         <!-- 拼级 + 大盘资金流 -->
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch">
@@ -1343,6 +1336,21 @@ const dashRecommendations = ref([])   // AI 推荐股票列表
 const dashLimitUp = ref([])            // 涨停板
 const dashConsecutive = ref([])        // 连板
 const dashLimitStats = ref({ total: 0, up: 0, down: 0, limitUp: 0, limitDown: 0, st: 0 }) // 统计概览
+// KPI 卡数据：由统计概览派生，附带「占全市场比例」用于底部占比条
+const dashKpis = computed(() => {
+  const s = dashLimitStats.value || {}
+  const total = s.total || 0
+  const pct = n => (total > 0 ? Math.round(((n || 0) / total) * 1000) / 10 : 0)
+  return [
+    { key: 'all', label: '全部个股', value: total, pct: 100, tag: 'TOTAL' },
+    { key: 'up', label: '上涨', value: s.up || 0, pct: pct(s.up), tag: pct(s.up) + '%' },
+    { key: 'down', label: '下跌', value: s.down || 0, pct: pct(s.down), tag: pct(s.down) + '%' },
+    { key: 'limitUp', label: '涨停', value: s.limitUp || 0, pct: pct(s.limitUp), tag: 'LIMIT UP' },
+    { key: 'limitDown', label: '跌停', value: s.limitDown || 0, pct: pct(s.limitDown), tag: 'LIMIT DOWN' },
+    { key: 'st', label: 'ST 股', value: s.st || 0, pct: pct(s.st), tag: 'RISK' },
+  ]
+})
+
 const dashFilter = ref('all')          // 筛选：all/up/down/limitUp/limitDown
 const dashSearch = ref('')
 const dashSort = ref('change_desc')    // 排序
@@ -2196,12 +2204,19 @@ function renderDashExtraCharts() {
     dashBreadthChart.setOption({
       backgroundColor: 'transparent',
       tooltip: { confine: true, backgroundColor: 'rgba(12,20,34,0.95)', borderColor: 'rgba(34,211,238,0.4)', textStyle: { color: '#dbe7f3', fontSize: 11 } },
-      legend: { bottom: 2, textStyle: { color: '#8fc0d9', fontSize: 9 }, itemWidth: 8, itemHeight: 8 },
+      // 图例移到底部一行，环内留白给「总数」—— 比在环外挂四组标签清爽得多
+      legend: { bottom: 0, icon: 'circle', itemWidth: 7, itemHeight: 7, itemGap: 12, textStyle: { color: '#8fc0d9', fontSize: 9 } },
+      graphic: [
+        { type: 'text', left: 'center', top: '35%', silent: true, style: { text: String(stats.total), fill: '#e6eef7', fontSize: 19, fontWeight: 800, textAlign: 'center' } },
+        { type: 'text', left: 'center', top: '49%', silent: true, style: { text: '只', fill: '#6d8fb0', fontSize: 9, textAlign: 'center' } },
+      ],
       series: [{
-        type: 'pie', radius: ['35%', '65%'], center: ['50%', '42%'],
+        type: 'pie', radius: ['48%', '68%'], center: ['50%', '44%'],
         avoidLabelOverlap: true,
-        label: { show: true, color: '#dbe7f3', fontSize: 10, formatter: '{b}\n{c} ({d}%)' },
-        labelLine: { length: 8, length2: 6 },
+        label: { show: false },
+        labelLine: { show: false },
+        itemStyle: { borderColor: '#0b1422', borderWidth: 2 },
+        emphasis: { scale: true, scaleSize: 4 },
         data: [
           { name: '上涨', value: stats.up, itemStyle: { color: '#f87171' } },
           { name: '下跌', value: stats.down, itemStyle: { color: '#34d399' } },
@@ -3249,5 +3264,198 @@ onBeforeUnmount(() => {
   background: linear-gradient(90deg, rgba(34, 211, 238, 0.12) 0%, rgba(34, 211, 238, 0.03) 46%, transparent 100%);
   border-bottom-color: rgba(120, 170, 220, 0.22) !important;
   box-shadow: inset 2px 0 0 rgba(34, 211, 238, 0.45);
+}
+
+/* ============================================================
+   智能看板 · 大屏底板
+   ------------------------------------------------------------
+   看板本身是一块「屏」：半透明深色底 + 细网格 + 顶部青光，
+   叠在站点动态壁纸之上。卡片之间不再直接露出壁纸，
+   图表区因此获得稳定的暗背景，读数与配色都更清楚。
+   ============================================================ */
+.quant-terminal .dash-screen {
+  position: relative;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(120, 170, 220, 0.1);
+  background:
+    radial-gradient(120% 76% at 50% -8%, rgba(34, 211, 238, 0.08), transparent 62%),
+    linear-gradient(180deg, rgba(8, 13, 24, 0.9) 0%, rgba(6, 10, 19, 0.94) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 40px 90px -54px rgba(0, 0, 0, 0.9);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  backdrop-filter: blur(16px) saturate(1.1);
+  overflow: hidden;
+}
+/* 屏内的细网格：只在顶部区域可见，向下渐隐，避免整屏发花 */
+.quant-terminal .dash-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(120, 170, 220, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 170, 220, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(130% 80% at 50% 0%, #000 12%, transparent 74%);
+  mask-image: radial-gradient(130% 80% at 50% 0%, #000 12%, transparent 74%);
+}
+.quant-terminal .dash-screen > * { position: relative; }
+
+/* ── KPI 卡：标签 / 数值 / 占比条 ── */
+.quant-terminal .kpi-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (min-width: 640px) {
+  .quant-terminal .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .quant-terminal .kpi-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+.quant-terminal .kpi-card {
+  position: relative;
+  padding: 12px 14px 13px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 170, 220, 0.14);
+  background: linear-gradient(160deg, #0d1726 0%, #0a111d 100%);
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.quant-terminal .kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(34, 211, 238, 0.34);
+  box-shadow: 0 16px 32px -22px rgba(34, 211, 238, 0.7);
+}
+.quant-terminal .kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quant-terminal .kpi-label {
+  font-size: 11px;
+  color: #9dc6dd;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.quant-terminal .kpi-tag {
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: rgba(143, 192, 217, 0.5);
+  white-space: nowrap;
+}
+.quant-terminal .kpi-num {
+  margin-top: 7px;
+  font-family: 'SF Pro Display', 'PingFang SC', sans-serif;
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  color: #e6eef7;
+  font-variant-numeric: tabular-nums;
+}
+.quant-terminal .kpi-num small {
+  margin-left: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(143, 192, 217, 0.6);
+}
+.quant-terminal .kpi-bar {
+  display: block;
+  margin-top: 11px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(120, 170, 220, 0.12);
+  overflow: hidden;
+}
+.quant-terminal .kpi-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22d3ee, #34d399);
+  transition: width 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* 语义色：涨红 / 跌绿 / 涨停跌停带底色，与全站 A 股配色一致 */
+.quant-terminal .kpi-up .kpi-num { color: #f87171; }
+.quant-terminal .kpi-up .kpi-bar i { background: linear-gradient(90deg, rgba(248, 113, 113, 0.45), #f87171); }
+.quant-terminal .kpi-down .kpi-num { color: #34d399; }
+.quant-terminal .kpi-down .kpi-bar i { background: linear-gradient(90deg, rgba(52, 211, 153, 0.45), #34d399); }
+.quant-terminal .kpi-limitUp {
+  border-color: rgba(248, 113, 113, 0.26);
+  background: linear-gradient(160deg, rgba(74, 22, 24, 0.62) 0%, rgba(20, 10, 12, 0.92) 100%);
+}
+.quant-terminal .kpi-limitUp .kpi-num { color: #ff9a9a; }
+.quant-terminal .kpi-limitUp .kpi-bar i { background: linear-gradient(90deg, rgba(248, 113, 113, 0.4), #ff6b6b); }
+.quant-terminal .kpi-limitDown {
+  border-color: rgba(52, 211, 153, 0.24);
+  background: linear-gradient(160deg, rgba(12, 52, 40, 0.55) 0%, rgba(8, 22, 18, 0.92) 100%);
+}
+.quant-terminal .kpi-limitDown .kpi-num { color: #6ee7b7; }
+.quant-terminal .kpi-limitDown .kpi-bar i { background: linear-gradient(90deg, rgba(52, 211, 153, 0.4), #34d399); }
+.quant-terminal .kpi-st .kpi-num { color: #fbbf24; }
+.quant-terminal .kpi-st .kpi-bar i { background: linear-gradient(90deg, rgba(251, 191, 36, 0.4), #fbbf24); }
+.quant-terminal .kpi-all .kpi-num {
+  background: linear-gradient(96deg, #ffffff 6%, #7fe6ff 58%, #a89bfb 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── 分区标题：短竖条 + 中文 + 渐隐细线 + 英文小标 ── */
+.quant-terminal .dash-sec {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px 2px;
+}
+.quant-terminal .dash-sec-t {
+  position: relative;
+  flex: none;
+  padding-left: 11px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #dbe7f3;
+}
+.quant-terminal .dash-sec-t::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #22d3ee, #8b7cf6);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
+}
+.quant-terminal .dash-sec-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(120, 170, 220, 0.26), rgba(120, 170, 220, 0));
+}
+.quant-terminal .dash-sec-en {
+  flex: none;
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: rgba(143, 192, 217, 0.42);
+}
+
+/* ── 卡片标题栏：更紧凑的一行，标题字重与字距统一 ── */
+.quant-terminal .dash-screen :is(.scroll-card, .recommend-card, .limit-up-card, .limit-down-card) > .border-b:first-child {
+  padding: 9px 13px;
+}
+.quant-terminal .dash-screen :is(.scroll-card, .recommend-card, .limit-up-card, .limit-down-card) > .border-b:first-child h3 {
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+}
+.quant-terminal .dash-screen :is(.scroll-card, .recommend-card, .limit-up-card, .limit-down-card) > .border-b:first-child p {
+  margin-top: 3px;
+  line-height: 1.5;
 }
 </style>

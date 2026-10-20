@@ -10,7 +10,7 @@
             <span class="s-vinyl"><span></span></span>
           </h1>
           <div class="s-rule"></div>
-          <p class="text-[13px] tracking-[0.08em] text-gray-400 mt-3">搜索、聆听、驻足 · 点击任意曲目即可全局播放</p>
+          <p class="text-[13px] tracking-[0.08em] text-gray-300 mt-3" style="text-shadow: 0 1px 8px rgba(4,4,14,0.8)">搜索、聆听、驻足 · 点击任意曲目即可全局播放</p>
         </div>
         <div v-if="player.hasTrack" class="flex items-center gap-3 glass-panel px-4 py-2">
           <span class="text-[11px] text-cyan-300 animate-pulse max-w-40 truncate">♪ {{ player.currentTrack?.title }}</span>
@@ -609,6 +609,8 @@ onMounted(() => {
   text-transform: uppercase;
   color: var(--s-moss);
   margin-bottom: 10px;
+  /* 页头直接铺在壁纸上，细字重的小字容易被画面吃掉 */
+  text-shadow: 0 1px 8px rgba(4, 4, 14, 0.8);
 }
 .s-title {
   font-family: 'Lexend', 'Segoe UI', system-ui, sans-serif;
@@ -617,6 +619,7 @@ onMounted(() => {
   letter-spacing: -0.015em;
   line-height: 1;
   color: #fff;
+  text-shadow: 0 2px 16px rgba(4, 4, 14, 0.8);
   display: flex;
   align-items: center;
   gap: 14px;

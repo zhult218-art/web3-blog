@@ -14,6 +14,11 @@
       :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }"
     ></video>
     <img v-if="bgVideo && (videoFailed || !canPlayVideo)" :src="bgVideo.poster" :style="{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }" />
+    <!-- 可读性暗纱：壁纸是 <video>/<img> 子元素，会整块盖住 #bg-layer 自身的渐变遮罩，
+         导致「壁纸模式压暗」实际从未生效 —— 正文一直直接压在动漫人物上。
+         这层常驻在壁纸之上、内容之下：上下两端压得更深（导航 / 标题 / 页脚所在），
+         中间留一档，画面仍可辨认。 -->
+    <div class="bg-veil"></div>
   </div>
   <div class="scroll-progress" :style="{ width: scrollProgress + '%' }"></div>
   <!-- 维护模式横幅：系统设置中开启后全站顶部提示（普通流程文档流，随滚动离开） -->
@@ -368,6 +373,34 @@ canvas.bg-gl-canvas {
 .page-enter-active canvas.hero-canvas,
 .page-enter-active canvas.bg-gl-canvas {
   opacity: 0;
+}
+
+/* 壁纸可读性暗纱（见模板注释）。z-index 低于路由过渡压暗罩，两者可叠加。
+   数值取「顶部最重 → 中段最轻 → 底部再压」的曲线：顶部是导航与页面主标题，
+   底部是页脚与固定工具条，中段留给画面本身。 */
+#bg-layer .bg-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg,
+      rgba(5, 5, 13, 0.86) 0%,
+      rgba(5, 5, 13, 0.68) 16%,
+      rgba(5, 5, 13, 0.52) 38%,
+      rgba(5, 5, 13, 0.58) 70%,
+      rgba(5, 5, 13, 0.78) 100%),
+    radial-gradient(ellipse 118% 78% at 50% 42%, transparent 32%, rgba(4, 4, 12, 0.34) 100%);
+}
+
+/* 明亮主题下换成浅色薄纱，避免整页压成灰 */
+body[data-theme='aurora'] #bg-layer .bg-veil {
+  background:
+    linear-gradient(180deg,
+      rgba(240, 243, 250, 0.82) 0%,
+      rgba(240, 243, 250, 0.58) 18%,
+      rgba(240, 243, 250, 0.34) 40%,
+      rgba(240, 243, 250, 0.52) 100%);
 }
 
 /* 路由过渡压暗罩：覆盖在 #bg-layer（含视频壁纸）之上，过渡在暗底上进行。

@@ -84,7 +84,14 @@ onBeforeUnmount(() => {
   color: rgba(255,255,255,0.88);
 }
 
-.tw-ghost { visibility: hidden; user-select: none; }
+/* 未写出的部分不再彻底隐藏：留一层很淡的字形，读者一眼能看出「这段还有多长」，
+   已写出的亮字正好盖在同一位置，观感是墨迹一点点填满纸面。
+   之前用 visibility:hidden，卡片里就是一大片空白，像是内容没加载出来 */
+.tw-ghost {
+  visibility: visible;
+  color: rgba(255, 255, 255, 0.13);
+  user-select: none;
+}
 .tw-live { position: absolute; inset: 0; }
 
 /* 光标：竖条闪烁，写完隐藏 */

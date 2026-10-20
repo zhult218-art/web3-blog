@@ -7,23 +7,45 @@
         <defs>
           <filter id="inkRough" x="-25%" y="-25%" width="150%" height="150%">
             <feTurbulence type="fractalNoise" baseFrequency="0.016 0.024" numOctaves="2" seed="6" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="3.6"
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"
               xChannelSelector="R" yChannelSelector="G" />
           </filter>
-          <!-- 浓墨半圈：起笔焦黑、收笔渐淡，一条弧自带浓淡过渡 -->
-          <linearGradient id="inkDark" x1="0.1" y1="1" x2="0.95" y2="0.05">
-            <stop offset="0" stop-color="#0f1117" stop-opacity="1" />
-            <stop offset="0.5" stop-color="#181a21" stop-opacity="0.94" />
-            <stop offset="0.84" stop-color="#2b2d36" stop-opacity="0.62" />
-            <stop offset="1" stop-color="#3a3c45" stop-opacity="0.3" />
+          <!-- 朱字专用：频率更低、位移更大，边缘才会被撕出毛笔的锯齿与飞白，
+               而不是一圈均匀的毛边（scale 小＝只是模糊，大才叫「写」） -->
+          <!-- 书写遮罩：沿椭圆中线的一条粗白线，靠 stroke-dashoffset 从无到有地描一遍。
+               白线比笔触更宽，所以描到哪儿、笔触就露到哪儿 —— 这就是「写」的过程。
+               之前用锥形扫描遮罩（conic-gradient + @property）实测在 Chrome 里不做插值，
+               环会到点突然整圈出现，等于没有书写动效 -->
+          <mask id="ringMask" maskUnits="userSpaceOnUse" x="-40" y="-40" width="380" height="380">
+            <path class="mask-line" d="M90.4 242.9 L85.8 241.0 L81.4 238.9 L77.0 236.6 L72.9 234.2 L68.8 231.6 L65.0 228.9 L61.3 226.0 L57.7 222.9 L54.4 219.7 L51.2 216.4 L48.3 212.9 L45.5 209.3 L42.9 205.6 L40.6 201.8 L38.4 197.9 L36.5 193.9 L34.8 189.8 L33.3 185.6 L32.1 181.4 L31.1 177.0 L30.3 172.7 L29.7 168.3 L29.4 163.9 L29.4 159.4 L29.5 154.9 L29.9 150.4 L30.5 145.9 L31.4 141.4 L32.5 137.0 L33.8 132.5 L35.3 128.1 L37.1 123.8 L39.1 119.4 L41.3 115.2 L43.7 111.0 L46.4 106.9 L49.2 102.9 L52.2 98.9 L55.5 95.1 L58.9 91.4 L62.5 87.8 L66.2 84.3 L70.1 80.9 L74.2 77.7 L78.4 74.6 L82.8 71.7 L87.3 68.9 L91.9 66.3 L96.6 63.8 L101.5 61.5 L106.4 59.4 L111.4 57.4 L116.5 55.7 L121.7 54.1 L126.9 52.7 L132.1 51.5 L137.4 50.5 L142.7 49.7 L148.1 49.1 L153.4 48.6 L158.7 48.4 L164.0 48.4 L169.3 48.6 L174.6 48.9 L179.8 49.5 L184.9 50.3 L190.0 51.2 L195.0 52.4 L199.9 53.7 L204.7 55.3 L209.4 57.0 L214.0 58.9 L218.4 61.0 L222.7 63.2 L226.9 65.6 L231.0 68.2 L234.8 71.0 L238.5 73.9 L242.1 76.9 L245.4 80.1 L248.6 83.5 L251.6 86.9 L254.4 90.5 L256.9 94.2 L259.3 98.0 L261.5 101.9 L263.4 105.9 L265.1 110.0 L266.6 114.2 L267.8 118.4 L268.9 122.7 L269.7 127.1 L270.2 131.5 L270.6 135.9 L270.7 140.4 L270.5 144.9 L270.1 149.3 L269.5 153.8 L268.7 158.3 L267.6 162.8 L266.3 167.2 L264.7 171.6 L263.0 176.0 L261.0 180.3 L258.8 184.6 L256.4 188.8 L253.8 192.9 L250.9 196.9 L247.9 200.9 L244.7 204.7 L241.3 208.4 L237.7 212.0 L234.0 215.5 L230.1 218.9 L226.0 222.1 L221.8 225.2 L217.4 228.2 L213.0 231.0 L208.3 233.6 L203.6 236.1" fill="none" stroke="#fff"
+              stroke-width="46" stroke-linecap="round" />
+          </mask>
+          <!-- 笔触专用：位移更大，填充块的轮廓才会被撕出毛笔的毛边与缺口 -->
+          <filter id="ringRough" x="-22%" y="-22%" width="144%" height="144%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.019 0.028" numOctaves="3" seed="7" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="5.2"
+              xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="zhuRough" x="-34%" y="-34%" width="168%" height="168%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.014 0.018" numOctaves="2" seed="11" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6"
+              xChannelSelector="R" yChannelSelector="G" result="d" />
+            <!-- 落纸投影放在位移之后，才不会被一起揉碎 -->
+            <feDropShadow in="d" dx="0" dy="2.4" stdDeviation="1.6" flood-color="#6b2414" flood-opacity="0.3" />
+          </filter>
+          <!-- 墨色：起笔焦黑、行笔饱满、收笔拖成淡灰的枯锋。
+               纯黑白，不掺色相 —— 让「墨」自己说话 -->
+          <linearGradient id="brushInk" gradientUnits="userSpaceOnUse" x1="70" y1="250" x2="248" y2="62">
+            <stop offset="0" stop-color="#0a0a0b" />
+            <stop offset="0.38" stop-color="#121213" />
+            <stop offset="0.72" stop-color="#232325" />
+            <stop offset="1" stop-color="#4a4a4d" />
           </linearGradient>
-          <!-- 朱砂红：末笔长捺与「朱」字取同一色系。
-               中段压到 #a52e1a，正是字形自身渐变落在末笔处的颜色 ——
-               于是长捺压在原捺上时两处红调衔接得上，读作一笔写成，而不是两种红拼起来 -->
-          <linearGradient id="zhuRed" gradientUnits="userSpaceOnUse" x1="140" y1="80" x2="260" y2="290">
-            <stop offset="0" stop-color="#d9553a" />
-            <stop offset="0.45" stop-color="#a52e1a" />
-            <stop offset="1" stop-color="#7d2113" />
+          <!-- 字用更实的一档：中心近墨黑，边缘略提，避免整块死黑 -->
+          <linearGradient id="zhuInk" gradientUnits="userSpaceOnUse" x1="96" y1="70" x2="212" y2="238">
+            <stop offset="0" stop-color="#08080a" />
+            <stop offset="0.55" stop-color="#111113" />
+            <stop offset="1" stop-color="#26262a" />
           </linearGradient>
         </defs>
       </svg>
@@ -36,38 +58,38 @@
         <span class="ink-wash w2"></span>
         <span class="ink-wash w3"></span>
         <!-- 底景：雪舟《破墨山水图》（1481，公有领域）局部。
-             取原画下段的山岩与飞白，以叠色压进纸面，上方用遮罩渐隐，只留一道水墨远山 -->
+             整幅按等比缩放落在底部，左右两半各取一半，合拢是一条完整的水墨远山 -->
         <span class="ink-photo"></span>
+        <!-- 山脚一层极淡的雾气，把底图与纸面接起来 -->
+        <span class="ink-mist"></span>
       </div>
 
-      <!-- 卷轴中缝：一道极淡的折痕线 -->
+      <!-- 卷轴中缝：只留一道极淡的折痕阴影，不画线（画线会像一道划痕） -->
       <span class="ink-spine" aria-hidden="true"></span>
 
-      <!-- 中央：墨环（太极双半，一黑一白，两笔同时起）包围朱字 -->
+      <!-- 中央：一笔写成的墨环，围住朱字 -->
       <div class="ink-core">
         <div class="ink-mark">
           <span class="ink-ensobox">
             <svg class="ink-enso" viewBox="0 0 300 300" aria-hidden="true">
-              <!-- 太极两半：同为顺时针 180°，各自从对顶点起笔，两笔笔尖同时行进，收笔时合为一整圈。
-                   浓墨半 —— 实心黑；素白半 —— 宣纸白配一线淡墨轮廓，读作留白的那一半。
-                   两笔各 351.86 单位弧长（π × 半径 112），dashoffset 由全长归零即成圆 -->
-              <g>
-                <!-- 浓墨半（左半幅，自下顶点顺时针向上） -->
-                <path class="tj-ink"
-                  d="M150 262 A112 112 0 0 1 150 38" />
-                <!-- 素白半（右半幅，自上顶点顺时针向下）：先淡墨轮廓，再覆宣纸白 -->
-                <path class="tj-pale-rim"
-                  d="M150 38 A112 112 0 0 1 150 262" />
-                <path class="tj-pale"
-                  d="M150 38 A112 112 0 0 1 150 262" />
-              </g>
-              <!-- 末笔「捺」：自朱字中宫出锋，一路斜扫至环外 —— 长而重，是这枚记号的狂放处。
-                   与字形的捺同向、且更宽，故覆盖原捺并向外延展，读作一笔写成的长捺 -->
-              <path class="zhu-nata"
-                d="M150 168 C176 178 208 192 232 204 C256 214 278 238 294 256 C276 252 254 242 232 232 C206 220 178 198 156 184 C150 178 148 172 150 168 Z" />
+              <!-- 笔刷环：不是「等宽描边绕一圈」，而是一条真正有粗细变化的笔触 ——
+                   外沿与内沿各走一遍椭圆弧，围成一条带宽随角度变化的闭合带；
+                   起笔是一条发丝细的枯锋，中段饱满，收笔前聚成一个墨团再拖尖。
+                   椭圆整体倾斜 -13°（字仍正立），弧度 302°，左下留缺口。
+                   路径由参数方程生成（rx112 / ry104 / 带宽 1.1→25→1.1），
+                   改半径或倾角时重新生成即可，不要手改这些点 -->
+              <path class="brush-ring" mask="url(#ringMask)" d="M90.3 243.1 L84.7 240.9 L79.3 238.5 L74.1 235.8 L69.0 232.9 L64.2 229.7 L59.6 226.3 L55.2 222.7 L51.1 218.8 L47.2 214.7 L43.7 210.5 L40.4 206.0 L37.4 201.4 L34.7 196.6 L32.3 191.6 L30.3 186.6 L28.5 181.3 L27.2 176.0 L26.1 170.6 L25.4 165.1 L25.1 159.6 L25.1 153.9 L25.4 148.3 L26.2 142.6 L27.2 137.0 L28.6 131.3 L30.4 125.7 L32.5 120.2 L34.9 114.7 L37.7 109.2 L40.8 103.9 L44.3 98.7 L48.0 93.6 L52.0 88.7 L56.3 83.9 L60.9 79.3 L65.8 74.9 L70.9 70.7 L76.3 66.7 L81.9 62.9 L87.7 59.3 L93.7 56.1 L99.8 53.0 L106.1 50.3 L112.6 47.8 L119.2 45.6 L125.9 43.7 L132.6 42.1 L139.5 40.8 L146.3 39.8 L153.2 39.2 L160.1 38.8 L167.0 38.8 L173.8 39.1 L180.6 39.7 L187.3 40.7 L193.9 41.9 L200.4 43.5 L206.8 45.4 L212.9 47.6 L218.9 50.0 L224.8 52.8 L230.4 55.9 L235.7 59.2 L240.8 62.8 L245.7 66.6 L250.3 70.7 L254.6 75.0 L258.5 79.6 L262.2 84.3 L265.5 89.2 L268.5 94.3 L271.2 99.5 L273.5 104.9 L275.4 110.4 L277.0 116.0 L278.1 121.7 L278.9 127.4 L279.4 133.2 L279.5 139.0 L279.2 144.9 L278.7 150.7 L277.9 156.6 L277.0 162.5 L276.0 168.4 L274.9 174.4 L273.4 180.5 L271.3 186.4 L268.3 192.1 L264.4 197.3 L259.7 202.1 L254.5 206.4 L249.1 210.5 L243.7 214.3 L238.3 218.1 L232.9 221.8 L227.4 225.3 L221.8 228.6 L216.0 231.6 L210.0 234.3 L203.7 236.3 L203.5 235.9 L208.5 231.9 L213.6 228.1 L218.4 224.3 L223.0 220.2 L227.3 216.0 L231.2 211.6 L234.7 206.9 L237.7 201.9 L240.1 196.9 L242.2 191.8 L244.2 186.8 L246.4 182.1 L249.0 177.6 L251.8 173.3 L254.6 168.8 L257.1 164.3 L259.1 159.5 L260.5 154.7 L261.4 149.8 L261.8 144.8 L261.8 139.9 L261.5 135.1 L260.9 130.2 L260.0 125.5 L258.7 120.9 L257.2 116.3 L255.4 111.8 L253.3 107.5 L251.0 103.3 L248.3 99.2 L245.4 95.3 L242.3 91.5 L238.9 87.9 L235.3 84.4 L231.4 81.1 L227.3 78.1 L223.0 75.2 L218.5 72.5 L213.8 70.0 L209.0 67.7 L203.9 65.7 L198.8 63.9 L193.5 62.3 L188.0 61.0 L182.5 59.9 L176.8 59.0 L171.1 58.4 L165.3 58.1 L159.4 58.0 L153.6 58.1 L147.7 58.5 L141.7 59.1 L135.8 60.0 L130.0 61.2 L124.1 62.6 L118.3 64.2 L112.6 66.1 L107.0 68.2 L101.5 70.6 L96.1 73.2 L90.9 76.0 L85.8 79.0 L80.8 82.2 L76.0 85.6 L71.5 89.2 L67.1 93.0 L62.9 97.0 L59.0 101.2 L55.4 105.4 L51.9 109.9 L48.8 114.4 L45.9 119.1 L43.3 123.9 L41.0 128.8 L39.0 133.7 L37.3 138.7 L35.9 143.8 L34.8 148.9 L34.0 154.1 L33.6 159.2 L33.5 164.4 L33.8 169.5 L34.3 174.6 L35.2 179.6 L36.4 184.6 L38.0 189.5 L39.8 194.4 L42.0 199.1 L44.5 203.7 L47.3 208.1 L50.5 212.4 L53.9 216.6 L57.5 220.6 L61.5 224.4 L65.7 228.0 L70.2 231.4 L75.0 234.6 L79.9 237.6 L85.1 240.3 L90.5 242.7 Z" />
+              <!-- 收笔处的三点溅墨：落在环外，不干扰字形 -->
+              <circle class="ink-speck s1" cx="226" cy="254" r="3" />
+              <circle class="ink-speck s2" cx="239" cy="241" r="1.7" />
+              <circle class="ink-speck s3" cx="215" cy="263" r="1.2" />
+              <!-- 「朱」字直接画在 SVG 里：fill 取 zhuInk 渐变，正立。
+                   不走 CSS 的 background-clip:text —— 那套在滤镜/合成层上下文里会把文字
+                   渲染成半透明色叠在透明黑底上（实测整体暗掉约七成） -->
+              <text class="zhu-t" x="150" y="150" text-anchor="middle" dominant-baseline="central"
+                filter="url(#zhuRough)">朱</text>
             </svg>
           </span>
-          <span class="ink-char">朱</span>
         </div>
         <div class="ink-caption">
           <span class="ink-title">墨 韵 初 开</span>
@@ -83,16 +105,16 @@
 // ============================================================
 // 全局开场加载层 · 水墨圆相
 // 画面构成（全部落在宣纸底上，靠浓淡墨色说话）：
-//   宣纸底 + 纸纤维颗粒 + 浓淡墨晕 + 雪舟《破墨山水图》局部作底景
-//   中央：太极双半墨环（浓墨半 + 素白半，两笔同时起笔把「朱」字围住）→ 朱字 → 题字 + 朱线
-// 时序：整页铺满 → 两笔同时落定成环、朱字收妥 → 应用就绪 → 画卷左右两半向两侧卷开，露出页面
+//   宣纸底 + 纸纤维颗粒 + 浓淡墨晕 + 雪舟《破墨山水图》作底部远山
+//   中央：一笔成环的墨相 → 朱字 → 题字 + 朱线进度
+// 时序：整页铺满 → 墨环落笔、朱字收妥 → 应用就绪 → 画卷左右两半向两侧卷开，露出页面
 // 仅在首次进入触发一次；路由切换交由页面过渡处理，不叠加整屏遮罩
 // ============================================================
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import router from '@/router'
 import { useSiteSettingsStore } from '@/stores/modules/siteSettings'
 
-const MIN_SHOW = 1800   // 最短展示时长：留出墨环两笔合围（约 1.6s）+ 朱字落定的时间
+const MIN_SHOW = 2000   // 最短展示时长：墨环落笔 → 朱字落定 → 题字浮现，收妥后再定格一拍
 const OPEN_ANIM = 950   // 展开动画时长，与 CSS 过渡保持一致
 
 const visible = ref(true)
@@ -164,7 +186,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(118% 104% at 50% 46%, transparent 50%, rgba(32, 30, 24, 0.2) 100%);
+  background: radial-gradient(120% 106% at 50% 44%, transparent 46%, rgba(32, 30, 24, 0.24) 100%);
 }
 .inkloader.is-open .ink-scene-l { transform: translateX(-101%); }
 .inkloader.is-open .ink-scene-r { transform: translateX(101%); }
@@ -173,37 +195,50 @@ onBeforeUnmount(() => {
 .ink-paper {
   position: absolute;
   inset: 0;
-  opacity: 0.45;
+  opacity: 0.42;
   mix-blend-mode: multiply;
   background-repeat: repeat;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
 }
 
-/* 底景水墨：整幅宽 200%（＝整屏宽），左右两半各取一半，合拢是一条完整的山岩。
-   上方 0→40% 渐隐，让画与纸自然接续；multiply 让墨色融进纸纹而不是浮在上面 */
+/* 底景水墨：两份画卷里各画一张位置完全相同的底图，左右各裁一半后天然对齐 ——
+   于是整幅山水在屏幕上仍是 1:1，不会被拉伸成两倍宽。
+   cover + bottom 对齐：底图几乎完整落在屏幕下缘，只裁掉顶部一线留白；
+   上方渐隐让画与纸自然接续；multiply 让墨色融进纸纹而不是浮在上面 */
 .ink-photo {
   position: absolute;
   bottom: 0;
-  width: 200%;
-  height: 52%;
+  left: 0;
+  width: 100%;
+  height: 62%;
   background-image: url('/images/ink-haboku.jpg');
   background-size: cover;
-  background-position: center 42%;
+  /* 主景偏右：墨块落在画面右下方，与居中的墨环形成虚实对照，而不是糊在正中间 */
+  background-position: 58% bottom;
   background-repeat: no-repeat;
   mix-blend-mode: multiply;
-  opacity: 0.9;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 26%, #000 62%, #000 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 26%, #000 62%, #000 100%);
+  opacity: 0.38;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.22) 22%, rgba(0, 0, 0, 0.8) 58%, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.22) 22%, rgba(0, 0, 0, 0.8) 58%, #000 100%);
 }
-.ink-scene-l .ink-photo { left: 0; }
-.ink-scene-r .ink-photo { left: -100%; }
+
+/* 山脚雾气：一层横向的浅色渐隐，压住底图与纸面的接缝 */
+.ink-mist {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16%;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(226, 223, 212, 0) 0%, rgba(226, 223, 212, 0.22) 60%, rgba(226, 223, 212, 0.3) 100%);
+}
 
 /* 淡墨晕：整块大范围晕开，只作氛围。整层极缓地明灭，让静止画面有呼吸 */
 .ink-wash {
   position: absolute;
   mix-blend-mode: multiply;
-  filter: blur(46px);
-  background: radial-gradient(closest-side, rgba(28, 30, 38, 0.24), rgba(28, 30, 38, 0.08) 58%, transparent 82%);
+  filter: blur(52px);
+  background: radial-gradient(closest-side, rgba(28, 30, 38, 0.26), rgba(28, 30, 38, 0.08) 58%, transparent 82%);
   animation: washBreath 9s ease-in-out infinite alternate;
 }
 .ink-wash.w1 {
@@ -222,7 +257,7 @@ onBeforeUnmount(() => {
 .ink-wash.w3 {
   width: 34%; height: 20%;
   top: 30%; left: 3%;
-  opacity: 0.5;
+  opacity: 0.45;
   border-radius: 52% 48% 44% 56% / 60% 40% 58% 42%;
   animation-duration: 15s;
   animation-delay: -8s;
@@ -232,26 +267,16 @@ onBeforeUnmount(() => {
   to   { opacity: 1; }
 }
 
-/* ── 卷轴中缝 ── */
+/* ── 卷轴中缝：只有一层极淡的折痕阴影，不画实线 ── */
 .ink-spine {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 50%;
-  width: 44px;
+  width: 70px;
   transform: translateX(-50%);
-  background: linear-gradient(90deg, transparent, rgba(38, 36, 30, 0.05) 40%, rgba(38, 36, 30, 0.1) 50%, rgba(38, 36, 30, 0.05) 60%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(38, 36, 30, 0.022) 42%, rgba(38, 36, 30, 0.05) 50%, rgba(38, 36, 30, 0.022) 58%, transparent);
   transition: opacity 0.5s ease;
-}
-.ink-spine::after {
-  content: '';
-  position: absolute;
-  top: 4%;
-  bottom: 4%;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: linear-gradient(180deg, transparent, rgba(46, 42, 34, 0.26) 14%, rgba(46, 42, 34, 0.26) 86%, transparent);
 }
 .inkloader.is-open .ink-spine { opacity: 0; }
 
@@ -263,7 +288,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 30px;
+  gap: 34px;
   /* 核心记号稍晚、稍慢地淡出：画卷已经动了它还在场，
      避免出现“中间先空、两半后开”的断档 */
   transition: opacity 0.8s ease 0.15s, transform 0.95s cubic-bezier(0.76, 0, 0.24, 1);
@@ -274,7 +299,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(40% 40% at 50% 46%, rgba(255, 253, 248, 0.5), rgba(255, 253, 248, 0.16) 58%, transparent 80%);
+  background: radial-gradient(36% 36% at 50% 45%, rgba(255, 253, 248, 0.4), rgba(255, 253, 248, 0.12) 58%, transparent 80%);
 }
 .inkloader.is-open .ink-core {
   opacity: 0;
@@ -282,28 +307,27 @@ onBeforeUnmount(() => {
 }
 
 /* ── 环 + 字 ── */
-/* 整组记号微微倾斜 3.5°，取书写的势；因为环、字、捺同在一组内，
-   倾斜后彼此的相对位置不变，捺依然严丝合缝地覆在字形的捺上 */
+/* 整组记号微微倾斜 3.5°，取书写的势 */
 .ink-mark {
-  --ms: clamp(228px, 33vmin, 350px);
+  --ms: clamp(236px, 36vmin, 380px);
   position: relative;
   width: var(--ms);
   height: var(--ms);
   display: grid;
   place-items: center;
-  transform: rotate(-3.5deg);
+  /* 这里不再整体旋转：环的倾斜已经烘进路径里，字必须保持正立 */
 }
 /* 落地影：给墨环一个“按在纸上”的座 */
 .ink-mark::before {
   content: '';
   position: absolute;
-  left: 14%;
-  right: 14%;
-  bottom: 5%;
-  height: 40%;
+  left: 16%;
+  right: 16%;
+  bottom: 6%;
+  height: 38%;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(64, 48, 36, 0.18), transparent 76%);
-  filter: blur(14px);
+  background: radial-gradient(closest-side, rgba(64, 48, 36, 0.14), transparent 76%);
+  filter: blur(16px);
 }
 
 .ink-ensobox {
@@ -311,83 +335,73 @@ onBeforeUnmount(() => {
   inset: 0;
   display: block;
 }
-.ink-enso { width: 100%; height: 100%; }
+.ink-enso { width: 100%; height: 100%; overflow: visible; }
 
-/* 两笔同时落：dasharray 取半圆弧长 351.86（π × 112），dashoffset 351.86 → 0 即成半圆。
-   三条路径共用同一段动画、同一延时 —— 浓墨半与素白半的两处笔尖由对顶点同时出发、相向合围。
-   基准样式即「已收笔」（dashoffset 0），动效只补上从无到有的过程：
-   填充模式用 backwards，延迟期间停在 from 帧（未落笔），动画结束回归基准（可见）。
-   即便动画被禁用或未播放，也只会呈现画好的整环，不会留下一圈空白 */
-.tj-ink,
-.tj-pale-rim,
-.tj-pale {
-  fill: none;
-  stroke-dasharray: 351.86;
-  stroke-dashoffset: 0;
-  animation: tjDraw 1.6s cubic-bezier(0.42, 0.02, 0.3, 1) 0.3s backwards;
+/* 笔触本体：实心填充 + 毛边位移滤镜。带宽由路径自身决定，不再靠 stroke-width */
+.brush-ring {
+  fill: url(#brushInk);
+  filter: url(#ringRough);
 }
-@keyframes tjDraw {
-  from { stroke-dashoffset: 351.86; }
+
+/* 书写动效：遮罩里的白线沿中线描一遍（弧长 582.4），描到哪儿笔触露到哪儿。
+   基准即「已写完」（offset 0）；backwards 让延迟期间停在 from 帧（还没落笔），
+   动画结束回归基准。这套 dashoffset 的写法在老版本里已经验证过，比锥形遮罩稳 */
+.mask-line {
+  stroke-dasharray: 582.4;
+  stroke-dashoffset: 0;
+  animation: ringDraw 1.15s cubic-bezier(0.42, 0.02, 0.3, 1) 0.2s backwards;
+}
+@keyframes ringDraw {
+  from { stroke-dashoffset: 582.4; }
   to   { stroke-dashoffset: 0; }
 }
 
-/* 浓墨半：实心黑，渐变描边（起焦黑、收淡）+ 毛边 */
-.tj-ink {
-  stroke: url(#inkDark);
-  stroke-width: 16;
-  stroke-linecap: round;
-  filter: url(#inkRough);
+/* 收笔飞白：三点溅墨，落笔末了才出现，给环一个「写完」的尾音。
+   SVG 里 transform-origin 默认落在用户坐标系原点，故显式改到自身包围盒中心，
+   否则缩放动画会让墨点从画面左上角飞入 */
+.ink-speck {
+  fill: rgba(24, 26, 33, 0.7);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: speckIn 0.45s ease 1.3s backwards;
 }
-/* 素白半：先用一线淡墨勾出轮廓，再覆宣纸白 —— 于是这一半读作「留白」
-   而不是一根灰线，与浓墨半形成真正的黑白各半 */
-.tj-pale-rim {
-  stroke: rgba(27, 29, 36, 0.34);
-  stroke-width: 18;
-  stroke-linecap: round;
-  filter: url(#inkRough);
-}
-.tj-pale {
-  stroke: #f4f1e8;
-  stroke-width: 12.6;
-  stroke-linecap: round;
+.ink-speck.s2 { fill: rgba(24, 26, 33, 0.5); }
+.ink-speck.s3 { fill: rgba(24, 26, 33, 0.36); }
+@keyframes speckIn {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-/* 末笔长捺：与「朱」字同色系（朱砂红 #zhuRed，非墨黑），否则红字配黑末笔会读作断笔。
-   不套毛边滤镜（位移会错开覆盖关系）、也不描边（描边会在覆盖交界处画出可见接缝），
-   让长捺压在原捺上时红对红自然续上，读作一笔写成 */
-.zhu-nata {
-  fill: url(#zhuRed);
-}
-
-/* 「朱」字用的行书字体：龙藏行楷，只子集了这一个字形（不到 1KB，index.html 已 preload）。
-   该字面仅常规一档字重，故由浏览器均匀加粗，换来与墨环相称的分量与更接近苏轼的重墨 */
+/* 「朱」字用的楷体：霞鹜文楷（LXGW WenKai Lite，OFL 授权），只子集了这一个字形，
+   不到 1KB，index.html 已 preload。楷体笔画起收分明，比行书更「正」，
+   与倾斜的笔刷环形成动静对照 */
 @font-face {
   font-family: 'AuroraZhu';
-  src: url('/fonts/longcang-zhu.woff2') format('woff2');
+  src: url('/fonts/lxgw-zhu.woff2') format('woff2');
   font-display: block;
 }
 
-/* 「朱」字：放大了近一半，笔意更足；末笔的长捺由上面的 zhu-nata 接续出去。
-   兜底栈里预留了「方正苏轼行书」等苏体/行楷族名 —— 本机若装了更贴近苏轼的字体，会优先取用 */
-.ink-char {
-  position: relative;
-  font-family: 'AuroraZhu', 'Long Cang', '方正苏轼行书', 'FZSuShiXingShu', '华文行楷', 'STXingkai', 'Xingkai SC', 'KaiTi', 'STKaiti', serif;
-  font-size: calc(var(--ms) * 0.44);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.01em;
-  background: linear-gradient(158deg, #e66247 0%, #c23a22 44%, #8f2413 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: #bf3423;                              /* 不支持 background-clip: text 时的兜底 */
-  filter: drop-shadow(0 2px 1.5px rgba(104, 34, 22, 0.26));
-  /* 等两笔合围到七八成时才落字，像写完一圈再在圆心盖章。
+/* 「朱」字：正立的楷体，落在环心 —— 环斜、字正，一张一弛。
+   取环径的七成左右（font-size 148 / 画布 300），笔画边缘靠 #zhuRough 轻微撕开，
+   让它像写上去的，而不是贴上去的一个字。
+   兜底栈里留了各平台的楷体族名，字体没加载到时也不会掉成黑体 */
+.zhu-t {
+  font-family: 'AuroraZhu', 'Kaiti SC', 'KaiTi', 'STKaiti', '楷体', 'LXGW WenKai', serif;
+  font-size: 142px;
+  font-weight: 400;
+  fill: url(#zhuInk);
+  /* SVG 里 transform-origin 默认落在用户坐标系原点，改到自身包围盒中心，
+     缩放才是「原地砸下去」而不是从画布左上角飞进来 */
+  transform-box: fill-box;
+  transform-origin: center;
+  /* 等环写到七八成时才落字，像写完一圈再在圆心落笔。
+     落笔是「砸」下去的：从大到小带一次回弹，收在正常尺寸。
      同样用 backwards：延迟期间不可见，动画结束后回归基准（自然可见） */
-  animation: charIn 0.72s cubic-bezier(0.22, 1.3, 0.4, 1) 1.4s backwards;
+  animation: charIn 0.7s cubic-bezier(0.2, 1.5, 0.36, 1) 0.95s backwards;
 }
 @keyframes charIn {
-  from { opacity: 0; transform: scale(1.28); }
+  from { opacity: 0; transform: scale(1.55); }
+  62%  { opacity: 1; transform: scale(0.95); }
   to   { opacity: 1; transform: scale(1); }
 }
 
@@ -396,23 +410,26 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: inkFade 0.9s ease 1.55s backwards;
+  /* 0.6s / 1.15s 起：留 250ms 的静止，让题字落定后再卷开画卷，
+     不至于刚浮出来就被切走 */
+  animation: inkFade 0.6s ease 1.15s backwards;
 }
 .ink-title {
   font-family: 'STZhongsong', 'Songti SC', 'SimSun', serif;
-  font-size: 15px;
-  letter-spacing: 0.5em;
-  text-indent: 0.5em;
-  color: #212127;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: #1c1c22;
 }
-/* 落款朱线：由淡墨底线 + 朱红笔锋扫过，兼作进度提示 */
+/* 落款细线：淡墨底线 + 浓墨笔锋扫过，兼作进度提示（整幅黑白，不掺朱红） */
 .ink-rule {
   position: relative;
   display: block;
-  width: 140px;
+  width: 148px;
   height: 2px;
-  margin: 13px 0 12px;
-  background: rgba(33, 33, 39, 0.13);
+  margin: 14px 0 13px;
+  background: rgba(33, 33, 39, 0.11);
   overflow: hidden;
 }
 .ink-rule i {
@@ -420,17 +437,18 @@ onBeforeUnmount(() => {
   height: 100%;
   width: 100%;
   transform-origin: left center;
-  background: linear-gradient(90deg, rgba(168, 49, 36, 0.15), #a83124 88%);
-  animation: inkSweep 1.7s cubic-bezier(0.62, 0, 0.3, 1) 0.3s backwards;
+  background: linear-gradient(90deg, rgba(20, 20, 24, 0.10), #14141a 88%);
+  animation: inkSweep 1.5s cubic-bezier(0.62, 0, 0.3, 1) 0.25s backwards;
 }
 @keyframes inkSweep {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
 }
 .ink-sub {
-  font-size: 10px;
-  letter-spacing: 0.34em;
-  color: rgba(33, 33, 39, 0.5);
+  font-size: 10.5px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: rgba(33, 33, 39, 0.46);
   font-family: 'Courier New', monospace;
 }
 @keyframes inkFade {
@@ -439,14 +457,22 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
-  .ink-photo { height: 44%; background-position: center 55%; }
-  .ink-title { font-size: 13px; letter-spacing: 0.4em; }
+  /* 窄屏改用 cover 并压淡：等比 108% 会把画放大到只剩右下一团墨块，
+     在手机上读作「一块污渍」而不是远山 */
+  .ink-photo {
+    height: 44%;
+    background-size: cover;
+    background-position: 72% bottom;
+    opacity: 0.3;
+  }
+  .ink-title { font-size: 14px; letter-spacing: 0.34em; text-indent: 0.34em; }
+  .ink-sub { font-size: 9.5px; letter-spacing: 0.24em; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ink-scene, .ink-core, .ink-spine { transition-duration: 0.35s; }
-  .ink-wash, .ink-char, .ink-caption, .ink-rule i,
-  .tj-ink, .tj-pale-rim, .tj-pale { animation: none; }
+  .ink-wash, .zhu-t, .ink-caption, .ink-rule i, .ink-speck,
+  .mask-line { animation: none; }
   .ink-rule i { transform: scaleX(1); }
 }
 </style>

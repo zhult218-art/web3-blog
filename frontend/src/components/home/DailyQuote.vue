@@ -55,6 +55,10 @@ onBeforeUnmount(() => clearTimeout(timer))
   font-size: 1.02rem;
   line-height: 1.95;
   color: rgba(255, 255, 255, 0.92);
+  /* 字形级暗投影：诗句是渐变透明填充，压在浅色衣料上需要一层分离度。
+     放在父级才能保住渐变（见 .typed-text 注释） */
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.75))
+          drop-shadow(0 0 10px rgba(139, 92, 246, 0.28));
   letter-spacing: 0.05em;
   /* 柔和暗底光晕：任何壁纸下都保证诗句可读，且无生硬边框 */
   background: radial-gradient(ellipse 92% 88% at 50% 45%,
@@ -68,9 +72,8 @@ onBeforeUnmount(() => clearTimeout(timer))
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  /* 字形级暗投影：透明填充文字也能从亮背景中分离 */
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.75))
-          drop-shadow(0 0 10px rgba(139, 92, 246, 0.28));
+  /* 投影挂在父级 .daily-quote 上（见下）：直接给 background-clip:text 的元素加 filter，
+     Chrome 会退回用 color 填充，渐变整个失效 —— 诗句会变成一片灰白 */
   font-weight: 500;
 }
 

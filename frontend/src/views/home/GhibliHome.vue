@@ -32,7 +32,7 @@
             <canvas ref="heroCanvas" class="hero-canvas"></canvas>
           </div>
 
-          <p class="hero-subtitle">Aurora-星途</p>
+          <p class="hero-subtitle">{{ brandName }}</p>
 
           <!-- 问候语：IP 归属地 + 昵称，逐字打出 -->
           <WelcomeGreeting />
@@ -43,7 +43,7 @@
           <!-- Voice hint -->
           <div class="voice-hint">
             <span class="hint-icon">🎤</span>
-            <span>星途星途唤醒智能助手</span>
+            <span>说「星途」唤醒智能助手</span>
           </div>
 
           <div class="scroll-hint">
@@ -953,11 +953,29 @@ onBeforeRouteLeave(() => {
 }
 
 .hero-subtitle {
-  font-size: 0.9rem;
-  letter-spacing: 0.3em;
-  color: rgba(255,255,255,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: rgba(255, 255, 255, 0.92);
+  /* 首屏文字压在人物浅色衣料上，光靠 0.75 的白字会糊；补一层近距离投影把字托起来 */
+  text-shadow: 0 2px 10px rgba(4, 4, 14, 0.85), 0 0 26px rgba(6, 6, 18, 0.6);
   margin: 0 0 0.75rem;
   animation: fadeInUp 1.4s ease-out;
+}
+/* 两侧短横线：把这一行从「一行小字」变成首屏的身份牌 */
+.hero-subtitle::before,
+.hero-subtitle::after {
+  content: '';
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.75));
+}
+.hero-subtitle::after {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.75), transparent);
 }
 
 .scroll-hint {
@@ -1114,15 +1132,39 @@ onBeforeRouteLeave(() => {
    ============================================================ */
 .footer {
   position: relative;
-  z-index: 1;
-  padding: 4.5rem 2rem 2.5rem;
-  border-top: 1px solid rgba(255,255,255,0.05);
-  /* 顶部渐隐融入上一区块 */
-  background: linear-gradient(180deg, transparent 0%, rgba(6,6,14,0.6) 22%, #06060e 100%);
+  z-index: 3;
+  padding: clamp(54px, 6.4vw, 84px) clamp(20px, 4vw, 40px) 2.4rem;
+  /* 不透明收尾：上一区块底色同为 #08090f，这里从同色起笔一路压到更深的夜蓝，
+     中途不再透出固定壁纸 —— 之前用 transparent 起笔，会在交界处露出一条壁纸硬边 */
+  background: linear-gradient(180deg, #08090f 0%, #07080f 34%, #05060c 100%);
+}
+/* 顶部一道极细的渐变分界，替代生硬的 1px 实线 */
+.footer::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.26) 22%, rgba(139, 124, 246, 0.22) 62%, transparent);
+}
+/* 页脚上方一层极淡的青色余光，与内容区的极光带呼应 */
+.footer::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -120px;
+  width: min(760px, 90%);
+  height: 220px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(34, 211, 238, 0.07), transparent 72%);
 }
 
 .footer-content {
-  max-width: 1200px;
+  position: relative;
+  z-index: 1;
+  max-width: 1120px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
@@ -1132,23 +1174,24 @@ onBeforeRouteLeave(() => {
 }
 
 .footer-logo {
-  font-size: 1.3rem;
+  font-size: 1.32rem;
   font-weight: 700;
-  letter-spacing: 0.15em;
-  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .footer-slogan {
   font-size: 0.8rem;
-  color: rgba(255,255,255,0.35);
-  margin-top: 0.6rem;
-  letter-spacing: 0.05em;
-  max-width: 32ch;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 0.7rem;
+  letter-spacing: 0.04em;
+  line-height: 1.8;
+  max-width: 34ch;
 }
 
 .footer-right {
   display: flex;
-  gap: 0.9rem;
+  gap: 0.75rem;
 }
 
 .mail-badge {
@@ -1192,9 +1235,9 @@ onBeforeRouteLeave(() => {
   height: 42px;
   padding: 0;
   border-radius: 12px;
-  color: rgba(255,255,255,0.55);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
+  color: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   transition: all 0.3s;
   transform: translate(var(--mx, 0), var(--my, 0));
   cursor: pointer;
@@ -1322,15 +1365,17 @@ onBeforeRouteLeave(() => {
 }
 
 .footer-bottom {
-  max-width: 1200px;
-  margin: 3rem auto 0;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255,255,255,0.05);
+  position: relative;
+  z-index: 1;
+  max-width: 1120px;
+  margin: 2.8rem auto 0;
+  padding-top: 1.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.9rem;
   font-size: 0.72rem;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255, 255, 255, 0.44);
   letter-spacing: 0.05em;
   flex-wrap: wrap;
 }
