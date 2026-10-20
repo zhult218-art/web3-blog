@@ -11,6 +11,11 @@ import { supabase } from '@/lib/supabase/client'
 // 后端信封：{ code, data, message }（与 request 拦截器返回形状一致）
 const ok = data => ({ code: 200, message: 'success', data })
 
+// RSS 订阅源地址：由 blog-service 动态生成（/blog/feed.xml）。
+// 生产环境后端为绝对地址（VITE_API_BASE），故此处按同一基准拼接，保证 feed 链接可直达。
+const API_BASE = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '')
+export const FEED_URL = `${API_BASE}/blog/feed.xml`
+
 // ============================================================
 // 元数据共享缓存（列表页 / 侧栏 / 归档页共享同一份数据）
 // - in-flight 去重：同一时刻多个组件发起相同请求只打一次网络

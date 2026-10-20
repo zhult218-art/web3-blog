@@ -3,13 +3,18 @@
     <Transition name="overlay">
       <div v-if="ui.searchOpen" class="fixed inset-0 z-[130] flex items-start justify-center p-4 pt-[12vh]"
         @click.self="close">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="close"></div>
         <div class="relative w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a0a18]/95 backdrop-blur-xl shadow-2xl overflow-hidden">
           <!-- 搜索框 -->
           <div class="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
             <span class="text-purple-300">🔎</span>
             <input ref="inputEl" v-model="keyword" placeholder="全站搜索：文章 / 商品 / 社区 / 资源 / 音乐…" class="flex-1 bg-transparent text-sm text-white placeholder:text-gray-600 focus:outline-none" />
-            <span class="text-[10px] text-gray-600 font-mono border border-white/10 rounded px-1.5 py-0.5">Esc</span>
+            <span class="hidden sm:inline text-[10px] text-gray-600 font-mono border border-white/10 rounded px-1.5 py-0.5">Esc</span>
+            <button class="search-close" title="关闭搜索 (Esc)" aria-label="关闭搜索" @click="close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
 <!-- 结果 -->
@@ -60,7 +65,7 @@
 // 站内搜索面板（Shift+S 打开）
 // 调用 /article/list?keyword= 实时搜索文章，回车确认跳转
 // ============================================================
-import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUiStore } from '@/stores/modules/ui'
 import { getBlogList } from '@/api/blog'
@@ -242,7 +247,18 @@ function goAll(g) {
 
 function close() { ui.setSearch(false) }
 
-onBeforeUnmount(() => clearTimeout(timer))
+// Esc 关闭搜索面板：面板常驻挂载，故用 searchOpen 守卫，未打开时不响应
+function onKeydown(e) {
+  if (e.key !== 'Escape' || !ui.searchOpen) return
+  e.preventDefault()
+  close()
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  clearTimeout(timer)
+  window.removeEventListener('keydown', onKeydown)
+})
 </script>
 
 <style scoped>
@@ -263,4 +279,10 @@ onBeforeUnmount(() => clearTimeout(timer))
 }
 .overlay-enter-active, .overlay-leave-active { transition: opacity 0.2s ease; }
 .overlay-enter-from, .overlay-leave-to { opacity: 0; }
+/* 关闭按钮：圆形图标钮，与主题切换钮同一套语言 */
+.search-close {
+  @apply shrink-0 grid place-items-center w-7 h-7 rounded-lg text-gray-500 transition-all
+    border border-white/10 bg-white/[0.03] hover:text-white hover:border-white/25 hover:bg-white/[0.08];
+}
+.search-close svg { @apply w-3.5 h-3.5; }
 </style>

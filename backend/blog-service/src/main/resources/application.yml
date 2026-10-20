@@ -22,6 +22,11 @@ spring:
 server:
   port: 8082
 
+# 站点前端绝对地址：RSS 订阅源（/blog/feed.xml）中文章链接以此为前缀。
+# 生产环境用环境变量 BLOG_SITE_URL 覆盖为正式域名。
+blog:
+  site-url: ${BLOG_SITE_URL:http://localhost:5173}
+
 mybatis-plus:
   global-config:
     db-config:

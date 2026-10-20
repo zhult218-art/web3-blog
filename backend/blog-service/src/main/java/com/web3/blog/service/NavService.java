@@ -6,6 +6,9 @@ import com.web3.blog.entity.NavLink;
 import com.web3.blog.mapper.NavCategoryMapper;
 import com.web3.blog.mapper.NavLinkMapper;
 import com.web3.common.core.BusinessException;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,8 +21,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -56,8 +61,25 @@ public class NavService {
         Pattern.compile("<meta\\b[^>]*property\\s*=\\s*[\"']og:image[\"'][^>]*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern CONTENT_ATTR = Pattern.compile("content\\s*=\\s*[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
 
+    /* ---- 第三方图标同源代理相关常量 ---- */
+    /** 图标缓存条目上限，超出时清理已过期项，避免长期运行内存膨胀 */
+    private static final int ICON_CACHE_MAX = 2048;
+    /** 成功图标缓存时长（浏览器侧缓存 7 天，服务端缓存 6 小时） */
+    private static final long ICON_TTL_MS = Duration.ofHours(6).toMillis();
+    /** 失败负缓存时长：避免反复重试已打不通的站点 */
+    private static final long ICON_NEG_TTL_MS = Duration.ofMinutes(10).toMillis();
+    /** 单个图标最大字节数，超出即视为失败 */
+    private static final int ICON_MAX_BYTES = 512 * 1024;
+    /** 主题色合法格式：#RRGGBB 等纯十六进制色值 */
+    private static final Pattern HEX_COLOR = Pattern.compile("^#[0-9a-fA-F]{3,8}$");
+    /** 首字母合法字符：字母、数字、CJK 汉字 */
+    private static final Pattern LETTER_CHAR = Pattern.compile("^[0-9A-Za-z\\u4e00-\\u9fa5]$");
+
     private final NavCategoryMapper navCategoryMapper;
     private final NavLinkMapper navLinkMapper;
+
+    /** 图标抓取结果缓存：key 为原始图标 URL，value 为缓存项（body 为 null 表示负缓存） */
+    private final Map<String, IconCacheEntry> iconCache = new ConcurrentHashMap<>();
 
     /** 无状态 HTTP 客户端：3 秒连接超时，自动跟随重定向 */
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -405,6 +427,231 @@ public class NavService {
             return URI.create(origin + "/").resolve(href).toString();
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /* ==================== 第三方图标同源代理 ==================== */
+
+    /**
+     * 代理抓取第三方图标。
+     * <p>
+     * 浏览器直连各站点 favicon 会因 ORB 拦截、证书异常、连接被重置等产生大量控制台报错；
+     * 改由服务端抓取并校验后同源返回，可彻底消除这些报错。
+     * 抓取失败（或参数非法）时返回首字母色块 SVG，保证响应恒为 200 图片，
+     * 前端 &lt;img&gt; 不会因加载失败触发任何控制台错误。
+     *
+     * @param rawUrl 目标图标地址（http/https）
+     * @param rawLetter 首字母回退字符
+     * @param rawColor 首字母色块主题色（#RRGGBB）
+     * @return 图标内容与 MIME 类型，永不为 null
+     */
+    public IconResult proxyIcon(String rawUrl, String rawLetter, String rawColor) {
+        String url = normalizeIconUrl(rawUrl);
+        if (url != null) {
+            long now = System.currentTimeMillis();
+            IconCacheEntry entry = iconCache.get(url);
+            if (entry == null || entry.expireAt <= now) {
+                IconResult fetched = fetchImage(url);
+                long ttl = fetched == null ? ICON_NEG_TTL_MS : ICON_TTL_MS;
+                entry = new IconCacheEntry(fetched == null ? null : fetched.body(),
+                    fetched == null ? null : fetched.contentType(), now + ttl);
+                if (iconCache.size() >= ICON_CACHE_MAX) {
+                    iconCache.entrySet().removeIf(e -> e.getValue().expireAt <= now);
+                }
+                iconCache.put(url, entry);
+            }
+            if (entry.body != null) {
+                return new IconResult(entry.body, entry.contentType);
+            }
+        }
+        return new IconResult(letterTileSvg(rawLetter, rawColor), "image/svg+xml");
+    }
+
+    /** 校验并规范化目标图标地址；data: 内联图标由前端直接使用，不走代理 */
+    private String normalizeIconUrl(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String s = raw.trim();
+        if (s.length() > 2048 || s.startsWith("data:")) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(s);
+            String scheme = uri.getScheme();
+            if (scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+                return null;
+            }
+            String host = uri.getHost();
+            if (host == null || host.isBlank() || !isPublicHost(host)) {
+                return null;
+            }
+            return s;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** SSRF 防护：拒绝回环 / 内网 / 链路本地 / 多播地址与本地域名 */
+    private boolean isPublicHost(String host) {
+        String h = host.toLowerCase(Locale.ROOT);
+        if (h.equals("localhost") || h.endsWith(".local") || h.endsWith(".internal")) {
+            return false;
+        }
+        try {
+            InetAddress[] addrs = InetAddress.getAllByName(host);
+            if (addrs.length == 0) {
+                return false;
+            }
+            for (InetAddress addr : addrs) {
+                if (addr.isLoopbackAddress() || addr.isAnyLocalAddress() || addr.isLinkLocalAddress()
+                    || addr.isSiteLocalAddress() || addr.isMulticastAddress()) {
+                    return false;
+                }
+                byte[] ip = addr.getAddress();
+                if (ip.length == 16) {
+                    // IPv6 唯一本地地址 fc00::/7
+                    if ((ip[0] & 0xfe) == 0xfc) {
+                        return false;
+                    }
+                } else if (ip.length == 4) {
+                    int b0 = ip[0] & 0xff;
+                    int b1 = ip[1] & 0xff;
+                    // 0.0.0.0/8 与 100.64.0.0/10（运营商级 NAT）
+                    if (b0 == 0 || (b0 == 100 && b1 >= 64 && b1 <= 127)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 服务端抓取图片：限制大小与超时，并通过魔数校验真实类型。
+     * 校验失败（例如站点对图标返回了 HTML 错误页）即视为无图标，避免把非图片内容代理给浏览器。
+     */
+    private IconResult fetchImage(String url) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(5))
+                .header("User-Agent", BROWSER_UA)
+                .header("Accept", "image/*,*/*;q=0.8")
+                .GET()
+                .build();
+            HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() != 200) {
+                return null;
+            }
+            long declared = response.headers().firstValueAsLong("content-length").orElse(-1L);
+            if (declared > ICON_MAX_BYTES) {
+                return null;
+            }
+            byte[] body;
+            try (InputStream in = response.body()) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int total = 0;
+                int n;
+                while ((n = in.read(buf)) != -1) {
+                    total += n;
+                    if (total > ICON_MAX_BYTES) {
+                        return null;
+                    }
+                    out.write(buf, 0, n);
+                }
+                body = out.toByteArray();
+            }
+            String type = detectImageType(body);
+            return type == null ? null : new IconResult(body, type);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 通过魔数识别图片真实类型，无法识别返回 null */
+    private String detectImageType(byte[] b) {
+        if (b == null || b.length < 4) {
+            return null;
+        }
+        int b0 = b[0] & 0xff;
+        int b1 = b[1] & 0xff;
+        int b2 = b[2] & 0xff;
+        int b3 = b[3] & 0xff;
+        if (b0 == 0x89 && b1 == 0x50 && b2 == 0x4e && b3 == 0x47) {
+            return "image/png";
+        }
+        if (b0 == 0xff && b1 == 0xd8 && b2 == 0xff) {
+            return "image/jpeg";
+        }
+        if (b0 == 'G' && b1 == 'I' && b2 == 'F') {
+            return "image/gif";
+        }
+        if (b0 == 'B' && b1 == 'M') {
+            return "image/bmp";
+        }
+        if (b.length >= 12 && b0 == 'R' && b1 == 'I' && b2 == 'F' && b3 == 'F'
+            && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P') {
+            return "image/webp";
+        }
+        // ICO / CUR：00 00 01|02 00
+        if (b0 == 0 && b1 == 0 && (b2 == 1 || b2 == 2) && b3 == 0) {
+            return "image/x-icon";
+        }
+        if (b.length >= 12 && b[4] == 'f' && b[5] == 't' && b[6] == 'y' && b[7] == 'p') {
+            return "image/avif";
+        }
+        String head = new String(b, 0, Math.min(b.length, 256), StandardCharsets.ISO_8859_1).toLowerCase(Locale.ROOT);
+        if (head.contains("<svg") || head.contains("<?xml")) {
+            return "image/svg+xml";
+        }
+        return null;
+    }
+
+    /** 生成首字母色块 SVG，用于替换原前端 CSS 回退块，保证响应始终为图片 */
+    private byte[] letterTileSvg(String rawLetter, String rawColor) {
+        String letter = sanitizeLetter(rawLetter);
+        String color = rawColor != null && HEX_COLOR.matcher(rawColor.trim()).matches() ? rawColor.trim() : "#7c3aed";
+        String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"64\" height=\"64\">"
+            + "<defs><linearGradient id=\"g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">"
+            + "<stop offset=\"0\" stop-color=\"" + color + "\"/>"
+            + "<stop offset=\"1\" stop-color=\"#000000\" stop-opacity=\"0.45\"/>"
+            + "</linearGradient></defs>"
+            + "<rect width=\"64\" height=\"64\" fill=\"url(#g)\"/>"
+            + "<text x=\"32\" y=\"34\" fill=\"#ffffff\" text-anchor=\"middle\" font-family=\"Arial,Helvetica,sans-serif\""
+            + " font-size=\"30\" font-weight=\"700\">" + letter + "</text>"
+            + "</svg>";
+        return svg.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** 首字母取首个合法字符（字母/数字/汉字），非法时用 ? 兜底 */
+    private String sanitizeLetter(String raw) {
+        String s = raw == null ? "" : raw.trim();
+        for (int i = 0; i < s.length(); i++) {
+            String ch = String.valueOf(s.charAt(i));
+            if (LETTER_CHAR.matcher(ch).matches()) {
+                return ch.toUpperCase(Locale.ROOT);
+            }
+        }
+        return "?";
+    }
+
+    /** 代理返回的图标内容 */
+    public record IconResult(byte[] body, String contentType) {
+    }
+
+    /** 图标缓存项：body 为 null 表示负缓存（曾抓取失败） */
+    private static final class IconCacheEntry {
+        final byte[] body;
+        final String contentType;
+        final long expireAt;
+
+        IconCacheEntry(byte[] body, String contentType, long expireAt) {
+            this.body = body;
+            this.contentType = contentType;
+            this.expireAt = expireAt;
         }
     }
 

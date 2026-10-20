@@ -1,7 +1,7 @@
-﻿<template>
+<template>
   <div class="space-y-6">
     <PageBack label="返回博客" to="/blog" />
-    <h1 class="text-2xl font-black text-white">友人帐</h1>
+    <h1 class="text-2xl font-black text-white">友链</h1>
 
     <!-- 友链 -->
     <div class="link-grid">

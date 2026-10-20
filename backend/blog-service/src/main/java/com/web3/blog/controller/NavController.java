@@ -7,8 +7,12 @@ import com.web3.common.core.ApiResponse;
 import com.web3.common.security.AuthUtils;
 import com.web3.common.security.JwtProperties;
 import com.web3.common.security.JwtUtil;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +21,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -60,6 +65,30 @@ public class NavController {
     @GetMapping(value = {"/nav/{page}"})
     public ApiResponse<Map<String, Object>> publicPage(@PathVariable String page) {
         return ApiResponse.ok(navService.publicPage(page));
+    }
+
+    /**
+     * 公开：第三方图标同源代理（前端路由：GET /blog/nav/icon?url=&letter=&color=）
+     * <p>
+     * 由服务端抓取并校验图标（限大小/超时/魔数校验/SSRF 防护），规避浏览器直连外部站点
+     * 产生的 ORB 拦截、证书异常、连接重置等控制台报错；抓取失败时返回首字母色块 SVG，
+     * 响应恒为 200 图片，前端不会出现任何加载失败报错。
+     *
+     * @param url    目标图标地址
+     * @param letter 首字母回退字符
+     * @param color  首字母色块主题色
+     * @return 图片字节流
+     */
+    @GetMapping(value = {"/nav/icon"})
+    public ResponseEntity<byte[]> navIcon(@RequestParam("url") String url,
+                                          @RequestParam(value = "letter", required = false) String letter,
+                                          @RequestParam(value = "color", required = false) String color) {
+        NavService.IconResult icon = navService.proxyIcon(url, letter, color);
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(icon.contentType()))
+            .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
+            .header("X-Content-Type-Options", "nosniff")
+            .body(icon.body());
     }
 
     /**
